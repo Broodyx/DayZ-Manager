@@ -1,9 +1,34 @@
 x-app: &app
+  image: ${APP_IMAGE:-dayz-manager-app}
   build:
     context: .
     dockerfile: Dockerfile
+    args:
+      INSTALL_DEV_DEPENDENCIES: ${INSTALL_DEV_DEPENDENCIES:-false}
   restart: unless-stopped
-  env_file: .env
+  environment:
+    APP_NAME: ${APP_NAME:-DayZ Manager}
+    APP_ENV: ${APP_ENV:-production}
+    APP_KEY: ${APP_KEY:-}
+    APP_DEBUG: ${APP_DEBUG:-false}
+    APP_URL: ${APP_URL:-http://localhost:8080}
+    DB_CONNECTION: pgsql
+    DB_HOST: database
+    DB_PORT: 5432
+    DB_DATABASE: ${DB_DATABASE:-dayz_manager}
+    DB_USERNAME: ${DB_USERNAME:-dayz_manager}
+    DB_PASSWORD: ${DB_PASSWORD:-}
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    SESSION_DRIVER: database
+    FILESYSTEM_DISK: local
+    MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-100M}
+    POST_MAX_SIZE: ${POST_MAX_SIZE:-110M}
+    PHP_MEMORY_LIMIT: ${PHP_MEMORY_LIMIT:-512M}
+    PHP_MAX_EXECUTION_TIME: ${PHP_MAX_EXECUTION_TIME:-300}
   volumes:
     - dayz_storage:/var/www/html/storage/app/dayz
   depends_on:
@@ -15,13 +40,11 @@ x-app: &app
 services:
   app:
     <<: *app
-    environment:
-      APP_ROLE: app
-      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-10240}
+    command: ["app"]
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${APP_PORT:-8080}:80"
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/up"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/up"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -29,21 +52,19 @@ services:
 
   worker:
     <<: *app
-    environment:
-      APP_ROLE: worker
+    command: ["worker"]
 
   scheduler:
     <<: *app
-    environment:
-      APP_ROLE: scheduler
+    command: ["scheduler"]
 
   database:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_DATABASE}
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE:-dayz_manager}
+      POSTGRES_USER: ${DB_USERNAME:-dayz_manager}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -56,7 +77,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: >
-      sh -c 'if [ -n "$${REDIS_PASSWORD:-}" ]; then
+      sh -c 'if [ -n "$${REDIS_PASSWORD:-}" ] && [ "$${REDIS_PASSWORD}" != "null" ]; then
       exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}";
       else exec redis-server --appendonly yes; fi'
     environment:
@@ -64,7 +85,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" ping; else redis-cli ping; fi"]
+      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ] && [ \"$$REDIS_PASSWORD\" != \"null\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" ping; else redis-cli ping; fi"]
       interval: 10s
       timeout: 5s
       retries: 5
