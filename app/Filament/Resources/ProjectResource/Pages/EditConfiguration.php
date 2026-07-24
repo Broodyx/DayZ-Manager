@@ -252,6 +252,12 @@ class EditConfiguration extends Page
         $this->loadRevision($revision);
     }
 
+    public function selectRevision(int $revisionId): void
+    {
+        $this->revisionId = $revisionId;
+        $this->switchRevision();
+    }
+
     public function selectType(string $name): void
     {
         $entry = collect($this->typeEntries)->firstWhere('name', $name);

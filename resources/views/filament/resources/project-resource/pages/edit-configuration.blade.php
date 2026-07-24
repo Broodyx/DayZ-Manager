@@ -34,6 +34,10 @@
         .dz-action { display:inline-flex; align-items:center; justify-content:center; padding:.7rem 1.15rem; border-radius:.25rem; color:#17210d; background:#b6e94f; font-weight:800; text-transform:uppercase; letter-spacing:.03em }
         .dz-summary { flex:1; min-width:240px; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; padding:.7rem .8rem; color:#edf2e9; background:#090d0a }
         .dz-file-select { min-width:280px; appearance:none; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; padding:.65rem 2.25rem .65rem .8rem; color:#edf2e9; background-color:#090d0a; background-image:linear-gradient(45deg,transparent 50%,#b6e94f 50%),linear-gradient(135deg,#b6e94f 50%,transparent 50%); background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat }
+        .dz-file-buttons { display:flex; gap:.45rem; flex-wrap:wrap; justify-content:flex-end }
+        .dz-file-button { display:inline-flex; align-items:center; gap:.35rem; padding:.58rem .75rem; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; color:#cbd5c0; background:#090d0a; font-size:.78rem; font-weight:700; text-align:left }
+        .dz-file-button:hover { border-color:#91c52b; color:#edf2e9 }
+        .dz-file-button.active { border-color:#b6e94f; color:#17210d; background:#b6e94f }
         .dz-savebar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; padding:1rem; border-top:1px solid rgba(182,233,79,.13); background:#111813 }
         .dz-warning { padding:.85rem 1rem; border-left:3px solid #d97738; color:#e8c8b3; background:rgba(217,119,56,.08) }
         .dz-error { margin-top:.4rem; color:#fb8b8b; font-size:.85rem }
@@ -54,6 +58,8 @@
             .dz-tabs{width:100%;gap:.35rem}
             .dz-tab{flex:1;padding:.6rem .45rem;font-size:.78rem;text-align:center}
             .dz-file-select{width:100%;min-width:0}
+            .dz-file-buttons{width:100%;justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding-bottom:.2rem}
+            .dz-file-button{flex:0 0 auto;white-space:nowrap}
             .dz-list{max-height:50vh}
             .dz-fields,.dz-add-grid{padding:.65rem;gap:.65rem}
             .dz-field{padding:.75rem}
@@ -91,11 +97,13 @@
                 </button>
             </div>
             <div class="flex items-center gap-3 flex-wrap">
-                <select wire:model="revisionId" wire:change="switchRevision" class="dz-file-select">
+                <div class="dz-file-buttons" aria-label="Výběr konfigurace">
                     @foreach ($this->editableFiles() as $id => $label)
-                        <option value="{{ $id }}">{{ $label }}</option>
+                        <button type="button" wire:click="selectRevision({{ $id }})" class="dz-file-button {{ (int) $revisionId === (int) $id ? 'active' : '' }}">
+                            {{ $label }}
+                        </button>
                     @endforeach
-                </select>
+                </div>
                 <span class="dz-muted">Aktuální revize #{{ $revisionNumber }}</span>
             </div>
         </div>
