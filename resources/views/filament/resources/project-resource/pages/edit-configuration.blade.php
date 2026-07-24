@@ -31,7 +31,7 @@
         .dz-raw { width:100%; min-height:65vh; resize:vertical; border:1px solid rgba(190,209,175,.2); border-radius:.35rem; padding:1rem; color:#dce8d5; background:#070b08; font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace; tab-size:4 }
         .dz-action { display:inline-flex; align-items:center; justify-content:center; padding:.7rem 1.15rem; border-radius:.25rem; color:#17210d; background:#b6e94f; font-weight:800; text-transform:uppercase; letter-spacing:.03em }
         .dz-summary { flex:1; min-width:240px; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; padding:.7rem .8rem; color:#edf2e9; background:#090d0a }
-        .dz-file-select { min-width:280px; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; padding:.65rem .8rem; color:#edf2e9; background:#090d0a }
+        .dz-file-select { min-width:280px; appearance:none; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; padding:.65rem 2.25rem .65rem .8rem; color:#edf2e9; background-color:#090d0a; background-image:linear-gradient(45deg,transparent 50%,#b6e94f 50%),linear-gradient(135deg,#b6e94f 50%,transparent 50%); background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat }
         .dz-savebar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; padding:1rem; border-top:1px solid rgba(182,233,79,.13); background:#111813 }
         .dz-warning { padding:.85rem 1rem; border-left:3px solid #d97738; color:#e8c8b3; background:rgba(217,119,56,.08) }
         .dz-error { margin-top:.4rem; color:#fb8b8b; font-size:.85rem }
@@ -114,7 +114,7 @@
                     </div>
                     <div class="dz-list">
                         @foreach ($this->groupedTypes() as $category => $entries)
-                            <details class="dz-group" {{ $search !== '' ? 'open' : '' }}>
+                            <details wire:key="types-category-{{ $category }}" wire:ignore.self class="dz-group" {{ $search !== '' ? 'open' : '' }}>
                                 <summary>
                                     <span>{{ $category }}</span>
                                     <small>{{ count($entries) }} položek</small>
@@ -146,7 +146,13 @@
                         <div class="dz-add-grid">
                             <div class="dz-control">
                                 <label>Název třídy</label>
-                                <input wire:model="newTypeForm.name" placeholder="Například AKM">
+                                <input wire:model="newTypeForm.name" list="dayz-class-names" placeholder="Například AKM">
+                                <datalist id="dayz-class-names">
+                                    @foreach ($typeEntries as $knownType)
+                                        <option value="{{ $knownType['name'] }}">{{ $knownType['category'] }}</option>
+                                    @endforeach
+                                </datalist>
+                                <small class="dz-muted">Vyber existující třídu ze seznamu, nebo zadej vlastní název z konfigurace.</small>
                                 @error('newTypeForm.name') <div class="dz-error">{{ $message }}</div> @enderror
                             </div>
                             <div class="dz-control">

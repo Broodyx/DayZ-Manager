@@ -73,8 +73,8 @@ class ConfigurationImporterTest extends TestCase
         $seeder->seedFor($user);
 
         $this->assertDatabaseCount('projects', 3);
-        $this->assertDatabaseCount('configuration_imports', 3);
-        $this->assertDatabaseCount('configuration_revisions', 3);
+        $this->assertDatabaseCount('configuration_imports', 4);
+        $this->assertDatabaseCount('configuration_revisions', 4);
         $this->assertSame(3, $user->projects()->count());
     }
 
@@ -128,9 +128,10 @@ class ConfigurationImporterTest extends TestCase
         $user = User::factory()->create();
         app(DayzDemoSeeder::class)->seedFor($user);
         $project = Project::query()->where('user_id', $user->id)->where('name', 'Chernarus Survival')->firstOrFail();
+        $typesRevision = $project->revisions()->whereHas('configurationImport', fn ($query) => $query->where('original_filename', 'types.xml'))->firstOrFail();
 
         $this->actingAs($user)
-            ->get("/admin/projects/{$project->id}/configuration")
+            ->get("/admin/projects/{$project->id}/configuration?revision={$typesRevision->id}")
             ->assertOk()
             ->assertSee('Vizuální editor')
             ->assertSee('Raw data')
@@ -159,7 +160,7 @@ class ConfigurationImporterTest extends TestCase
             $user,
         );
 
-        $this->assertSame(2, $revision->revision_number);
+        $this->assertSame(3, $revision->revision_number);
         $this->assertSame($original, Storage::disk('dayz')->get($source->storage_path));
         $this->assertStringContainsString(
             '<nominal>18</nominal>',

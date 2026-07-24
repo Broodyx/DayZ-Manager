@@ -85,7 +85,15 @@ class EditConfiguration extends Page
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
-        $this->loadLatestRevision();
+        $requestedRevision = request()->integer('revision');
+        $requested = $requestedRevision
+            ? $this->getRecord()->revisions()->whereKey($requestedRevision)->first()
+            : null;
+        if ($requested) {
+            $this->loadRevision($requested);
+        } else {
+            $this->loadLatestRevision();
+        }
     }
 
     public function getTitle(): string|Htmlable
