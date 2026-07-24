@@ -212,4 +212,43 @@
         border-color: var(--dayz-border) !important;
         background: transparent !important;
     }
+
+    .fi-ta-ctn {
+        overflow-x: auto;
+    }
+
+    .fi-ta-table {
+        min-width: 42rem;
+    }
+
+    @media (max-width: 640px) {
+        .fi-main {
+            padding-inline: .75rem;
+        }
+
+        .fi-header {
+            gap: .75rem;
+        }
+
+        .fi-header-heading {
+            font-size: 1.35rem;
+            line-height: 1.2;
+        }
+
+        .fi-header-actions-ctn {
+            width: 100%;
+        }
+
+        .fi-header-actions-ctn .fi-btn {
+            flex: 1 1 auto;
+        }
+
+        .fi-wi-stats-overview {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        .fi-wi-stats-overview-stat {
+            min-width: 0;
+        }
+    }
 </style>

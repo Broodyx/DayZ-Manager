@@ -47,9 +47,9 @@ class ProjectResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('name')->label('Název')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('platform')->label('Platforma')->badge()->sortable(),
-            Tables\Columns\TextColumn::make('platform_confidence')->label('Jistota')->suffix('%'),
-            Tables\Columns\TextColumn::make('map')->label('Mapa')->searchable()->sortable(),
-            Tables\Columns\TextColumn::make('updated_at')->label('Upraveno')->dateTime('d. m. Y H:i')->sortable(),
+            Tables\Columns\TextColumn::make('platform_confidence')->label('Jistota')->suffix('%')->hiddenFrom('md'),
+            Tables\Columns\TextColumn::make('map')->label('Mapa')->searchable()->sortable()->hiddenFrom('md'),
+            Tables\Columns\TextColumn::make('updated_at')->label('Upraveno')->dateTime('d. m. Y H:i')->sortable()->hiddenFrom('md'),
         ])
             ->recordUrl(fn (Project $record): string => static::getUrl('configuration', ['record' => $record]))
             ->actions([

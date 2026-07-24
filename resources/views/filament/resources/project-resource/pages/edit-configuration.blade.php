@@ -42,7 +42,25 @@
         .dz-control input,.dz-control select { width:100%; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; padding:.65rem .75rem; color:#edf2e9; background:#090d0a }
         .dz-checks { display:flex; gap:.5rem; flex-wrap:wrap }
         .dz-check { display:flex; align-items:center; gap:.35rem; padding:.4rem .55rem; border:1px solid rgba(190,209,175,.14); border-radius:.25rem; color:#cbd5c0; background:#0d130f }
-        @media(max-width:900px){.dz-editor-grid,.dz-fields,.dz-add-grid{grid-template-columns:1fr}}
+        @media(max-width:900px){
+            .dz-editor-grid,.dz-fields,.dz-add-grid{grid-template-columns:1fr}
+            .dz-editor-grid{gap:.75rem}
+        }
+        @media(max-width:640px){
+            .fi-main{padding-inline:.65rem !important}
+            .dz-heading-badge{margin-left:.2rem;padding:.2rem .4rem;font-size:.58rem}
+            .dz-tabs{width:100%;gap:.35rem}
+            .dz-tab{flex:1;padding:.6rem .45rem;font-size:.78rem;text-align:center}
+            .dz-file-select{width:100%;min-width:0}
+            .dz-list{max-height:50vh}
+            .dz-fields,.dz-add-grid{padding:.65rem;gap:.65rem}
+            .dz-field{padding:.75rem}
+            .dz-field-top{align-items:flex-start;gap:.5rem}
+            .dz-field input[type=number]{width:5.5rem}
+            .dz-savebar{padding:.75rem;align-items:stretch}
+            .dz-summary,.dz-action,.dz-secondary{width:100%;min-width:0}
+            .dz-action,.dz-secondary{padding:.7rem .6rem}
+        }
     </style>
 
     <div class="space-y-4">
