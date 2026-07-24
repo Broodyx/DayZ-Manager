@@ -93,6 +93,29 @@ class ConfigurationImporterTest extends TestCase
             ->assertSee('Vytvořit demo data');
     }
 
+    public function test_dashboard_summarizes_projects_and_links_projects_to_the_editor(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        app(DayzDemoSeeder::class)->seedFor($user);
+        $project = Project::query()
+            ->where('user_id', $user->id)
+            ->where('name', 'Chernarus Survival')
+            ->firstOrFail();
+
+        $this->actingAs($user)
+            ->get('/admin')
+            ->assertOk()
+            ->assertSee('Položky v ekonomice serverů')
+            ->assertSee('Naposledy upravené projekty');
+
+        $this->actingAs($user)
+            ->get('/admin/projects')
+            ->assertOk()
+            ->assertSee("/admin/projects/{$project->id}/configuration", false)
+            ->assertDontSee('Importovat konfiguraci');
+    }
+
     public function test_types_xml_project_has_visual_and_raw_editor(): void
     {
         Storage::fake('dayz');
@@ -105,8 +128,11 @@ class ConfigurationImporterTest extends TestCase
             ->assertOk()
             ->assertSee('Vizuální editor')
             ->assertSee('Raw data')
+            ->assertSee('Nahrát novou konfiguraci')
             ->assertSee('PlayStation')
-            ->assertSee('Položky types.xml');
+            ->assertSee('Položky types.xml')
+            ->assertSee('Nová položka')
+            ->assertDontSee('No PC-only elements detected');
     }
 
     public function test_editor_save_creates_a_new_revision_without_overwriting_the_source(): void

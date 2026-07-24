@@ -73,6 +73,9 @@ Příkaz je opakovatelný a vytvoří tři demo projekty: PlayStation Chernarus,
 U projektu s alespoň jedním importem je dostupné tlačítko **Editor**:
 
 - `types.xml` má vizuální editor s vyhledáváním, číselnými poli a posuvníky pro `nominal`, `min`, `lifetime`, `restock`, `quantmin`, `quantmax` a `cost`,
+- položky `types.xml` jsou seskupené podle kategorií, mají barevnou kompatibilitu a lze přidávat nové položky s kontrolou duplicit,
+- `cfgweather.xml` má kompletní vizuální editor oblačnosti, mlhy, deště, větru, směru větru, sněžení a bouřek,
+- mezi více konfiguračními soubory jednoho projektu lze přepínat přímo v editoru,
 - všechny podporované XML/JSON soubory lze otevřít také jako **Raw data**,
 - XML a JSON se před uložením validují,
 - každé uložení vytvoří novou neměnnou revizi; starší verze zůstávají v historii,

@@ -35,6 +35,15 @@ class ListConfigurationImports extends ListRecords
                             ->all())
                         ->searchable()
                         ->required(),
+                    Forms\Components\Select::make('server_platform')
+                        ->label('Typ serveru')
+                        ->options([
+                            'playstation' => 'PlayStation',
+                            'xbox' => 'Xbox',
+                            'steam' => 'PC / Steam',
+                        ])
+                        ->helperText('Určuje dostupné možnosti editoru. Obsah souboru se navíc automaticky kontroluje na PC-only prvky.')
+                        ->required(),
                     Forms\Components\FileUpload::make('file')
                         ->label('Konfigurační soubor')
                         ->acceptedFileTypes([
@@ -62,6 +71,10 @@ class ListConfigurationImports extends ListRecords
                         }
 
                         $import = app(ConfigurationImporter::class)->import($project, $file, auth()->user());
+                        $project->update([
+                            'platform' => $data['server_platform'],
+                            'platform_confidence' => 100,
+                        ]);
 
                         Notification::make()
                             ->success()

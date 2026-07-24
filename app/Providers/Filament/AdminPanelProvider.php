@@ -2,6 +2,9 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\DayzOverview;
+use App\Filament\Widgets\ItemCategoriesChart;
+use App\Filament\Widgets\RecentProjects;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -34,7 +37,12 @@ class AdminPanelProvider extends PanelProvider
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->pages([Pages\Dashboard::class])
-            ->widgets([Widgets\AccountWidget::class])
+            ->widgets([
+                DayzOverview::class,
+                ItemCategoriesChart::class,
+                RecentProjects::class,
+                Widgets\AccountWidget::class,
+            ])
             ->middleware([
                 EncryptCookies::class, AddQueuedCookiesToResponse::class, StartSession::class,
                 AuthenticateSession::class, ShareErrorsFromSession::class, VerifyCsrfToken::class,

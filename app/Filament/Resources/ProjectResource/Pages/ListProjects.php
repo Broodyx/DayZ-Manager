@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\ProjectResource\Pages;
 
-use App\Filament\Resources\ConfigurationImportResource;
 use App\Filament\Resources\ProjectResource;
 use Database\Seeders\DayzDemoSeeder;
 use Filament\Actions;
@@ -16,10 +15,6 @@ class ListProjects extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\Action::make('import')
-                ->label('Importovat konfiguraci')
-                ->icon('heroicon-o-arrow-up-tray')
-                ->url(ConfigurationImportResource::getUrl('index')),
             Actions\Action::make('demo')
                 ->label('Vytvořit demo data')
                 ->icon('heroicon-o-beaker')

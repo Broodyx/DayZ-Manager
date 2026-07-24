@@ -50,10 +50,12 @@ class ProjectResource extends Resource
             Tables\Columns\TextColumn::make('platform_confidence')->label('Jistota')->suffix('%'),
             Tables\Columns\TextColumn::make('map')->label('Mapa')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('updated_at')->label('Upraveno')->dateTime('d. m. Y H:i')->sortable(),
-        ])->actions([
-            EditProjectConfigurationAction::make(),
-            Tables\Actions\EditAction::make()->label('Projekt'),
         ])
+            ->recordUrl(fn (Project $record): string => static::getUrl('configuration', ['record' => $record]))
+            ->actions([
+                EditProjectConfigurationAction::make(),
+                Tables\Actions\EditAction::make()->label('Nastavení projektu'),
+            ])
             ->bulkActions([Tables\Actions\BulkActionGroup::make([Tables\Actions\DeleteBulkAction::make()])]);
     }
 

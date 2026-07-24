@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\Revision\TypesXmlEditor;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class TypesXmlEditorTest extends TestCase
@@ -45,5 +46,43 @@ XML;
         $this->assertStringContainsString('<min>10</min>', $updated);
         $this->assertStringContainsString('<flags count_in_cargo="0"/>', $updated);
         $this->assertStringContainsString('<category name="weapons"/>', $updated);
+    }
+
+    public function test_it_adds_a_new_item_with_category_usage_and_safe_defaults(): void
+    {
+        $updated = app(TypesXmlEditor::class)->add(
+            $this->xml,
+            'BandageDressing',
+            [
+                'nominal' => 30,
+                'lifetime' => 7200,
+                'restock' => 600,
+                'min' => 15,
+                'quantmin' => 50,
+                'quantmax' => 100,
+                'cost' => 25,
+            ],
+            'medical',
+            ['Medic', 'Town'],
+        );
+        $entries = app(TypesXmlEditor::class)->entries($updated);
+        $bandage = collect($entries)->firstWhere('name', 'BandageDressing');
+
+        $this->assertNotNull($bandage);
+        $this->assertSame('medical', $bandage['category']);
+        $this->assertSame(['Medic', 'Town'], $bandage['usages']);
+        $this->assertStringContainsString('count_in_map="1"', $updated);
+    }
+
+    public function test_it_rejects_a_duplicate_name_case_insensitively(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        app(TypesXmlEditor::class)->add(
+            $this->xml,
+            'akm',
+            ['nominal' => 10],
+            'weapons',
+        );
     }
 }
