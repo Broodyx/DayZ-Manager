@@ -362,8 +362,9 @@
         @else
             <section class="dz-panel">
                 <div class="dz-panel-head">
-                    <strong>Raw XML / JSON</strong>
-                    <p class="dz-muted text-sm mt-1">Určeno pro pokročilé úpravy. Před uložením proběhne validace syntaxe.</p>
+                    <strong>{{ $currentFilename ?: 'Konfigurace serveru' }}</strong>
+                    <p class="dz-muted text-sm mt-1">{{ $this->configurationDescription() }}</p>
+                    <span class="dz-badge dz-server-badge mt-2">Serverová konfigurace · Raw XML / JSON</span>
                 </div>
                 <div class="p-4">
                     <textarea wire:model="rawContent" class="dz-raw" spellcheck="false"></textarea>

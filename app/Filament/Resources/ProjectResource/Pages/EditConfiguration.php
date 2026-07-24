@@ -41,6 +41,8 @@ class EditConfiguration extends Page
 
     public string $changeSummary = '';
 
+    public string $currentFilename = '';
+
     public string $search = '';
 
     public ?string $selectedType = null;
@@ -127,6 +129,22 @@ class EditConfiguration extends Page
     public function getBreadcrumbs(): array
     {
         return [ProjectResource::getUrl() => 'Projekty'];
+    }
+
+    public function configurationDescription(): string
+    {
+        return match (strtolower($this->currentFilename)) {
+            'globals.xml' => 'Globální limity zvířat, infikovaných, loot economy a cleanup serveru.',
+            'events.xml' => 'Počty, minima, maxima a životnost dynamických eventů jako zombie, loot nebo heli crash.',
+            'cfgeventspawns.xml' => 'Souřadnice a orientace pevných eventů na mapě.',
+            'cfgspawnabletypes.xml' => 'Obsah kontejnerů, cargo a attachmenty, které se mohou spawnout uvnitř předmětu.',
+            'cfglimitsdefinition.xml' => 'Kategorie, usage flagy a definice limitů pro ekonomiku.',
+            'mapgrouppos.xml' => 'Pozice skupin budov a loot zón na mapě.',
+            'economycore.xml' => 'Základní chování dynamické ekonomiky a respawnu.',
+            'messages.xml' => 'Automatické serverové zprávy, intervaly a jejich životnost.',
+            'cfggameplay.json' => 'Gameplay nastavení: stamina, damage, respawn, UI, svět a pohyb hráče.',
+            default => 'Pokročilá konfigurace serveru. Před uložením se ověří syntaxe XML nebo JSON.',
+        };
     }
 
     protected function getHeaderActions(): array
@@ -471,6 +489,7 @@ class EditConfiguration extends Page
         $this->changeSummary = '';
 
         $filename = $revision->configurationImport?->original_filename ?? basename($revision->storage_path);
+        $this->currentFilename = $filename;
         $typesEditor = app(TypesXmlEditor::class);
         $weatherEditor = app(WeatherXmlEditor::class);
         $this->visualKind = match (true) {

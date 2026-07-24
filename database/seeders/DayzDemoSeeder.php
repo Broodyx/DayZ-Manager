@@ -92,6 +92,26 @@ JSON,
             ],
         ];
 
+        $mockConfigurations = [
+            ['filename' => 'globals.xml', 'content' => '<globals><var name="AnimalMaxCount" value="200"/><var name="ZombieMaxCount" value="800"/><var name="LootMaxCount" value="1200"/></globals>'],
+            ['filename' => 'events.xml', 'content' => '<events><event name="InfectedArmy"><nominal>30</nominal><min>15</min><max>45</max><lifetime>900</lifetime></event><event name="StaticHeliCrash"><nominal>1</nominal><min>0</min><max>2</max><lifetime>3600</lifetime></event></events>'],
+            ['filename' => 'cfgeventspawns.xml', 'content' => '<eventposdef><event name="StaticHeliCrash"><pos x="6500" z="7800" a="90"/><pos x="11200" z="4300" a="180"/></event></eventposdef>'],
+            ['filename' => 'cfgspawnabletypes.xml', 'content' => '<spawnabletypes><type name="TaloonBag_Blue"><cargo chance="1.0" name="BandageDressing"/><attachments chance="0.5" name="PlateCarrierHolster"/></type></spawnabletypes>'],
+            ['filename' => 'cfglimitsdefinition.xml', 'content' => '<lists><categories><category name="weapons"/><category name="medical"/><category name="food"/></categories><usageflags><usage name="Military"/><usage name="Town"/></usageflags></lists>'],
+            ['filename' => 'mapgrouppos.xml', 'content' => '<map><group name="Land_Mil_Barracks1"><pos x="1024" z="2048" a="45"/><pos x="8192" z="4096" a="180"/></group></map>'],
+            ['filename' => 'economycore.xml', 'content' => '<economy><dynamic><respawn>1</respawn><cleanup>1</cleanup><min>0</min><max>1000</max></dynamic></economy>'],
+            ['filename' => 'messages.xml', 'content' => '<messages><message interval="900" lifetime="30">Vítejte na serveru Chernarus Survival!</message><message interval="1800" lifetime="30">Respektujte ostatní hráče.</message></messages>'],
+            ['filename' => 'cfggameplay.json', 'content' => "{\n    \"version\": 121,\n    \"GeneralData\": {\"disableBaseDamage\": false, \"disableContainerDamage\": false},\n    \"PlayerData\": {\"disablePersonalLight\": true, \"staminaMax\": 100, \"shockRefillSpeedConscious\": 5},\n    \"WorldData\": {\"lightingConfig\": 0, \"objectSpawnersArr\": []}\n}"],
+        ];
+        foreach ($mockConfigurations as $mock) {
+            $samples[] = [
+                'name' => 'Chernarus Survival', 'platform' => 'playstation', 'confidence' => 65,
+                'map' => 'ChernarusPlus', 'version' => '1.26',
+                'description' => 'Ukázkový komunitní PlayStation server zaměřený na survival.',
+                ...$mock,
+            ];
+        }
+
         foreach ($samples as $sample) {
             $project = Project::query()->updateOrCreate(
                 ['user_id' => $user->id, 'name' => $sample['name']],
@@ -121,8 +141,11 @@ JSON,
                 ],
             );
 
+            $existingRevision = ConfigurationRevision::query()
+                ->where('configuration_import_id', $import->id)
+                ->first();
             ConfigurationRevision::query()->updateOrCreate(
-                ['project_id' => $project->id, 'revision_number' => 1],
+                ['project_id' => $project->id, 'revision_number' => $existingRevision?->revision_number ?? ((int) $project->revisions()->max('revision_number') + 1)],
                 [
                     'configuration_import_id' => $import->id,
                     'storage_path' => $path,
@@ -155,8 +178,11 @@ XML;
                         'validation_status' => 'valid', 'validation_errors' => null, 'imported_at' => now(),
                     ],
                 );
+                $weatherRevision = ConfigurationRevision::query()
+                    ->where('configuration_import_id', $weatherImport->id)
+                    ->first();
                 ConfigurationRevision::query()->updateOrCreate(
-                    ['project_id' => $project->id, 'revision_number' => 3],
+                    ['project_id' => $project->id, 'revision_number' => $weatherRevision?->revision_number ?? ((int) $project->revisions()->max('revision_number') + 1)],
                     [
                         'configuration_import_id' => $weatherImport->id, 'storage_path' => $weatherPath,
                         'sha256' => $weatherHash, 'change_summary' => 'Ukázkové řízení počasí', 'created_by' => $user->id,

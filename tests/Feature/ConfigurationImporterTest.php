@@ -73,8 +73,8 @@ class ConfigurationImporterTest extends TestCase
         $seeder->seedFor($user);
 
         $this->assertDatabaseCount('projects', 3);
-        $this->assertDatabaseCount('configuration_imports', 4);
-        $this->assertDatabaseCount('configuration_revisions', 4);
+        $this->assertDatabaseCount('configuration_imports', 13);
+        $this->assertDatabaseCount('configuration_revisions', 13);
         $this->assertSame(3, $user->projects()->count());
     }
 
@@ -163,7 +163,7 @@ class ConfigurationImporterTest extends TestCase
             $user,
         );
 
-        $this->assertSame(4, $revision->revision_number);
+        $this->assertSame(12, $revision->revision_number);
         $this->assertSame($original, Storage::disk('dayz')->get($source->storage_path));
         $this->assertStringContainsString(
             '<nominal>18</nominal>',
