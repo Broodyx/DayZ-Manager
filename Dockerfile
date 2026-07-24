@@ -21,6 +21,7 @@ RUN if [ "$INSTALL_DEV_DEPENDENCIES" = "true" ]; then \
     else \
         composer dump-autoload --no-dev --classmap-authoritative --no-interaction; \
     fi
+RUN php artisan filament:assets
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 COPY docker/php.ini /usr/local/etc/php/conf.d/dayz-manager.ini
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint
