@@ -281,22 +281,22 @@
                                 </summary>
                                 <div class="dz-fields">
                                     @foreach ([
-                                        'current_actual' => ['Aktuální cílová hodnota', $rangeMin, $rangeMax, $step],
-                                        'current_time' => ['Čas přechodu (s)', 0, 86400, 1],
-                                        'current_duration' => ['Doba trvání (s)', 0, 86400, 1],
-                                        'limits_min' => ['Minimální hodnota', $rangeMin, $rangeMax, $step],
-                                        'limits_max' => ['Maximální hodnota', $rangeMin, $rangeMax, $step],
-                                        'timelimits_min' => ['Min. čas změny (s)', 0, 86400, 1],
-                                        'timelimits_max' => ['Max. čas změny (s)', 0, 86400, 1],
-                                        'changelimits_min' => ['Minimální změna', $rangeMin, $rangeMax, $step],
-                                        'changelimits_max' => ['Maximální změna', $rangeMin, $rangeMax, $step],
-                                    ] as $suffix => [$fieldLabel, $min, $max, $fieldStep])
+                                        'current_actual' => ['Aktuální cílová hodnota', $rangeMin, $rangeMax, $step, 'Hodnota, ke které se počasí postupně přiblíží.'],
+                                        'current_time' => ['Čas přechodu (min)', 0, 1440, 1, 'Za kolik minut se začne měnit na novou hodnotu.'],
+                                        'current_duration' => ['Doba trvání (min)', 1, 1440, 1, 'Jak dlouho přibližně vydrží aktuální stav.'],
+                                        'limits_min' => ['Minimální hodnota', $rangeMin, $rangeMax, $step, 'Nejnižší hodnota, kterou počasí náhodně použije.'],
+                                        'limits_max' => ['Maximální hodnota', $rangeMin, $rangeMax, $step, 'Nejvyšší hodnota, kterou počasí náhodně použije.'],
+                                        'timelimits_min' => ['Min. čas změny (min)', 0, 1440, 1, 'Nejkratší prodleva mezi změnami počasí.'],
+                                        'timelimits_max' => ['Max. čas změny (min)', 1, 1440, 1, 'Nejdelší prodleva mezi změnami počasí.'],
+                                        'changelimits_min' => ['Minimální změna', $rangeMin, $rangeMax, $step, 'Nejmenší velikost náhodné změny.'],
+                                        'changelimits_max' => ['Maximální změna', $rangeMin, $rangeMax, $step, 'Největší velikost náhodné změny.'],
+                                    ] as $suffix => [$fieldLabel, $min, $max, $fieldStep, $help])
                                         @php
                                             $weatherKey = $section . '_' . $suffix;
                                         @endphp
                                         <label class="dz-field">
                                             <span class="dz-field-top">
-                                                <strong>{{ $fieldLabel }}</strong>
+                                                <span><strong>{{ $fieldLabel }}</strong><br><small class="dz-muted">{{ $help }}</small></span>
                                                 <input type="number" step="{{ $fieldStep }}" min="{{ $min }}" max="{{ $max }}" wire:model="weatherForm.{{ $weatherKey }}">
                                             </span>
                                             <input type="range" step="{{ $fieldStep }}" min="{{ $min }}" max="{{ $max }}" wire:model.live="weatherForm.{{ $weatherKey }}">
@@ -306,16 +306,16 @@
 
                                     @if (in_array($section, ['rain', 'snowfall'], true))
                                         @foreach ([
-                                            'thresholds_min' => ['Min. oblačnost pro srážky', 0, 1, 0.01],
-                                            'thresholds_max' => ['Max. oblačnost pro srážky', 0, 1, 0.01],
-                                            'thresholds_end' => ['Čas ukončení srážek (s)', 0, 86400, 1],
-                                        ] as $suffix => [$fieldLabel, $min, $max, $fieldStep])
+                                            'thresholds_min' => ['Min. oblačnost pro srážky', 0, 1, 0.01, 'Pod touto oblačností se déšť nebo sníh nespustí.'],
+                                            'thresholds_max' => ['Max. oblačnost pro srážky', 0, 1, 0.01, 'Nad touto oblačností se srážky mohou objevit.'],
+                                            'thresholds_end' => ['Čas ukončení srážek (min)', 0, 1440, 1, 'Jak dlouho po poklesu podmínky doznívají srážky.'],
+                                        ] as $suffix => [$fieldLabel, $min, $max, $fieldStep, $help])
                                             @php
                                                 $weatherKey = $section . '_' . $suffix;
                                             @endphp
                                             <label class="dz-field">
                                                 <span class="dz-field-top">
-                                                    <strong>{{ $fieldLabel }}</strong>
+                                                    <span><strong>{{ $fieldLabel }}</strong><br><small class="dz-muted">{{ $help }}</small></span>
                                                     <input type="number" step="{{ $fieldStep }}" min="{{ $min }}" max="{{ $max }}" wire:model="weatherForm.{{ $weatherKey }}">
                                                 </span>
                                                 <input type="range" step="{{ $fieldStep }}" min="{{ $min }}" max="{{ $max }}" wire:model.live="weatherForm.{{ $weatherKey }}">
@@ -330,13 +330,13 @@
                             <summary><span>Bouřka a blesky</span><span class="dz-badge safe">PS · Xbox · PC</span></summary>
                             <div class="dz-fields">
                                 @foreach ([
-                                    'storm_density' => ['Hustota blesků', 0, 1, 0.01],
-                                    'storm_threshold' => ['Práh oblačnosti', 0, 1, 0.01],
-                                    'storm_timeout' => ['Prodleva mezi blesky (s)', 0, 3600, 1],
-                                ] as $weatherKey => [$fieldLabel, $min, $max, $fieldStep])
+                                    'storm_density' => ['Hustota blesků', 0, 1, 0.01, 'Jak často se při bouřce generují blesky.'],
+                                    'storm_threshold' => ['Práh oblačnosti', 0, 1, 0.01, 'Minimální oblačnost potřebná pro bouřku.'],
+                                    'storm_timeout' => ['Prodleva mezi blesky (min)', 1, 60, 1, 'Minimální čas mezi dvěma blesky.'],
+                                ] as $weatherKey => [$fieldLabel, $min, $max, $fieldStep, $help])
                                     <label class="dz-field">
                                         <span class="dz-field-top">
-                                            <strong>{{ $fieldLabel }}</strong>
+                                            <span><strong>{{ $fieldLabel }}</strong><br><small class="dz-muted">{{ $help }}</small></span>
                                             <input type="number" step="{{ $fieldStep }}" min="{{ $min }}" max="{{ $max }}" wire:model="weatherForm.{{ $weatherKey }}">
                                         </span>
                                         <input type="range" step="{{ $fieldStep }}" min="{{ $min }}" max="{{ $max }}" wire:model.live="weatherForm.{{ $weatherKey }}">

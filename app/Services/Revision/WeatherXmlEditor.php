@@ -45,7 +45,9 @@ final readonly class WeatherXmlEditor
                 }
                 foreach ($attributes as $attribute) {
                     if ($child->hasAttribute($attribute)) {
-                        $values["{$phenomenon}_{$childName}_{$attribute}"] = (float) $child->getAttribute($attribute);
+                        $path = "{$phenomenon}_{$childName}_{$attribute}";
+                        $raw = (float) $child->getAttribute($attribute);
+                        $values[$path] = $this->isTimePath($path) ? round($raw / 60, 2) : $raw;
                     }
                 }
             }
@@ -54,7 +56,9 @@ final readonly class WeatherXmlEditor
         $storm = $this->directChild($root, 'storm');
         if ($storm) {
             foreach (['density', 'threshold', 'timeout'] as $attribute) {
-                $values["storm_{$attribute}"] = (float) $storm->getAttribute($attribute);
+                $path = "storm_{$attribute}";
+                $raw = (float) $storm->getAttribute($attribute);
+                $values[$path] = $this->isTimePath($path) ? round($raw / 60, 2) : $raw;
             }
         }
 
@@ -78,7 +82,8 @@ final readonly class WeatherXmlEditor
 
             $segments = explode('_', $path);
             if ($segments[0] === 'storm' && count($segments) === 2) {
-                $this->ensureChild($document, $root, 'storm')->setAttribute($segments[1], (string) $value);
+                $outputValue = $this->isTimePath($path) ? (float) $value * 60 : $value;
+                $this->ensureChild($document, $root, 'storm')->setAttribute($segments[1], (string) $outputValue);
 
                 continue;
             }
@@ -89,7 +94,8 @@ final readonly class WeatherXmlEditor
 
             $section = $this->ensureChild($document, $root, $segments[0]);
             $child = $this->ensureChild($document, $section, $segments[1]);
-            $child->setAttribute($segments[2], (string) $value);
+            $outputValue = $this->isTimePath($path) ? (float) $value * 60 : $value;
+            $child->setAttribute($segments[2], (string) $outputValue);
         }
 
         $output = $document->saveXML();
@@ -150,5 +156,15 @@ final readonly class WeatherXmlEditor
         }
 
         return in_array(strtolower($element->getAttribute($name)), ['1', 'true', 'yes'], true);
+    }
+
+    private function isTimePath(string $path): bool
+    {
+        return str_ends_with($path, '_time')
+            || str_ends_with($path, '_duration')
+            || str_ends_with($path, '_timeout')
+            || str_ends_with($path, '_end')
+            || str_ends_with($path, '_timelimits_min')
+            || str_ends_with($path, '_timelimits_max');
     }
 }

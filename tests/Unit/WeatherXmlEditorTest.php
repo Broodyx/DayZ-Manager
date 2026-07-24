@@ -35,7 +35,7 @@ XML;
         $this->assertFalse($values['reset']);
         $this->assertSame(0.45, $values['overcast_current_actual']);
         $this->assertSame(0.5, $values['rain_thresholds_min']);
-        $this->assertSame(25.0, $values['storm_timeout']);
+        $this->assertSame(0.42, $values['storm_timeout']);
     }
 
     public function test_it_updates_weather_and_preserves_other_sections(): void
