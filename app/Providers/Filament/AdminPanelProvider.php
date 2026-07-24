@@ -28,6 +28,7 @@ class AdminPanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         return $panel->default()->id('admin')->path('admin')->login()
+            ->favicon(asset('favicon.svg'))
             ->brandName('DayZ Manager')->colors(['primary' => Color::Lime])
             ->defaultThemeMode(ThemeMode::Dark)
             ->darkMode(true, isForced: true)
