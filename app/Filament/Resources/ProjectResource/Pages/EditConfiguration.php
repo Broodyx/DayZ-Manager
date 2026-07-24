@@ -133,7 +133,12 @@ class EditConfiguration extends Page
 
     public function configurationDescription(): string
     {
-        return match (strtolower($this->currentFilename)) {
+        return $this->descriptionForFilename($this->currentFilename);
+    }
+
+    public function descriptionForFilename(string $filename): string
+    {
+        return match (strtolower($filename)) {
             'globals.xml' => 'Globální limity zvířat, infikovaných, loot economy a cleanup serveru.',
             'events.xml' => 'Počty, minima, maxima a životnost dynamických eventů jako zombie, loot nebo heli crash.',
             'cfgeventspawns.xml' => 'Souřadnice a orientace pevných eventů na mapě.',

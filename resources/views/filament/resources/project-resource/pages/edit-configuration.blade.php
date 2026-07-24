@@ -41,6 +41,18 @@
         .dz-file-button { display:inline-flex; align-items:center; gap:.35rem; padding:.58rem .75rem; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; color:#cbd5c0; background:#090d0a; font-size:.78rem; font-weight:700; text-align:left }
         .dz-file-button:hover { border-color:#91c52b; color:#edf2e9 }
         .dz-file-button.active { border-color:#b6e94f; color:#17210d; background:#b6e94f }
+        .dz-file-menu { position:relative; min-width:22rem; z-index:30 }
+        .dz-file-menu summary { display:flex; align-items:center; justify-content:space-between; gap:.75rem; cursor:pointer; list-style:none; padding:.65rem .8rem; border:1px solid rgba(182,233,79,.35); border-radius:.3rem; color:#edf2e9; background:#111813; font-weight:800 }
+        .dz-file-menu summary::-webkit-details-marker { display:none }
+        .dz-file-menu summary::after { content:'▾'; color:#b6e94f }
+        .dz-file-menu[open] summary::after { content:'▴' }
+        .dz-file-menu-list { position:absolute; right:0; top:calc(100% + .4rem); width:min(34rem,90vw); max-height:28rem; overflow:auto; padding:.4rem; border:1px solid rgba(182,233,79,.3); border-radius:.35rem; background:#0d140f; box-shadow:0 16px 40px rgba(0,0,0,.55) }
+        .dz-file-option { display:block; width:100%; padding:.7rem; border:0; border-bottom:1px solid rgba(190,209,175,.1); color:#dce8d5; background:transparent; text-align:left; cursor:pointer }
+        .dz-file-option:last-child { border-bottom:0 }
+        .dz-file-option:hover,.dz-file-option.active { color:#17210d; background:#b6e94f }
+        .dz-file-option-title { display:block; font-weight:800 }
+        .dz-file-option-description { display:block; margin-top:.2rem; color:#aab6a4; font-size:.78rem; font-weight:400 }
+        .dz-file-option:hover .dz-file-option-description,.dz-file-option.active .dz-file-option-description { color:#31451f }
         .dz-savebar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; padding:1rem; border-top:1px solid rgba(182,233,79,.13); background:#111813 }
         .dz-warning { padding:.85rem 1rem; border-left:3px solid #d97738; color:#e8c8b3; background:rgba(217,119,56,.08) }
         .dz-error { margin-top:.4rem; color:#fb8b8b; font-size:.85rem }
@@ -100,13 +112,17 @@
                 </button>
             </div>
             <div class="flex items-center gap-3 flex-wrap">
-                <div class="dz-file-buttons" aria-label="Výběr konfigurace">
+                <details class="dz-file-menu">
+                    <summary>{{ $currentFilename ?: 'Vybrat konfiguraci' }} · revize #{{ $revisionNumber }}</summary>
+                    <div class="dz-file-menu-list" aria-label="Výběr konfigurace">
                     @foreach ($this->editableFiles() as $id => $label)
-                        <button type="button" wire:click="selectRevision({{ $id }})" class="dz-file-button {{ (int) $revisionId === (int) $id ? 'active' : '' }}">
-                            {{ $label }}
+                        <button type="button" wire:click="selectRevision({{ $id }})" class="dz-file-option {{ (int) $revisionId === (int) $id ? 'active' : '' }}">
+                            <span class="dz-file-option-title">{{ $label }}</span>
+                            <span class="dz-file-option-description">{{ $this->descriptionForFilename(strtok($label, ' ·')) }}</span>
                         </button>
                     @endforeach
-                </div>
+                    </div>
+                </details>
                 <span class="dz-muted">Aktuální revize #{{ $revisionNumber }}</span>
             </div>
         </div>
