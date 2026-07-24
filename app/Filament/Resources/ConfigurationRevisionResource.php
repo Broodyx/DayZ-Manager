@@ -50,6 +50,22 @@ class ConfigurationRevisionResource extends Resource
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('project.name')->label('Projekt')->searchable(),
+            Tables\Columns\TextColumn::make('project.platform')
+                ->label('Server')
+                ->badge()
+                ->formatStateUsing(fn (string $state): string => match ($state) {
+                    'playstation' => 'PlayStation',
+                    'xbox' => 'Xbox',
+                    'steam' => 'PC / Steam',
+                    default => 'Neznámý',
+                })
+                ->color(fn (string $state): string => match ($state) {
+                    'playstation' => 'info',
+                    'xbox' => 'success',
+                    'steam' => 'warning',
+                    default => 'gray',
+                })
+                ->sortable(),
             Tables\Columns\TextColumn::make('revision_number')->label('Revize')->prefix('#')->sortable(),
             Tables\Columns\TextColumn::make('change_summary')->label('Změna')->limit(50),
             Tables\Columns\TextColumn::make('creator.name')->label('Autor'),

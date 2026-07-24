@@ -114,6 +114,12 @@ class ConfigurationImporterTest extends TestCase
             ->assertOk()
             ->assertSee("/admin/projects/{$project->id}/configuration", false)
             ->assertDontSee('Importovat konfiguraci');
+
+        $this->actingAs($user)
+            ->get('/admin/configuration-revisions')
+            ->assertOk()
+            ->assertSee('Server')
+            ->assertSee('PlayStation');
     }
 
     public function test_types_xml_project_has_visual_and_raw_editor(): void
