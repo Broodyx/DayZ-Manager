@@ -289,11 +289,11 @@
                                 </summary>
                                 <div class="dz-fields">
                                     @foreach ([
-                                        'current_actual' => ['Aktuální cílová hodnota', $rangeMin, $rangeMax, $step, 'Hodnota, ke které se počasí postupně přiblíží.'],
+                                        'current_actual' => ['Aktuální intenzita', $rangeMin, $rangeMax, $step, 'Aktuální síla jevu; 0 znamená vypnuto a 1 maximální intenzitu.'],
                                         'current_time' => ['Čas přechodu (min)', 0, 1440, 1, 'Za kolik minut se začne měnit na novou hodnotu.'],
                                         'current_duration' => ['Doba trvání (min)', 1, 1440, 1, 'Jak dlouho přibližně vydrží aktuální stav.'],
-                                        'limits_min' => ['Minimální hodnota', $rangeMin, $rangeMax, $step, 'Nejnižší hodnota, kterou počasí náhodně použije.'],
-                                        'limits_max' => ['Maximální hodnota', $rangeMin, $rangeMax, $step, 'Nejvyšší hodnota, kterou počasí náhodně použije.'],
+                                        'limits_min' => ['Minimální intenzita', $rangeMin, $rangeMax, $step, 'Nejnižší intenzita, kterou hra náhodně nastaví.'],
+                                        'limits_max' => ['Maximální intenzita', $rangeMin, $rangeMax, $step, 'Nejvyšší intenzita, kterou hra náhodně nastaví.'],
                                         'timelimits_min' => ['Min. čas změny (min)', 0, 1440, 1, 'Nejkratší prodleva mezi změnami počasí.'],
                                         'timelimits_max' => ['Max. čas změny (min)', 1, 1440, 1, 'Nejdelší prodleva mezi změnami počasí.'],
                                         'changelimits_min' => ['Minimální změna', $rangeMin, $rangeMax, $step, 'Nejmenší velikost náhodné změny.'],
@@ -304,7 +304,7 @@
                                         @endphp
                                         <label class="dz-field">
                                             <span class="dz-field-top">
-                                                <span><strong>{{ $fieldLabel }}</strong><br><small class="dz-muted">{{ $help }}</small></span>
+                                                <span><strong>{{ $fieldLabel }}</strong><br><small class="dz-muted">{{ $help }} (pro {{ strtolower($label) }}).</small></span>
                                                 <input type="number" step="{{ $fieldStep }}" min="{{ $min }}" max="{{ $max }}" wire:model="weatherForm.{{ $weatherKey }}">
                                             </span>
                                             <input type="range" step="{{ $fieldStep }}" min="{{ $min }}" max="{{ $max }}" wire:model.live="weatherForm.{{ $weatherKey }}">
