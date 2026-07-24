@@ -416,7 +416,7 @@
                 </div>
                 <div class="dz-modal-body">
                     <div class="dz-picker-categories">
-                        @foreach (array_keys($this->groupedTypes()) as $category)
+                        @foreach ($this->pickerCategories() as $category)
                             <button type="button" wire:click="$set('classPickerCategory', @js($category))" class="dz-picker-category {{ $classPickerCategory === $category ? 'active' : '' }}">{{ strtoupper($category) }}</button>
                         @endforeach
                     </div>

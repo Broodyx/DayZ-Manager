@@ -53,6 +53,9 @@ class EditConfiguration extends Page
     /** @var list<array<string, mixed>> */
     public array $typeEntries = [];
 
+    /** @var list<array<string, mixed>> */
+    public array $catalogEntries = [];
+
     public bool $visualSupported = false;
 
     public ?string $visualKind = null;
@@ -91,6 +94,7 @@ class EditConfiguration extends Page
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
+        $this->loadCatalog();
         $requestedRevision = request()->integer('revision');
         $requested = $requestedRevision
             ? $this->getRecord()->revisions()->whereKey($requestedRevision)->first()
@@ -346,9 +350,33 @@ class EditConfiguration extends Page
     public function pickerEntries(): array
     {
         return array_values(array_filter(
-            $this->typeEntries,
+            $this->catalogEntries,
             fn (array $entry): bool => ($entry['category'] ?: 'other') === $this->classPickerCategory,
         ));
+    }
+
+    public function pickerCategories(): array
+    {
+        return collect($this->catalogEntries)
+            ->pluck('category')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    private function loadCatalog(): void
+    {
+        $path = base_path('database/seeders/fixtures/dayz-types-chernarus.xml');
+        if (! is_file($path)) {
+            return;
+        }
+
+        $content = file_get_contents($path);
+        if ($content !== false) {
+            $this->catalogEntries = app(TypesXmlEditor::class)->entries($content);
+        }
     }
 
     public function addType(
