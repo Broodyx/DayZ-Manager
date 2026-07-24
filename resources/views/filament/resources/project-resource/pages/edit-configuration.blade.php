@@ -53,6 +53,17 @@
         .dz-file-option-title { display:block; font-weight:800 }
         .dz-file-option-description { display:block; margin-top:.2rem; color:#aab6a4; font-size:.78rem; font-weight:400 }
         .dz-file-option:hover .dz-file-option-description,.dz-file-option.active .dz-file-option-description { color:#31451f }
+        .dz-modal-backdrop { position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; padding:1rem; background:rgba(0,0,0,.72) }
+        .dz-modal { width:min(48rem,100%); max-height:85vh; overflow:hidden; border:1px solid rgba(182,233,79,.35); border-radius:.45rem; background:#111813; box-shadow:0 24px 80px rgba(0,0,0,.65) }
+        .dz-modal-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem; border-bottom:1px solid rgba(182,233,79,.15) }
+        .dz-modal-body { max-height:65vh; overflow:auto; padding:1rem }
+        .dz-picker-categories { display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:1rem }
+        .dz-picker-category { padding:.5rem .7rem; border:1px solid rgba(190,209,175,.18); border-radius:.25rem; color:#cbd5c0; background:#0d130f; cursor:pointer }
+        .dz-picker-category.active { color:#17210d; background:#b6e94f; border-color:#b6e94f }
+        .dz-picker-items { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.5rem }
+        .dz-picker-item { padding:.7rem; border:1px solid rgba(190,209,175,.14); border-radius:.25rem; color:#dce8d5; background:#0d130f; text-align:left; cursor:pointer }
+        .dz-picker-item:hover { border-color:#b6e94f; color:#17210d; background:#b6e94f }
+        @media(max-width:640px){.dz-picker-items{grid-template-columns:repeat(2,minmax(0,1fr))}}
         .dz-savebar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; padding:1rem; border-top:1px solid rgba(182,233,79,.13); background:#111813 }
         .dz-warning { padding:.85rem 1rem; border-left:3px solid #d97738; color:#e8c8b3; background:rgba(217,119,56,.08) }
         .dz-error { margin-top:.4rem; color:#fb8b8b; font-size:.85rem }
@@ -175,13 +186,11 @@
                         <div class="dz-add-grid">
                             <div class="dz-control">
                                 <label>Název třídy</label>
-                                <input wire:model="newTypeForm.name" list="dayz-class-names" placeholder="Například AKM">
-                                <datalist id="dayz-class-names">
-                                    @foreach ($typeEntries as $knownType)
-                                        <option value="{{ $knownType['name'] }}">{{ $knownType['category'] }}</option>
-                                    @endforeach
-                                </datalist>
-                                <small class="dz-muted">Vyber existující třídu ze seznamu, nebo zadej vlastní název z konfigurace.</small>
+                                <div class="flex gap-2">
+                                    <input wire:model="newTypeForm.name" placeholder="Například AKM">
+                                    <button type="button" wire:click="openClassPicker" class="dz-secondary">Vybrat z katalogu</button>
+                                </div>
+                                <small class="dz-muted">Vyber existující třídu z katalogu, nebo zadej vlastní název z konfigurace.</small>
                                 @error('newTypeForm.name') <div class="dz-error">{{ $message }}</div> @enderror
                             </div>
                             <div class="dz-control">
@@ -398,4 +407,28 @@
             </section>
         @endif
     </div>
+    @if ($showClassPicker)
+        <div class="dz-modal-backdrop" wire:click.self="closeClassPicker">
+            <section class="dz-modal" role="dialog" aria-modal="true" aria-label="Výběr položky">
+                <div class="dz-modal-head">
+                    <div><strong>Vyber položku z katalogu</strong><p class="dz-muted text-sm mt-1">Katalog obsahuje položky načtené z aktuálního types.xml.</p></div>
+                    <button type="button" wire:click="closeClassPicker" class="dz-secondary">Zavřít</button>
+                </div>
+                <div class="dz-modal-body">
+                    <div class="dz-picker-categories">
+                        @foreach (array_keys($this->groupedTypes()) as $category)
+                            <button type="button" wire:click="$set('classPickerCategory', @js($category))" class="dz-picker-category {{ $classPickerCategory === $category ? 'active' : '' }}">{{ strtoupper($category) }}</button>
+                        @endforeach
+                    </div>
+                    <div class="dz-picker-items">
+                        @forelse ($this->pickerEntries() as $entry)
+                            <button type="button" wire:click="chooseClass(@js($entry['name']), @js($entry['category']))" class="dz-picker-item"><strong>{{ $entry['name'] }}</strong><br><small>{{ $entry['nominal'] }} ks · {{ $entry['category'] }}</small></button>
+                        @empty
+                            <p class="dz-muted">V této kategorii nejsou v aktuálním souboru žádné položky.</p>
+                        @endforelse
+                    </div>
+                </div>
+            </section>
+        </div>
+    @endif
 </x-filament-panels::page>

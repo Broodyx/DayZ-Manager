@@ -62,6 +62,10 @@ class EditConfiguration extends Page
 
     public bool $showAddForm = false;
 
+    public bool $showClassPicker = false;
+
+    public string $classPickerCategory = 'weapons';
+
     /** @var array<string, mixed> */
     public array $newTypeForm = [
         'name' => '',
@@ -320,6 +324,31 @@ class EditConfiguration extends Page
         $this->resetValidation();
         $this->selectedType = null;
         $this->showAddForm = true;
+    }
+
+    public function openClassPicker(): void
+    {
+        $this->showClassPicker = true;
+    }
+
+    public function closeClassPicker(): void
+    {
+        $this->showClassPicker = false;
+    }
+
+    public function chooseClass(string $name, string $category): void
+    {
+        $this->newTypeForm['name'] = $name;
+        $this->newTypeForm['category'] = $category;
+        $this->showClassPicker = false;
+    }
+
+    public function pickerEntries(): array
+    {
+        return array_values(array_filter(
+            $this->typeEntries,
+            fn (array $entry): bool => ($entry['category'] ?: 'other') === $this->classPickerCategory,
+        ));
     }
 
     public function addType(
