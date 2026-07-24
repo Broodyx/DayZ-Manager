@@ -117,6 +117,7 @@ PHP_MEMORY_LIMIT=512M
 PHP_MAX_EXECUTION_TIME=300
 APP_PORT=8080
 INSTALL_DEV_DEPENDENCIES=false
+TRUSTED_PROXIES=172.16.0.0/12
 ```
 
 `APP_PORT` ovlivňuje pouze lokální publikovaný port. Coolify směruje doménu přímo na interní port `80`.

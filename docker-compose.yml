@@ -29,6 +29,7 @@ x-app: &app
     POST_MAX_SIZE: ${POST_MAX_SIZE:-110M}
     PHP_MEMORY_LIMIT: ${PHP_MEMORY_LIMIT:-512M}
     PHP_MAX_EXECUTION_TIME: ${PHP_MAX_EXECUTION_TIME:-300}
+    TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
   volumes:
     - dayz_storage:/var/www/html/storage/app/dayz
   depends_on:
