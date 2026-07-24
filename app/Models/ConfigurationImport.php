@@ -23,6 +23,13 @@ class ConfigurationImport extends Model
         ];
     }
 
-    public function project(): BelongsTo { return $this->belongsTo(Project::class); }
-    public function revisions(): HasMany { return $this->hasMany(ConfigurationRevision::class); }
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(ConfigurationRevision::class);
+    }
 }

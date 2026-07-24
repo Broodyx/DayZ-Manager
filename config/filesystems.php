@@ -38,6 +38,13 @@ return [
             'report' => false,
         ],
 
+        'dayz' => [
+            'driver' => 'local',
+            'root' => storage_path('app/dayz'),
+            'serve' => false,
+            'throw' => true,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

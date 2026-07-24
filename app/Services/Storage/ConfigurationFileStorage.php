@@ -29,8 +29,8 @@ final class ConfigurationFileStorage
         }
 
         $hash = hash_file('sha256', $file->getRealPath());
-        $path = "dayz/{$projectId}/imports/".Str::uuid().'.'.$extension;
-        Storage::disk('local')->putFileAs(dirname($path), $file, basename($path));
+        $path = "{$projectId}/imports/".Str::uuid().'.'.$extension;
+        Storage::disk('dayz')->putFileAs(dirname($path), $file, basename($path));
 
         return new StoredConfiguration($path, $hash, basename($file->getClientOriginalName()));
     }

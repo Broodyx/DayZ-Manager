@@ -9,43 +9,68 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ConfigurationImportResource extends Resource
 {
     protected static ?string $model = ConfigurationImport::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
+
+    protected static ?string $navigationLabel = 'Import konfigurací';
+
+    protected static ?string $modelLabel = 'import konfigurace';
+
+    protected static ?string $pluralModelLabel = 'importy konfigurací';
+
+    protected static ?string $navigationGroup = 'DayZ konfigurace';
+
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('project_id')->relationship(
+            Forms\Components\Select::make('project_id')->label('Projekt')->relationship(
                 name: 'project', titleAttribute: 'name',
                 modifyQueryUsing: fn ($query) => $query->where('user_id', auth()->id()),
-            )->required(),
-            Forms\Components\TextInput::make('original_filename')->required(),
-            Forms\Components\TextInput::make('storage_path')->required(),
-            Forms\Components\TextInput::make('sha256')->length(64)->required(),
-            Forms\Components\TextInput::make('detected_platform')->required(),
-            Forms\Components\TextInput::make('detection_confidence')->numeric()->minValue(0)->maxValue(100),
-            Forms\Components\Select::make('validation_status')->options([
-                'pending' => 'Pending', 'valid' => 'Valid', 'invalid' => 'Invalid',
-            ])->required(),
-            Forms\Components\DateTimePicker::make('imported_at')->required(),
-        ]);
+            )->disabled(),
+            Forms\Components\TextInput::make('original_filename')->label('Původní soubor')->disabled(),
+            Forms\Components\TextInput::make('detected_platform')->label('Detekovaná platforma')->disabled(),
+            Forms\Components\TextInput::make('detection_confidence')->label('Jistota detekce')->suffix('%')->disabled(),
+            Forms\Components\Select::make('validation_status')->label('Validace')->options([
+                'pending' => 'Čeká', 'valid' => 'Platná', 'invalid' => 'Neplatná',
+            ])->disabled(),
+            Forms\Components\DateTimePicker::make('imported_at')->label('Importováno')->disabled(),
+            Forms\Components\TextInput::make('sha256')->label('SHA-256')->disabled()->columnSpanFull(),
+            Forms\Components\Textarea::make('validation_errors')
+                ->label('Chyby validace')
+                ->formatStateUsing(fn ($state): string => $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'Bez chyb')
+                ->rows(8)
+                ->disabled()
+                ->columnSpanFull(),
+        ])->columns(2);
     }
 
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('project.name')->searchable(),
-            Tables\Columns\TextColumn::make('original_filename')->searchable(),
-            Tables\Columns\TextColumn::make('detected_platform')->badge(),
-            Tables\Columns\TextColumn::make('validation_status')->badge(),
-            Tables\Columns\TextColumn::make('imported_at')->dateTime()->sortable(),
-        ])->actions([Tables\Actions\EditAction::make()]);
+            Tables\Columns\TextColumn::make('project.name')->label('Projekt')->searchable(),
+            Tables\Columns\TextColumn::make('original_filename')->label('Soubor')->searchable(),
+            Tables\Columns\TextColumn::make('detected_platform')->label('Platforma')->badge(),
+            Tables\Columns\TextColumn::make('detection_confidence')->label('Jistota')->suffix('%'),
+            Tables\Columns\TextColumn::make('validation_status')
+                ->label('Validace')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    'valid' => 'success',
+                    'invalid' => 'danger',
+                    default => 'warning',
+                }),
+            Tables\Columns\TextColumn::make('imported_at')->label('Importováno')->dateTime('d. m. Y H:i')->sortable(),
+        ])->actions([Tables\Actions\EditAction::make()->label('Detail')->icon('heroicon-o-eye')]);
     }
 
-    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->whereHas('project', fn ($query) => $query->where('user_id', auth()->id()));
     }

@@ -21,7 +21,18 @@ class Project extends Model
         return ['platform_confidence' => 'integer'];
     }
 
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
-    public function imports(): HasMany { return $this->hasMany(ConfigurationImport::class); }
-    public function revisions(): HasMany { return $this->hasMany(ConfigurationRevision::class); }
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function imports(): HasMany
+    {
+        return $this->hasMany(ConfigurationImport::class);
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(ConfigurationRevision::class);
+    }
 }

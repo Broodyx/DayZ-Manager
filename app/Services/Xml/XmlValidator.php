@@ -19,7 +19,7 @@ final class XmlValidator
         libxml_clear_errors();
 
         try {
-            $document = new \DOMDocument();
+            $document = new \DOMDocument;
             $loaded = $document->loadXML($xml, LIBXML_NONET | LIBXML_COMPACT);
             $errors = array_map(
                 static fn (\LibXMLError $error): array => [

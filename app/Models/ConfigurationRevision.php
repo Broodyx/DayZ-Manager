@@ -17,7 +17,18 @@ class ConfigurationRevision extends Model
         return ['revision_number' => 'integer'];
     }
 
-    public function project(): BelongsTo { return $this->belongsTo(Project::class); }
-    public function configurationImport(): BelongsTo { return $this->belongsTo(ConfigurationImport::class); }
-    public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function configurationImport(): BelongsTo
+    {
+        return $this->belongsTo(ConfigurationImport::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 }

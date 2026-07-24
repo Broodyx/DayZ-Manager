@@ -1,0 +1,94 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Project;
+use App\Models\User;
+use App\Services\Import\ConfigurationImporter;
+use Database\Seeders\DayzDemoSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
+
+class ConfigurationImporterTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_it_stores_validates_and_creates_a_revision_for_an_xml_import(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Chernarus test',
+            'platform' => 'unknown',
+            'map' => 'ChernarusPlus',
+        ]);
+        $file = UploadedFile::fake()->createWithContent(
+            'types.xml',
+            '<?xml version="1.0"?><types><type name="AKM"/></types>',
+        );
+
+        $import = app(ConfigurationImporter::class)->import($project, $file, $user);
+
+        $this->assertSame('valid', $import->validation_status);
+        $this->assertSame('types.xml', $import->original_filename);
+        $this->assertSame('unknown', $import->detected_platform);
+        Storage::disk('dayz')->assertExists($import->storage_path);
+        $this->assertDatabaseHas('configuration_revisions', [
+            'configuration_import_id' => $import->id,
+            'revision_number' => 1,
+            'created_by' => $user->id,
+        ]);
+    }
+
+    public function test_it_records_xml_validation_errors_without_crashing(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Invalid XML test',
+            'platform' => 'playstation',
+            'map' => 'ChernarusPlus',
+        ]);
+        $file = UploadedFile::fake()->createWithContent('types.xml', '<types><type></types>');
+
+        $import = app(ConfigurationImporter::class)->import($project, $file, $user);
+
+        $this->assertSame('invalid', $import->validation_status);
+        $this->assertNotEmpty($import->validation_errors);
+        $this->assertSame('types.xml', $import->validation_errors[0]['file']);
+    }
+
+    public function test_demo_data_can_be_created_repeatedly_for_the_signed_in_user(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $seeder = app(DayzDemoSeeder::class);
+
+        $seeder->seedFor($user);
+        $seeder->seedFor($user);
+
+        $this->assertDatabaseCount('projects', 3);
+        $this->assertDatabaseCount('configuration_imports', 3);
+        $this->assertDatabaseCount('configuration_revisions', 3);
+        $this->assertSame(3, $user->projects()->count());
+    }
+
+    public function test_import_and_demo_actions_are_visible_in_the_admin(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/admin/configuration-imports')
+            ->assertOk()
+            ->assertSee('Importovat konfiguraci');
+
+        $this->actingAs($user)
+            ->get('/admin/projects')
+            ->assertOk()
+            ->assertSee('Vytvořit demo data');
+    }
+}

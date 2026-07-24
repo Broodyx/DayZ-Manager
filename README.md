@@ -51,6 +51,23 @@ Prvního uživatele Filament administrace vytvoříte pomocí:
 docker compose exec app php artisan make:filament-user
 ```
 
+## Import konfigurace
+
+1. Přihlaste se do `/admin`.
+2. Nejprve vytvořte projekt v sekci **Projekty**.
+3. Klikněte na **Importovat konfiguraci** nebo otevřete sekci **Import konfigurací**.
+4. Vyberte projekt a nahrajte XML, JSON nebo ZIP.
+
+Aplikace zkontroluje příponu, MIME typ a velikost, vypočítá SHA-256, bezpečně uloží soubor mimo `public`, provede validaci a automaticky vytvoří novou revizi. U ZIP archivů jsou povoleny pouze XML a JSON soubory a kontrolují se nebezpečné cesty.
+
+Volitelná ukázková data pro již vytvořeného prvního uživatele:
+
+```bash
+docker compose exec app php artisan db:seed --class=DayzDemoSeeder
+```
+
+Příkaz je opakovatelný a vytvoří tři demo projekty: PlayStation Chernarus, Xbox Livonia a modovaný Steam/Namalsk. Nevytváří žádný účet ani výchozí heslo.
+
 ## Produkční start
 
 Entrypoint před spuštěním:
