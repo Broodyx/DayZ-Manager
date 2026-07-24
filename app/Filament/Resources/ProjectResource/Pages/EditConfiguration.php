@@ -241,6 +241,20 @@ class EditConfiguration extends Page
         return $groups;
     }
 
+    public function updatedNewTypeFormName(string $name): void
+    {
+        $name = mb_strtolower($name);
+        $this->newTypeForm['category'] = match (true) {
+            str_contains($name, 'ammo') || str_contains($name, 'akm') || str_contains($name, 'm4') || str_contains($name, 'rifle') => 'weapons',
+            str_contains($name, 'bandage') || str_contains($name, 'morphine') || str_contains($name, 'epinephrine') || str_contains($name, 'antibiotic') => 'medical',
+            str_contains($name, 'can') || str_contains($name, 'rice') || str_contains($name, 'water') => 'food',
+            str_contains($name, 'shirt') || str_contains($name, 'hoodie') || str_contains($name, 'helmet') || str_contains($name, 'vest') => 'clothes',
+            str_contains($name, 'car') || str_contains($name, 'olga') || str_contains($name, 'hatchback') => 'vehicles',
+            str_contains($name, 'barrel') || str_contains($name, 'chest') || str_contains($name, 'crate') => 'containers',
+            default => $this->newTypeForm['category'],
+        };
+    }
+
     /**
      * @return array<int, string>
      */

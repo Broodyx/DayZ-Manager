@@ -92,6 +92,19 @@ JSON,
             ],
         ];
 
+        $typesExtra = ['M4A1' => 'weapons', 'SVD' => 'weapons', 'AK74' => 'weapons', 'CZ75' => 'weapons', 'Ammo_762x39' => 'weapons', 'BandageDressing' => 'medical', 'Epinephrine' => 'medical', 'Morphine' => 'medical', 'TetracyclineAntibiotics' => 'medical', 'TunaCan' => 'food', 'Rice' => 'food', 'WaterBottle' => 'food', 'Hoodie_Black' => 'clothes', 'BallisticHelmet_Black' => 'clothes', 'PlateCarrierVest' => 'clothes', 'Barrel_Blue' => 'containers', 'SeaChest' => 'containers', 'Hacksaw' => 'tools', 'Screwdriver' => 'tools', 'Pickaxe' => 'tools', 'CanOpener' => 'tools', 'OlgaHatchback' => 'vehicles', 'OffroadHatchback' => 'vehicles'];
+        foreach ($samples as &$sample) {
+            if ($sample['filename'] !== 'types.xml') {
+                continue;
+            }
+            $extraXml = '';
+            foreach ($typesExtra as $class => $category) {
+                $extraXml .= "    <type name=\"{$class}\"><nominal>5</nominal><lifetime>28800</lifetime><restock>1800</restock><min>2</min><quantmin>-1</quantmin><quantmax>-1</quantmax><cost>100</cost><flags count_in_cargo=\"0\" count_in_hoarder=\"0\" count_in_map=\"1\" count_in_player=\"0\" crafted=\"0\" deloot=\"0\"/><category name=\"{$category}\"/><usage name=\"Town\"/></type>\n";
+            }
+            $sample['content'] = str_replace('</types>', $extraXml.'</types>', $sample['content']);
+        }
+        unset($sample);
+
         $mockConfigurations = [
             ['filename' => 'globals.xml', 'content' => '<globals><var name="AnimalMaxCount" value="200"/><var name="ZombieMaxCount" value="800"/><var name="LootMaxCount" value="1200"/></globals>'],
             ['filename' => 'events.xml', 'content' => '<events><event name="InfectedArmy"><nominal>30</nominal><min>15</min><max>45</max><lifetime>900</lifetime></event><event name="StaticHeliCrash"><nominal>1</nominal><min>0</min><max>2</max><lifetime>3600</lifetime></event></events>'],
