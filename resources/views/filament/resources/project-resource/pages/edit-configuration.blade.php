@@ -23,6 +23,8 @@
         .dz-badge { display:inline-flex; padding:.16rem .45rem; border-radius:999px; font-size:.68rem; font-weight:800; text-transform:uppercase }
         .dz-badge.safe { color:#c9f67a; background:rgba(145,197,43,.14); border:1px solid rgba(182,233,79,.25) }
         .dz-badge.pc { color:#ffc08f; background:rgba(217,119,56,.14); border:1px solid rgba(217,119,56,.3) }
+        .dz-server-settings { border-color:rgba(56,189,248,.35); background:linear-gradient(135deg,rgba(14,116,144,.18),rgba(17,24,19,.95)) }
+        .dz-server-badge { color:#8bdcff; background:rgba(14,165,233,.14); border:1px solid rgba(56,189,248,.35) }
         .dz-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; padding:1rem }
         .dz-field { padding:1rem; border:1px solid rgba(190,209,175,.12); border-radius:.35rem; background:#0d130f }
         .dz-field-top { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:.75rem }
@@ -256,13 +258,14 @@
                         'snowfall' => ['Sněžení', 0, 1, 0.01],
                     ];
                 @endphp
-                <section class="dz-panel">
+                <section class="dz-panel dz-server-settings">
                     <div class="dz-panel-head">
                         <div class="flex items-center justify-between gap-4 flex-wrap">
                             <div>
-                                <strong>Počasí · cfgweather.xml</strong>
-                                <p class="dz-muted text-sm mt-1">Kompletní parametry oficiálního weather souboru pro konzole i PC.</p>
+                                <strong>Serverová nastavení · cfgweather.xml</strong>
+                                <p class="dz-muted text-sm mt-1">Počasí je samostatná konfigurace. Vyberte ji nahoře v seznamu souborů/revizí.</p>
                             </div>
+                            <span class="dz-badge dz-server-badge">PS · Xbox · PC</span>
                             <div class="dz-checks">
                                 <label class="dz-check"><input type="checkbox" wire:model="weatherForm.enable"> Aktivovat soubor</label>
                                 <label class="dz-check"><input type="checkbox" wire:model="weatherForm.reset"> Reset počasí po restartu</label>

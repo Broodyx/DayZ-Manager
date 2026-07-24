@@ -156,7 +156,7 @@ XML;
                     ],
                 );
                 ConfigurationRevision::query()->updateOrCreate(
-                    ['project_id' => $project->id, 'revision_number' => 2],
+                    ['project_id' => $project->id, 'revision_number' => 3],
                     [
                         'configuration_import_id' => $weatherImport->id, 'storage_path' => $weatherPath,
                         'sha256' => $weatherHash, 'change_summary' => 'Ukázkové řízení počasí', 'created_by' => $user->id,

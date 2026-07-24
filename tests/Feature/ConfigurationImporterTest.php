@@ -148,7 +148,10 @@ class ConfigurationImporterTest extends TestCase
         $user = User::factory()->create();
         app(DayzDemoSeeder::class)->seedFor($user);
         $project = Project::query()->where('name', 'Chernarus Survival')->firstOrFail();
-        $source = $project->revisions()->with('configurationImport')->firstOrFail();
+        $source = $project->revisions()
+            ->with('configurationImport')
+            ->whereHas('configurationImport', fn ($query) => $query->where('original_filename', 'types.xml'))
+            ->firstOrFail();
         $original = Storage::disk('dayz')->get($source->storage_path);
         $updated = str_replace('<nominal>8</nominal>', '<nominal>18</nominal>', $original);
 
@@ -160,7 +163,7 @@ class ConfigurationImporterTest extends TestCase
             $user,
         );
 
-        $this->assertSame(3, $revision->revision_number);
+        $this->assertSame(4, $revision->revision_number);
         $this->assertSame($original, Storage::disk('dayz')->get($source->storage_path));
         $this->assertStringContainsString(
             '<nominal>18</nominal>',
