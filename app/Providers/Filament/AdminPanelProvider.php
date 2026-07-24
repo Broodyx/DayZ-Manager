@@ -27,13 +27,14 @@ class AdminPanelProvider extends PanelProvider
         return $panel->default()->id('admin')->path('admin')->login()
             ->brandName('DayZ Manager')->colors(['primary' => Color::Lime])
             ->defaultThemeMode(ThemeMode::Dark)
+            ->darkMode(true, isForced: true)
             ->renderHook(
                 PanelsRenderHook::STYLES_AFTER,
                 fn (): string => view('filament.admin-theme')->render(),
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->pages([Pages\Dashboard::class])
-            ->widgets([Widgets\AccountWidget::class, Widgets\FilamentInfoWidget::class])
+            ->widgets([Widgets\AccountWidget::class])
             ->middleware([
                 EncryptCookies::class, AddQueuedCookiesToResponse::class, StartSession::class,
                 AuthenticateSession::class, ShareErrorsFromSession::class, VerifyCsrfToken::class,

@@ -1,14 +1,15 @@
 <style>
     :root {
         color-scheme: dark;
-        --dayz-background: #0b120d;
-        --dayz-surface: #111b13;
-        --dayz-surface-raised: #162219;
-        --dayz-border: rgba(163, 230, 53, 0.16);
-        --dayz-accent: #a3e635;
-        --dayz-accent-strong: #84cc16;
-        --dayz-text: #f4f7f2;
-        --dayz-muted: #cbd5c0;
+        --dayz-background: #090d0a;
+        --dayz-surface: #121914;
+        --dayz-surface-raised: #19221b;
+        --dayz-border: rgba(190, 209, 175, 0.14);
+        --dayz-accent: #b6e94f;
+        --dayz-accent-strong: #91c52b;
+        --dayz-warning: #d97738;
+        --dayz-text: #edf2e9;
+        --dayz-muted: #aab6a4;
     }
 
     ::selection {
@@ -17,34 +18,62 @@
     }
 
     .fi-body {
-        color: var(--dayz-text);
-        background-color: var(--dayz-background);
+        color: var(--dayz-text) !important;
+        background-color: var(--dayz-background) !important;
         background-image:
-            radial-gradient(circle at 15% 10%, rgba(132, 204, 22, 0.1), transparent 28rem),
-            linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
-        background-size: auto, 32px 32px, 32px 32px;
+            radial-gradient(circle at 82% -10%, rgba(145, 197, 43, 0.12), transparent 34rem),
+            radial-gradient(circle at 15% 105%, rgba(217, 119, 56, 0.07), transparent 28rem),
+            repeating-linear-gradient(115deg, transparent 0, transparent 80px, rgba(255, 255, 255, 0.012) 81px);
         background-attachment: fixed;
     }
 
+    .fi-layout {
+        background: transparent !important;
+    }
+
     .fi-simple-layout {
-        background: transparent;
+        position: relative;
+        overflow: hidden;
+        background: transparent !important;
+    }
+
+    .fi-simple-layout::before {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(90deg, rgba(9, 13, 10, 0.95), rgba(9, 13, 10, 0.6)),
+            repeating-linear-gradient(-45deg, transparent 0 14px, rgba(182, 233, 79, 0.018) 14px 15px);
+        content: "";
     }
 
     .fi-simple-main {
-        border: 1px solid var(--dayz-border);
-        border-radius: 1rem;
-        background: rgba(17, 27, 19, 0.94);
+        position: relative;
+        border: 1px solid rgba(182, 233, 79, 0.2);
+        border-top: 3px solid var(--dayz-accent-strong);
+        border-radius: 0.35rem;
+        background: rgba(18, 25, 20, 0.97) !important;
         box-shadow:
-            0 24px 70px rgba(0, 0, 0, 0.42),
+            0 28px 80px rgba(0, 0, 0, 0.52),
             0 0 0 1px rgba(255, 255, 255, 0.02) inset;
-        backdrop-filter: blur(14px);
+        backdrop-filter: blur(18px);
+    }
+
+    .fi-simple-main::after {
+        position: absolute;
+        top: -3px;
+        right: 1.5rem;
+        width: 3.5rem;
+        height: 3px;
+        background: var(--dayz-warning);
+        content: "";
     }
 
     .fi-logo {
         color: var(--dayz-accent) !important;
         font-weight: 800;
-        letter-spacing: -0.035em;
+        letter-spacing: -0.045em;
+        text-transform: uppercase;
     }
 
     .fi-simple-header .fi-logo::before {
@@ -61,35 +90,88 @@
 
     .fi-sidebar {
         border-right: 1px solid var(--dayz-border);
-        background: rgba(13, 22, 15, 0.98) !important;
+        background:
+            linear-gradient(180deg, rgba(145, 197, 43, 0.035), transparent 15rem),
+            #0e1410 !important;
+    }
+
+    .fi-sidebar-header {
+        border-bottom: 1px solid var(--dayz-border);
+        background: #101712 !important;
+        box-shadow: none !important;
     }
 
     .fi-topbar nav {
         border-bottom: 1px solid var(--dayz-border);
-        background: rgba(11, 18, 13, 0.88) !important;
+        background: rgba(12, 17, 13, 0.94) !important;
         box-shadow: 0 10px 35px rgba(0, 0, 0, 0.2);
         backdrop-filter: blur(14px);
     }
 
+    .fi-main {
+        position: relative;
+    }
+
+    .fi-main::before {
+        display: block;
+        width: 4rem;
+        height: 3px;
+        margin-bottom: 1rem;
+        background: linear-gradient(90deg, var(--dayz-accent-strong) 75%, var(--dayz-warning) 75%);
+        content: "";
+    }
+
+    .fi-header-heading,
+    .fi-simple-header-heading,
+    .fi-section-header-heading,
+    .fi-ta-header-heading,
+    .fi-wi-account .text-gray-950 {
+        color: var(--dayz-text) !important;
+    }
+
+    .fi-header-subheading,
+    .fi-simple-header-subheading,
+    .fi-wi-account .text-gray-500 {
+        color: var(--dayz-muted) !important;
+    }
+
     .fi-sidebar-item.fi-active > a {
-        color: var(--dayz-accent);
-        background: rgba(132, 204, 22, 0.14);
+        border-left: 3px solid var(--dayz-accent);
+        border-radius: 0.25rem;
+        color: var(--dayz-accent) !important;
+        background: rgba(145, 197, 43, 0.14) !important;
     }
 
     .fi-sidebar-item > a:hover {
-        background: rgba(163, 230, 53, 0.08);
+        background: rgba(182, 233, 79, 0.07) !important;
+    }
+
+    .fi-sidebar-item-label {
+        color: #c8d1c3;
+    }
+
+    .fi-sidebar-item.fi-active .fi-sidebar-item-label,
+    .fi-sidebar-item.fi-active svg {
+        color: var(--dayz-accent) !important;
     }
 
     .fi-section,
     .fi-ta-ctn,
-    .fi-wi-stats-overview-stat {
+    .fi-wi-stats-overview-stat,
+    .fi-wi-account > div {
         border-color: var(--dayz-border) !important;
-        background: rgba(17, 27, 19, 0.92) !important;
-        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+        border-radius: 0.35rem !important;
+        background:
+            linear-gradient(135deg, rgba(182, 233, 79, 0.035), transparent 45%),
+            var(--dayz-surface) !important;
+        box-shadow:
+            0 16px 45px rgba(0, 0, 0, 0.24),
+            inset 3px 0 0 rgba(145, 197, 43, 0.45);
     }
 
     .fi-input-wrp {
-        border-color: rgba(203, 213, 192, 0.18);
+        border-color: rgba(190, 209, 175, 0.2);
+        border-radius: 0.3rem !important;
         background: rgba(7, 12, 8, 0.7) !important;
     }
 
@@ -100,10 +182,34 @@
 
     .fi-btn.fi-color-primary {
         color: #17210d;
-        box-shadow: 0 8px 24px rgba(132, 204, 22, 0.2);
+        border-radius: 0.25rem;
+        font-weight: 700;
+        letter-spacing: 0.025em;
+        text-transform: uppercase;
+        box-shadow: 0 8px 24px rgba(145, 197, 43, 0.2);
     }
 
     .fi-btn.fi-color-primary:hover {
         box-shadow: 0 10px 30px rgba(163, 230, 53, 0.28);
+    }
+
+    .fi-btn.fi-color-gray {
+        border-radius: 0.25rem;
+        color: var(--dayz-text) !important;
+        background: var(--dayz-surface-raised) !important;
+    }
+
+    .fi-dropdown-panel,
+    .fi-modal-window {
+        border: 1px solid var(--dayz-border);
+        border-radius: 0.35rem !important;
+        background: #111813 !important;
+    }
+
+    .fi-ta-header,
+    .fi-ta-content,
+    .fi-ta-footer {
+        border-color: var(--dayz-border) !important;
+        background: transparent !important;
     }
 </style>
