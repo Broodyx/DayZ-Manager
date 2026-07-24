@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Import\ConfigurationImporter;
+use App\Services\Revision\ConfigurationRevisionEditor;
 use Database\Seeders\DayzDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -90,5 +91,48 @@ class ConfigurationImporterTest extends TestCase
             ->get('/admin/projects')
             ->assertOk()
             ->assertSee('Vytvořit demo data');
+    }
+
+    public function test_types_xml_project_has_visual_and_raw_editor(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        app(DayzDemoSeeder::class)->seedFor($user);
+        $project = Project::query()->where('user_id', $user->id)->where('name', 'Chernarus Survival')->firstOrFail();
+
+        $this->actingAs($user)
+            ->get("/admin/projects/{$project->id}/configuration")
+            ->assertOk()
+            ->assertSee('Vizuální editor')
+            ->assertSee('Raw data')
+            ->assertSee('PlayStation')
+            ->assertSee('Položky types.xml');
+    }
+
+    public function test_editor_save_creates_a_new_revision_without_overwriting_the_source(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        app(DayzDemoSeeder::class)->seedFor($user);
+        $project = Project::query()->where('name', 'Chernarus Survival')->firstOrFail();
+        $source = $project->revisions()->with('configurationImport')->firstOrFail();
+        $original = Storage::disk('dayz')->get($source->storage_path);
+        $updated = str_replace('<nominal>8</nominal>', '<nominal>18</nominal>', $original);
+
+        $revision = app(ConfigurationRevisionEditor::class)->save(
+            $project,
+            $source,
+            $updated,
+            'Zvýšení AKM',
+            $user,
+        );
+
+        $this->assertSame(2, $revision->revision_number);
+        $this->assertSame($original, Storage::disk('dayz')->get($source->storage_path));
+        $this->assertStringContainsString(
+            '<nominal>18</nominal>',
+            Storage::disk('dayz')->get($revision->storage_path),
+        );
+        $this->assertNotSame($source->sha256, $revision->sha256);
     }
 }

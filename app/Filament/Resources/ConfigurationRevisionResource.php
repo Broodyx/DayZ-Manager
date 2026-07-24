@@ -4,12 +4,14 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ConfigurationRevisionResource\Pages;
 use App\Models\ConfigurationRevision;
+use App\Services\Revision\ConfigurationRevisionEditor;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Storage;
 
 class ConfigurationRevisionResource extends Resource
 {
@@ -52,7 +54,16 @@ class ConfigurationRevisionResource extends Resource
             Tables\Columns\TextColumn::make('change_summary')->label('Změna')->limit(50),
             Tables\Columns\TextColumn::make('creator.name')->label('Autor'),
             Tables\Columns\TextColumn::make('created_at')->label('Vytvořeno')->dateTime('d. m. Y H:i')->sortable(),
-        ])->actions([Tables\Actions\EditAction::make()->label('Detail')->icon('heroicon-o-eye')]);
+        ])->actions([
+            Tables\Actions\Action::make('download')
+                ->label('Stáhnout')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->action(fn (ConfigurationRevision $record) => Storage::disk('dayz')->download(
+                    $record->storage_path,
+                    app(ConfigurationRevisionEditor::class)->downloadName($record),
+                )),
+            Tables\Actions\EditAction::make()->label('Detail')->icon('heroicon-o-eye'),
+        ]);
     }
 
     public static function getEloquentQuery(): Builder

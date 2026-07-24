@@ -9,7 +9,7 @@ final class PlatformDetector
         $haystack = strtolower($content."\n".implode("\n", $paths));
         $rules = [
             'Steam Workshop reference' => str_contains($haystack, 'steamcommunity.com/sharedfiles'),
-            '-mod parameter' => preg_match('/(?:^|\s)-mod\s*=/i', $haystack) === 1,
+            '-mod parameter' => preg_match('/(?:^|[\s"\'])-mod\s*=/i', $haystack) === 1,
             'PC mod directory' => preg_match('/(?:^|[\/\\\\])@[a-z0-9_.-]+/i', $haystack) === 1,
             'Known PC framework' => preg_match('/\b(cftools|community framework|dayz expansion)\b/i', $haystack) === 1,
         ];

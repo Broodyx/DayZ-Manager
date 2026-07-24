@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\EditProjectConfigurationAction;
 use App\Filament\Resources\ProjectResource\Pages;
 use App\Models\Project;
 use Filament\Forms;
@@ -49,7 +50,10 @@ class ProjectResource extends Resource
             Tables\Columns\TextColumn::make('platform_confidence')->label('Jistota')->suffix('%'),
             Tables\Columns\TextColumn::make('map')->label('Mapa')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('updated_at')->label('Upraveno')->dateTime('d. m. Y H:i')->sortable(),
-        ])->actions([Tables\Actions\EditAction::make()])
+        ])->actions([
+            EditProjectConfigurationAction::make(),
+            Tables\Actions\EditAction::make()->label('Projekt'),
+        ])
             ->bulkActions([Tables\Actions\BulkActionGroup::make([Tables\Actions\DeleteBulkAction::make()])]);
     }
 
@@ -64,6 +68,7 @@ class ProjectResource extends Resource
             'index' => Pages\ListProjects::route('/'),
             'create' => Pages\CreateProject::route('/create'),
             'edit' => Pages\EditProject::route('/{record}/edit'),
+            'configuration' => Pages\EditConfiguration::route('/{record}/configuration'),
         ];
     }
 }

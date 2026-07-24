@@ -2,8 +2,11 @@
 
 namespace Tests\Unit;
 
+use App\Models\Project;
+use App\Services\PlatformDetection\PlatformCompatibility;
 use App\Services\PlatformDetection\PlatformDetector;
-use PHPUnit\Framework\TestCase;
+use Illuminate\Validation\ValidationException;
+use Tests\TestCase;
 
 class PlatformDetectorTest extends TestCase
 {
@@ -19,5 +22,29 @@ class PlatformDetectorTest extends TestCase
         $result = (new PlatformDetector)->detect('<types/>');
         $this->assertSame('unknown', $result->platform);
         $this->assertLessThan(100, $result->confidence);
+    }
+
+    public function test_console_editor_rejects_pc_only_mod_configuration(): void
+    {
+        $project = new Project(['platform' => 'playstation']);
+
+        $this->expectException(ValidationException::class);
+
+        (new PlatformCompatibility(new PlatformDetector))->assertEditable(
+            $project,
+            'launch="-mod=@Community-Framework"',
+        );
+    }
+
+    public function test_steam_editor_allows_pc_mod_configuration(): void
+    {
+        $project = new Project(['platform' => 'steam']);
+
+        (new PlatformCompatibility(new PlatformDetector))->assertEditable(
+            $project,
+            'launch="-mod=@Community-Framework"',
+        );
+
+        $this->assertTrue(true);
     }
 }

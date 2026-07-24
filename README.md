@@ -68,6 +68,20 @@ docker compose exec app php artisan db:seed --class=DayzDemoSeeder
 
 Příkaz je opakovatelný a vytvoří tři demo projekty: PlayStation Chernarus, Xbox Livonia a modovaný Steam/Namalsk. Nevytváří žádný účet ani výchozí heslo.
 
+## Editor konfigurací
+
+U projektu s alespoň jedním importem je dostupné tlačítko **Editor**:
+
+- `types.xml` má vizuální editor s vyhledáváním, číselnými poli a posuvníky pro `nominal`, `min`, `lifetime`, `restock`, `quantmin`, `quantmax` a `cost`,
+- všechny podporované XML/JSON soubory lze otevřít také jako **Raw data**,
+- XML a JSON se před uložením validují,
+- každé uložení vytvoří novou neměnnou revizi; starší verze zůstávají v historii,
+- importy i jednotlivé revize lze stáhnout,
+- u PlayStation a Xbox projektů editor odmítne PC-only prvky jako Steam Workshop odkazy, `-mod=`, adresáře `@mod` a známé PC frameworky,
+- ZIP je importní balíček a neupravuje se jako jeden textový soubor.
+
+Maximální velikost souboru otevřeného ve webovém editoru řídí `MAX_EDITOR_SIZE` (výchozí `10M`). Limit uploadu zůstává samostatně v `MAX_UPLOAD_SIZE`.
+
 ## Produkční start
 
 Entrypoint před spuštěním:

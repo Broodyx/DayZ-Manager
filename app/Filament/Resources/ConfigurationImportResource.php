@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Storage;
 
 class ConfigurationImportResource extends Resource
 {
@@ -67,7 +68,16 @@ class ConfigurationImportResource extends Resource
                     default => 'warning',
                 }),
             Tables\Columns\TextColumn::make('imported_at')->label('Importováno')->dateTime('d. m. Y H:i')->sortable(),
-        ])->actions([Tables\Actions\EditAction::make()->label('Detail')->icon('heroicon-o-eye')]);
+        ])->actions([
+            Tables\Actions\Action::make('download')
+                ->label('Stáhnout')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->action(fn (ConfigurationImport $record) => Storage::disk('dayz')->download(
+                    $record->storage_path,
+                    $record->original_filename,
+                )),
+            Tables\Actions\EditAction::make()->label('Detail')->icon('heroicon-o-eye'),
+        ]);
     }
 
     public static function getEloquentQuery(): Builder
