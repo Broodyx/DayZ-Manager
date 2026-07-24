@@ -8,6 +8,7 @@ use App\Services\Import\ConfigurationImporter;
 use App\Services\PlatformDetection\PlatformCompatibility;
 use App\Services\PlatformDetection\PlatformDetector;
 use App\Services\Revision\ConfigurationRevisionEditor;
+use App\Services\Revision\JsonConfigurationEditor;
 use App\Services\Revision\TypesXmlEditor;
 use App\Services\Revision\WeatherXmlEditor;
 use Filament\Actions;
@@ -63,11 +64,19 @@ class EditConfiguration extends Page
     /** @var array<string, mixed> */
     public array $weatherForm = [];
 
+    public array $jsonFields = [];
+
+    public array $jsonValues = [];
+
     public bool $showAddForm = false;
 
     public bool $showClassPicker = false;
 
     public string $classPickerCategory = 'weapons';
+
+    public string $classPickerSearch = '';
+
+    public int $classPickerLimit = 60;
 
     /** @var array<string, mixed> */
     public array $newTypeForm = [
@@ -333,6 +342,8 @@ class EditConfiguration extends Page
     public function openClassPicker(): void
     {
         $this->showClassPicker = true;
+        $this->classPickerSearch = '';
+        $this->classPickerLimit = 60;
     }
 
     public function closeClassPicker(): void
@@ -347,12 +358,24 @@ class EditConfiguration extends Page
         $this->showClassPicker = false;
     }
 
+    public function loadMoreCatalog(): void
+    {
+        $this->classPickerLimit += 60;
+    }
+
     public function pickerEntries(): array
     {
-        return array_values(array_filter(
+        $entries = array_values(array_filter(
             $this->catalogEntries,
             fn (array $entry): bool => ($entry['category'] ?: 'other') === $this->classPickerCategory,
         ));
+
+        if ($this->classPickerSearch !== '') {
+            $search = mb_strtolower($this->classPickerSearch);
+            $entries = array_values(array_filter($entries, fn (array $entry): bool => str_contains(mb_strtolower($entry['name']), $search)));
+        }
+
+        return array_slice($entries, 0, $this->classPickerLimit);
     }
 
     public function pickerCategories(): array
@@ -546,6 +569,15 @@ class EditConfiguration extends Page
             ->send();
     }
 
+    public function saveJson(JsonConfigurationEditor $jsonEditor, ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
+    {
+        $content = $jsonEditor->update($this->rawContent, $this->jsonValues);
+        $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
+        $revision = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, $this->changeSummary ?: 'Úprava JSON konfigurace', auth()->user());
+        $this->loadRevision($revision);
+        Notification::make()->success()->title("Konfigurace uložena v revizi #{$revision->revision_number}")->send();
+    }
+
     private function loadLatestRevision(): void
     {
         $revision = $this->getRecord()->revisions()
@@ -568,14 +600,18 @@ class EditConfiguration extends Page
         $this->currentFilename = $filename;
         $typesEditor = app(TypesXmlEditor::class);
         $weatherEditor = app(WeatherXmlEditor::class);
+        $jsonEditor = app(JsonConfigurationEditor::class);
         $this->visualKind = match (true) {
             $typesEditor->supports($filename, $this->rawContent) => 'types',
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
+            $jsonEditor->supports($this->rawContent) => 'json',
             default => null,
         };
         $this->visualSupported = $this->visualKind !== null;
         $this->typeEntries = $this->visualKind === 'types' ? $typesEditor->entries($this->rawContent) : [];
         $this->weatherForm = $this->visualKind === 'weather' ? $weatherEditor->values($this->rawContent) : [];
+        $this->jsonFields = $this->visualKind === 'json' ? $jsonEditor->fields($this->rawContent) : [];
+        $this->jsonValues = collect($this->jsonFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
         $this->mode = $this->visualSupported ? 'visual' : 'raw';
 
         $detection = app(PlatformDetector::class)->detect($this->rawContent, [$filename]);

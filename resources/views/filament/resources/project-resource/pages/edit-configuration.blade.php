@@ -63,6 +63,8 @@
         .dz-picker-items { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.5rem }
         .dz-picker-item { padding:.7rem; border:1px solid rgba(190,209,175,.14); border-radius:.25rem; color:#dce8d5; background:#0d130f; text-align:left; cursor:pointer }
         .dz-picker-item:hover { border-color:#b6e94f; color:#17210d; background:#b6e94f }
+        .dz-picker-search { width:100%; margin-bottom:1rem; padding:.7rem .8rem; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; color:#edf2e9; background:#090d0a }
+        .dz-picker-more { display:block; width:100%; margin-top:1rem; padding:.7rem; border:1px solid rgba(182,233,79,.25); border-radius:.25rem; color:#b6e94f; background:#151e17; font-weight:700 }
         @media(max-width:640px){.dz-picker-items{grid-template-columns:repeat(2,minmax(0,1fr))}}
         .dz-savebar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; padding:1rem; border-top:1px solid rgba(182,233,79,.13); background:#111813 }
         .dz-warning { padding:.85rem 1rem; border-left:3px solid #d97738; color:#e8c8b3; background:rgba(217,119,56,.08) }
@@ -386,6 +388,33 @@
                         <button type="button" wire:click="saveWeather" wire:loading.attr="disabled" class="dz-action">Uložit počasí jako revizi</button>
                     </div>
                 </section>
+            @elseif ($visualKind === 'json')
+                <section class="dz-panel dz-server-settings">
+                    <div class="dz-panel-head"><strong>{{ $currentFilename }} · vizuální editor</strong><p class="dz-muted text-sm mt-1">Nastavení je rozdělené podle sekcí JSON. Pole jsou odvozena přímo z importovaného souboru.</p></div>
+                    <div class="p-3">
+                        @foreach (collect($jsonFields)->groupBy('section') as $section => $fields)
+                            <details class="dz-group" open>
+                                <summary><span>{{ $section }}</span><span class="dz-badge dz-server-badge">{{ count($fields) }} nastavení</span></summary>
+                                <div class="dz-fields">
+                                    @foreach ($fields as $field)
+                                        <label class="dz-field" data-tooltip="Raw JSON: {{ $field['path'] }}">
+                                            <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $field['path'] }}</small></span>
+                                                @if ($field['type'] === 'boolean')
+                                                    <input type="checkbox" wire:model="jsonValues.{{ $field['path'] }}">
+                                                @elseif ($field['type'] === 'number')
+                                                    <input type="number" wire:model="jsonValues.{{ $field['path'] }}">
+                                                @else
+                                                    <input type="text" wire:model="jsonValues.{{ $field['path'] }}">
+                                                @endif
+                                            </span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </details>
+                        @endforeach
+                    </div>
+                    <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny JSON konfigurace"><button type="button" wire:click="saveJson" wire:loading.attr="disabled" class="dz-action">Validovat a uložit JSON revizi</button></div>
+                </section>
             @endif
         @else
             <section class="dz-panel">
@@ -415,6 +444,7 @@
                     <button type="button" wire:click="closeClassPicker" class="dz-secondary">Zavřít</button>
                 </div>
                 <div class="dz-modal-body">
+                    <input wire:model.live.debounce.200ms="classPickerSearch" class="dz-picker-search" placeholder="Hledat v celém katalogu, například PlateCarrier nebo AKM…">
                     <div class="dz-picker-categories">
                         @foreach ($this->pickerCategories() as $category)
                             <button type="button" wire:click="$set('classPickerCategory', @js($category))" class="dz-picker-category {{ $classPickerCategory === $category ? 'active' : '' }}">{{ strtoupper($category) }}</button>
@@ -427,6 +457,9 @@
                             <p class="dz-muted">V této kategorii nejsou v aktuálním souboru žádné položky.</p>
                         @endforelse
                     </div>
+                    @if (count($this->pickerEntries()) >= $classPickerLimit)
+                        <button type="button" wire:click="loadMoreCatalog" class="dz-picker-more">Načíst dalších 60 položek</button>
+                    @endif
                 </div>
             </section>
         </div>
