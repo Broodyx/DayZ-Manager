@@ -1,0 +1,25 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('projects', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->string('name');
+            $table->enum('platform', ['playstation', 'xbox', 'steam', 'unknown'])->default('unknown')->index();
+            $table->unsignedTinyInteger('platform_confidence')->nullable();
+            $table->string('map')->index();
+            $table->string('game_version')->nullable();
+            $table->text('description')->nullable();
+            $table->timestamps();
+            $table->index(['user_id', 'updated_at']);
+        });
+    }
+
+    public function down(): void { Schema::dropIfExists('projects'); }
+};

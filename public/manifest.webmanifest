@@ -1,0 +1,8 @@
+{
+  "name": "DayZ Manager",
+  "short_name": "DayZ Manager",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b120d",
+  "theme_color": "#84cc16"
+}
