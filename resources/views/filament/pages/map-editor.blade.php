@@ -20,7 +20,7 @@
                     <button data-point="aerial">Letecký event</button>
                     <button data-point="custom">Vlastní bod</button>
                 </div>
-                <div id="dz-event-catalog" class="dz-event-catalog" hidden><label>Konfigurace eventu / vozidla</label><select></select><input class="dz-point-name" placeholder="Název bodu / vozidla"><input class="dz-point-radius" type="number" min="1" max="5000" value="50" placeholder="Poloměr zóny (m)"><small>Vyberte konkrétní event nebo zadejte vlastní název. U zón lze nastavit poloměr.</small><button type="button" class="dz-point-confirm">Umístit bod</button></div>
+                <div id="dz-event-catalog" class="dz-event-catalog" hidden><label>Možnosti pro vybraný typ</label><select></select><input class="dz-point-name" placeholder="Název bodu / vozidla"><input class="dz-point-radius" type="number" min="1" max="5000" value="50" placeholder="Poloměr zóny (m)"><small>Vyberte existující možnost nebo zadejte vlastní název. U zón lze nastavit poloměr.</small><button type="button" class="dz-point-confirm">Umístit bod</button></div>
             </div>
         </div>
         <div class="dz-map-toolbar">
@@ -92,12 +92,14 @@
             const modal = document.getElementById('dz-point-modal');
             modal.querySelector('.dz-point-close').onclick = () => modal.hidden = true;
             let pendingButton = null;
+            const catalogs = { vehicle: ['M1025','OffroadHatchback','CivilianSedan','Truck_01_Covered','V3S'], animal: ['Animal_CervusElaphus','Animal_Boar','Animal_Wolf','Animal_BosTaurus','Animal_Goat'], infected: ['ZmbM_CitizenASkinny_Blue','ZmbM_PolicemanFat','ZmbF_JournalistNormal_Blue'], loot: ['LootGroup_City','LootGroup_Military','LootGroup_Hunting','LootGroup_Industrial'], heli: ['StaticHeliCrash'], convoy: ['StaticConvoy'], dynamic: ['DynamicEvent'], contaminated: ['ContaminatedZone'], player: ['PlayerSpawn'], territory: ['Territory'], aerial: ['AerialEvent'], custom: ['CustomPoint'] };
             const placePoint = (button) => {
-                const label = button.textContent.trim();
-                if ((button.dataset.point === 'vehicle' || button.dataset.point === 'dynamic' || button.dataset.point === 'animal' || button.dataset.point === 'infected') && pendingButton !== button) {
+                const label = button.dataset.label || button.textContent.trim();
+                if (pendingButton !== button) {
                     pendingButton = button;
                     const catalog = document.getElementById('dz-event-catalog'); const select = catalog.querySelector('select');
-                    select.innerHTML = '<option value="">Vyberte existující event...</option>' + @js($eventCatalog).map((item) => '<option>' + item.name + '</option>').join(''); catalog.hidden = false;
+                    const entries = catalogs[button.dataset.point] || @js($eventCatalog).map((item) => item.name);
+                    select.innerHTML = '<option value="">Vyberte existující možnost...</option>' + entries.map((item) => '<option>' + item + '</option>').join(''); catalog.hidden = false;
                     return;
                 }
                 const chosen = document.querySelector('#dz-event-catalog select')?.value || document.querySelector('.dz-point-name')?.value || label;
@@ -106,7 +108,7 @@
                 fetch('{{ route('map-editor.points.store') }}', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'}, body: JSON.stringify({project_id: @js($projectId), type: button.dataset.point, label: chosen || label, x: Math.round(Number(modal.dataset.lng) / 3000 * 15360), z: Math.round((1 - Number(modal.dataset.lat) / 2900) * 15360)}) }).then((response) => { if (!response.ok) throw new Error('Uložení bodu selhalo'); }).catch(() => window.alert('Bod byl zobrazen, ale nepodařilo se ho uložit do XML.'));
                 const popup = () => '<strong>' + (chosen || label) + '</strong><br><small>Typ: ' + label + '<br>X/Z: ' + Math.round(Number(modal.dataset.lng) / 3000 * 15360) + ' / ' + Math.round((1 - Number(modal.dataset.lat) / 2900) * 15360) + '</small><br><button class="dz-map-edit" type="button">Upravit bod</button> <button class="dz-map-delete" type="button">Smazat</button>';
                 marker.bindPopup(popup()).openPopup();
-                marker.on('popupopen', (event) => { const root = event.popup.getElement(); root.querySelector('.dz-map-delete')?.addEventListener('click', () => { map.removeLayer(marker); }); root.querySelector('.dz-map-edit')?.addEventListener('click', () => { const name = window.prompt('Název bodu / vozidla', chosen || label); if (name) marker.setPopupContent('<strong>' + name + '</strong><br><small>Typ: ' + label + '</small><br><button class="dz-map-edit" type="button">Upravit bod</button> <button class="dz-map-delete" type="button">Smazat</button>'); }); });
+                marker.on('popupopen', (event) => { const root = event.popup.getElement(); root.querySelector('.dz-map-delete')?.addEventListener('click', () => { map.removeLayer(marker); }); root.querySelector('.dz-map-edit')?.addEventListener('click', () => { const next = window.prompt('Vyberte novou položku: ' + (catalogs[button.dataset.point] || []).join(', '), chosen || label); if (next) marker.setPopupContent('<strong>' + next + '</strong><br><small>Typ: ' + label + '</small><br><button class="dz-map-edit" type="button">Upravit bod</button> <button class="dz-map-delete" type="button">Smazat</button>'); }); });
                 pendingButton = null;
                 modal.hidden = true;
             };
