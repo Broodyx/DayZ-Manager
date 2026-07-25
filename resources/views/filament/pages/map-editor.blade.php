@@ -20,7 +20,7 @@
                     <button data-point="aerial">Letecký event</button>
                     <button data-point="custom">Vlastní bod</button>
                 </div>
-                <div id="dz-event-catalog" class="dz-event-catalog" hidden><label>Konfigurace eventu / vozidla</label><select></select><input class="dz-point-name" placeholder="Název bodu / vozidla"><input class="dz-point-radius" type="number" min="1" max="5000" value="50" placeholder="Poloměr zóny (m)"><small>Vyberte konkrétní event nebo zadejte vlastní název. U zón lze nastavit poloměr.</small></div>
+                <div id="dz-event-catalog" class="dz-event-catalog" hidden><label>Konfigurace eventu / vozidla</label><select></select><input class="dz-point-name" placeholder="Název bodu / vozidla"><input class="dz-point-radius" type="number" min="1" max="5000" value="50" placeholder="Poloměr zóny (m)"><small>Vyberte konkrétní event nebo zadejte vlastní název. U zón lze nastavit poloměr.</small><button type="button" class="dz-point-confirm">Umístit bod</button></div>
             </div>
         </div>
         <div class="dz-map-toolbar">
@@ -91,11 +91,14 @@
             });
             const modal = document.getElementById('dz-point-modal');
             modal.querySelector('.dz-point-close').onclick = () => modal.hidden = true;
-            modal.querySelectorAll('[data-point]').forEach((button) => button.onclick = () => {
+            let pendingButton = null;
+            const placePoint = (button) => {
                 const label = button.textContent.trim();
-                if (button.dataset.point === 'vehicle' || button.dataset.point === 'dynamic' || button.dataset.point === 'animal' || button.dataset.point === 'infected') {
+                if ((button.dataset.point === 'vehicle' || button.dataset.point === 'dynamic' || button.dataset.point === 'animal' || button.dataset.point === 'infected') && pendingButton !== button) {
+                    pendingButton = button;
                     const catalog = document.getElementById('dz-event-catalog'); const select = catalog.querySelector('select');
                     select.innerHTML = '<option value="">Vyberte existující event...</option>' + @js($eventCatalog).map((item) => '<option>' + item.name + '</option>').join(''); catalog.hidden = false;
+                    return;
                 }
                 const chosen = document.querySelector('#dz-event-catalog select')?.value || document.querySelector('.dz-point-name')?.value || label;
                 const radius = Number(document.querySelector('.dz-point-radius')?.value || 50);
@@ -103,8 +106,11 @@
                 const popup = () => '<strong>' + (chosen || label) + '</strong><br><small>Typ: ' + label + '<br>X/Z: ' + Math.round(Number(modal.dataset.lng) / 3000 * 15360) + ' / ' + Math.round((1 - Number(modal.dataset.lat) / 2900) * 15360) + '</small><br><button class="dz-map-edit" type="button">Upravit bod</button> <button class="dz-map-delete" type="button">Smazat</button>';
                 marker.bindPopup(popup()).openPopup();
                 marker.on('popupopen', (event) => { const root = event.popup.getElement(); root.querySelector('.dz-map-delete')?.addEventListener('click', () => { map.removeLayer(marker); }); root.querySelector('.dz-map-edit')?.addEventListener('click', () => { const name = window.prompt('Název bodu / vozidla', chosen || label); if (name) marker.setPopupContent('<strong>' + name + '</strong><br><small>Typ: ' + label + '</small><br><button class="dz-map-edit" type="button">Upravit bod</button> <button class="dz-map-delete" type="button">Smazat</button>'); }); });
+                pendingButton = null;
                 modal.hidden = true;
-            });
+            };
+            modal.querySelectorAll('[data-point]').forEach((button) => button.onclick = () => placePoint(button));
+            modal.querySelector('.dz-point-confirm').onclick = () => { if (pendingButton) placePoint(pendingButton); };
             const markers = @js($markers);
             markers.forEach((marker) => {
                 const px = (marker.worldX ?? (marker.x * 15360 / 100)) / 15360 * 3000;
