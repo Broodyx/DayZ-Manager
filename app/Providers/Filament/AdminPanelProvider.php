@@ -2,13 +2,16 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Resources\ProjectResource;
 use App\Filament\Widgets\DayzOverview;
 use App\Filament\Widgets\ItemCategoriesChart;
 use App\Filament\Widgets\RecentProjects;
+use App\Models\Project;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationItem;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -27,6 +30,17 @@ class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
+        $serverItems = auth()->check()
+            ? Project::query()->where('user_id', auth()->id())->orderBy('name')->get()->map(
+                fn (Project $server): NavigationItem => NavigationItem::make('server-'.$server->id)
+                    ->label($server->name)
+                    ->icon('heroicon-o-server')
+                    ->url(ProjectResource::getUrl('configuration', ['record' => $server]))
+                    ->group('DayZ konfigurace')
+                    ->parentItem('Servery'),
+            )->all()
+            : [];
+
         return $panel->default()->id('admin')->path('admin')->login()
             ->favicon(asset('favicon.svg'))
             ->brandName('DayZ Manager')->colors(['primary' => Color::Lime])
@@ -37,6 +51,7 @@ class AdminPanelProvider extends PanelProvider
                 fn (): string => view('filament.admin-theme')->render(),
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
+            ->navigationItems($serverItems)
             ->pages([Pages\Dashboard::class])
             ->widgets([
                 DayzOverview::class,
