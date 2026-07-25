@@ -15,4 +15,9 @@ class CreateProject extends CreateRecord
 
         return $data;
     }
+
+    protected function getRedirectUrl(): string
+    {
+        return \App\Filament\Pages\ConfigurationWizard::getUrl(['project' => $this->record->id]);
+    }
 }

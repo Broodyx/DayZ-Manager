@@ -40,9 +40,9 @@ class AdminPanelProvider extends PanelProvider
                 ->sort(2)
                 ->group('DayZ konfigurace'),
             ...(auth()->check()
-            ? Project::query()->where('user_id', auth()->id())->orderBy('name')->get()->map(
+            ? Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->with('user')->orderBy('name')->get()->map(
                 fn (Project $server): NavigationItem => NavigationItem::make('server-'.$server->id)
-                    ->label($server->name)
+                    ->label($server->name.($server->user ? ' · '.$server->user->name : ''))
                     ->icon('heroicon-o-server')
                     ->url(fn (): string => ProjectResource::getUrl('configuration', ['record' => $server]))
                     ->group('DayZ konfigurace')

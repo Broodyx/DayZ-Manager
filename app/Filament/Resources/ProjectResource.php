@@ -57,6 +57,7 @@ class ProjectResource extends Resource
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('name')->label('Název')->searchable()->sortable(),
+            Tables\Columns\TextColumn::make('user.name')->label('Založil')->searchable()->sortable()->visible(fn (): bool => (bool) auth()->user()?->is_admin),
             Tables\Columns\TextColumn::make('platform')->label('Platforma')->badge()->sortable(),
             Tables\Columns\TextColumn::make('platform_confidence')->label('Jistota')->suffix('%')->hiddenFrom('md'),
             Tables\Columns\TextColumn::make('map')->label('Mapa')->searchable()->sortable()->hiddenFrom('md'),
@@ -72,7 +73,7 @@ class ProjectResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('user_id', auth()->id());
+        return parent::getEloquentQuery()->when(! auth()->user()?->is_admin, fn (Builder $query): Builder => $query->where('user_id', auth()->id()));
     }
 
     public static function getPages(): array
