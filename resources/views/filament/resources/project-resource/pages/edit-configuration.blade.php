@@ -399,7 +399,7 @@
                         <div class="flex items-center justify-between gap-4 flex-wrap">
                             <div>
                                 <strong>Serverová nastavení · cfgweather.xml</strong>
-                                <p class="dz-muted text-sm mt-1">Počasí je samostatná konfigurace. Vyberte ji nahoře v seznamu souborů/revizí.</p>
+                                <p class="dz-muted text-sm mt-1">Hodnoty intenzity jsou v rozsahu 0–1 (0 = jev vypnutý, 1 = maximum). Časy zadáváte v minutách; editor je při uložení převede do raw XML v sekundách.</p>
                             </div>
                             <span class="dz-badge dz-server-badge">PS · Xbox · PC</span>
                             <div class="dz-checks">
@@ -417,15 +417,15 @@
                                 </summary>
                                 <div class="dz-fields">
                                     @foreach ([
-                                        'current_actual' => ['Aktuální intenzita', $rangeMin, $rangeMax, $step, 'Aktuální síla jevu; 0 znamená vypnuto a 1 maximální intenzitu.'],
-                                        'current_time' => ['Čas přechodu (min)', 0, 1440, 1, 'Za kolik minut se začne měnit na novou hodnotu.'],
-                                        'current_duration' => ['Doba trvání (min)', 1, 1440, 1, 'Jak dlouho přibližně vydrží aktuální stav.'],
-                                        'limits_min' => ['Minimální intenzita', $rangeMin, $rangeMax, $step, 'Nejnižší intenzita, kterou hra náhodně nastaví.'],
-                                        'limits_max' => ['Maximální intenzita', $rangeMin, $rangeMax, $step, 'Nejvyšší intenzita, kterou hra náhodně nastaví.'],
-                                        'timelimits_min' => ['Min. čas změny (min)', 0, 1440, 1, 'Nejkratší prodleva mezi změnami počasí.'],
-                                        'timelimits_max' => ['Max. čas změny (min)', 1, 1440, 1, 'Nejdelší prodleva mezi změnami počasí.'],
-                                        'changelimits_min' => ['Minimální změna', $rangeMin, $rangeMax, $step, 'Nejmenší velikost náhodné změny.'],
-                                        'changelimits_max' => ['Maximální změna', $rangeMin, $rangeMax, $step, 'Největší velikost náhodné změny.'],
+                                        'current_actual' => ['Aktuální intenzita', $rangeMin, $rangeMax, $step, "Aktuální síla {$label}; rozsah {$rangeMin}–{$rangeMax}. 0 = vypnuto, maximum = {$rangeMax}."],
+                                        'current_time' => ['Čas přechodu (min)', 0, 1440, 1, 'Čas v minutách do další změny; rozsah 0–1 440 min (0–86 400 s v XML).'],
+                                        'current_duration' => ['Doba trvání (min)', 1, 1440, 1, 'Jak dlouho stav trvá; rozsah 1–1 440 min (60–86 400 s v XML).'],
+                                        'limits_min' => ['Minimální intenzita', $rangeMin, $rangeMax, $step, "Nejnižší náhodná hodnota; rozsah {$rangeMin}–{$rangeMax}."],
+                                        'limits_max' => ['Maximální intenzita', $rangeMin, $rangeMax, $step, "Nejvyšší náhodná hodnota; rozsah {$rangeMin}–{$rangeMax}."],
+                                        'timelimits_min' => ['Min. čas změny (min)', 0, 1440, 1, 'Nejkratší prodleva; rozsah 0–1 440 min, do XML se zapisují sekundy.'],
+                                        'timelimits_max' => ['Max. čas změny (min)', 1, 1440, 1, 'Nejdelší prodleva; rozsah 1–1 440 min, do XML se zapisují sekundy.'],
+                                        'changelimits_min' => ['Minimální změna', $rangeMin, $rangeMax, $step, "Nejmenší náhodná změna; rozsah {$rangeMin}–{$rangeMax}."],
+                                        'changelimits_max' => ['Maximální změna', $rangeMin, $rangeMax, $step, "Největší náhodná změna; rozsah {$rangeMin}–{$rangeMax}."],
                                     ] as $suffix => [$fieldLabel, $min, $max, $fieldStep, $help])
                                         @php
                                             $weatherKey = $section . '_' . $suffix;
@@ -442,9 +442,9 @@
 
                                     @if (in_array($section, ['rain', 'snowfall'], true))
                                         @foreach ([
-                                            'thresholds_min' => ['Min. oblačnost pro srážky', 0, 1, 0.01, 'Pod touto oblačností se déšť nebo sníh nespustí.'],
-                                            'thresholds_max' => ['Max. oblačnost pro srážky', 0, 1, 0.01, 'Nad touto oblačností se srážky mohou objevit.'],
-                                            'thresholds_end' => ['Čas ukončení srážek (min)', 0, 1440, 1, 'Jak dlouho po poklesu podmínky doznívají srážky.'],
+                                            'thresholds_min' => ['Min. oblačnost pro srážky', 0, 1, 0.01, 'Rozsah 0–1; pod touto oblačností se déšť nebo sníh nespustí.'],
+                                            'thresholds_max' => ['Max. oblačnost pro srážky', 0, 1, 0.01, 'Rozsah 0–1; nad touto oblačností se srážky mohou objevit.'],
+                                            'thresholds_end' => ['Čas ukončení srážek (min)', 0, 1440, 1, 'Doznívání po poklesu podmínky; rozsah 0–1 440 min (sekundy v XML).'],
                                         ] as $suffix => [$fieldLabel, $min, $max, $fieldStep, $help])
                                             @php
                                                 $weatherKey = $section . '_' . $suffix;
@@ -466,9 +466,9 @@
                             <summary><span>Bouřka a blesky</span><span class="dz-badge safe">PS · Xbox · PC</span></summary>
                             <div class="dz-fields">
                                 @foreach ([
-                                    'storm_density' => ['Hustota blesků', 0, 1, 0.01, 'Jak často se při bouřce generují blesky.'],
-                                    'storm_threshold' => ['Práh oblačnosti', 0, 1, 0.01, 'Minimální oblačnost potřebná pro bouřku.'],
-                                    'storm_timeout' => ['Prodleva mezi blesky (min)', 1, 60, 1, 'Minimální čas mezi dvěma blesky.'],
+                                    'storm_density' => ['Hustota blesků', 0, 1, 0.01, 'Pravděpodobnost/hustota blesků; rozsah 0–1. 0 = žádné blesky.'],
+                                    'storm_threshold' => ['Práh oblačnosti', 0, 1, 0.01, 'Minimální oblačnost pro bouřku; rozsah 0–1.'],
+                                    'storm_timeout' => ['Prodleva mezi blesky (min)', 1, 60, 1, 'Minimální čas mezi blesky; rozsah 1–60 min (60–3 600 s v XML).'],
                                 ] as $weatherKey => [$fieldLabel, $min, $max, $fieldStep, $help])
                                     <label class="dz-field" data-tooltip="Raw: {{ $weatherKey }} = {{ $weatherForm[$weatherKey] ?? '' }}">
                                         <span class="dz-field-top">
