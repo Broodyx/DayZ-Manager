@@ -66,6 +66,21 @@
             L.rectangle(bounds, { color: '#b8ed55', weight: 1, fill: false, opacity: .35 }).addTo(map);
             map.fitBounds(bounds);
             L.control.scale({ imperial: false }).addTo(map);
+            const coordinateControl = L.control({ position: 'bottomleft' });
+            coordinateControl.onAdd = () => { const div = L.DomUtil.create('div', 'dz-coordinate-control'); div.textContent = 'X: — · Z: —'; return div; };
+            coordinateControl.addTo(map);
+            const coordinateGrid = L.GridLayer.extend({
+                createTile: function (coords) {
+                    const tile = L.DomUtil.create('canvas', 'leaflet-tile'); tile.width = 256; tile.height = 256;
+                    const ctx = tile.getContext('2d'); const z = map.getZoom(); const scale = map.getZoomScale(1, z);
+                    const step = z >= 1 ? 250 : (z < -1 ? 1000 : 500); const size = 15360 / step;
+                    ctx.strokeStyle = 'rgba(184,237,85,.28)'; ctx.fillStyle = 'rgba(231,247,210,.7)'; ctx.lineWidth = 1; ctx.font = '10px sans-serif';
+                    for (let i = 0; i <= size; i++) { const world = i * step; const px = (world / 15360 * 3000) * scale - coords.x * 256; const py = (2900 - world / 15360 * 2900) * scale - coords.y * 256; if (px >= 0 && px <= 256) { ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, 256); ctx.stroke(); } if (py >= 0 && py <= 256) { ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(256, py); ctx.stroke(); } }
+                    return tile;
+                }
+            });
+            new coordinateGrid({ opacity: 0.8, zIndex: 450 }).addTo(map);
+            map.on('mousemove', (event) => { const x = Math.round(event.latlng.lng / 3000 * 15360); const z = Math.round((1 - event.latlng.lat / 2900) * 15360); document.querySelector('.dz-coordinate-control').textContent = 'X: ' + x.toLocaleString() + ' · Z: ' + z.toLocaleString(); });
             map.on('click', (event) => {
                 if (!event.originalEvent.ctrlKey) return;
                 const modal = document.getElementById('dz-point-modal');

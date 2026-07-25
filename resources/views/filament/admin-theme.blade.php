@@ -258,7 +258,7 @@
     .dz-map-toolbar h2 { margin:.15rem 0; color:#d8f57b; font-size:1.5rem; }
     .dz-eyebrow { color:#a9df42; font-size:.7rem; letter-spacing:.16em; font-weight:700; margin:0; }
     .dz-muted { color:#9aa99b; font-size:.9rem; }
-    .dz-map-select { background:#111a14; border:1px solid #506d2b; border-radius:.5rem; color:#e7f7d2; padding:.7rem 1rem; }
+    .dz-map-select { appearance:none; -webkit-appearance:none; background:#111a14; border:1px solid #506d2b; border-radius:.5rem; color:#e7f7d2; padding:.7rem 2.2rem .7rem 1rem; background-image:linear-gradient(45deg,transparent 50%,#b8ed55 50%),linear-gradient(135deg,#b8ed55 50%,transparent 50%); background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat; }
     .dz-map-upload { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; }
     .dz-map-upload input { max-width:180px; color:#b8c8b4; font-size:.75rem; }
     .dz-file-button { display:inline-flex; align-items:center; cursor:pointer; background:#273725; color:#e7f7d2; border:1px solid #5b7f35; border-radius:.45rem; padding:.65rem .8rem; font-weight:700; }
@@ -269,6 +269,7 @@
     .dz-map-canvas { height:min(72vh,760px); min-height:560px; position:relative; overflow:hidden; border:1px solid #3e5c28; border-radius:.7rem; background:#1c2b20; }
     #dayz-leaflet-map { width:100%; height:100%; background:#1c2b20; }
     .leaflet-container { background:#1c2b20; font-family:inherit; }
+    .dz-coordinate-control { background:#111a14e8; border:1px solid #6c9337; border-radius:.35rem; color:#d8f57b; padding:.4rem .6rem; font:700 .78rem/1.2 ui-monospace,monospace; }
     .dz-map-grid { position:absolute; inset:0; opacity:.12; background-image:linear-gradient(#d8f57b 1px,transparent 1px),linear-gradient(90deg,#d8f57b 1px,transparent 1px); background-size:48px 48px; }
     .dz-map-land { display:none; }
     .dz-map-marker { position:absolute; transform:translate(-50%,-50%); border:0; background:#172218dd; color:#f0f7e8; border-radius:999px; padding:.35rem .55rem; font-size:.72rem; display:flex; gap:.35rem; align-items:center; cursor:pointer; }
