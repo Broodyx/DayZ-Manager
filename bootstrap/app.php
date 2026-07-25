@@ -11,7 +11,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(
-            at: env('TRUSTED_PROXIES', '172.16.0.0/12'),
+            at: array_filter(array_map('trim', explode(',', env('TRUSTED_PROXIES', '10.0.1.71,172.18.0.5')))),
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
