@@ -38,8 +38,17 @@ class ProjectResource extends Resource
                 'playstation' => 'PlayStation', 'xbox' => 'Xbox',
                 'steam' => 'PC / Steam', 'unknown' => 'Neznámá',
             ])->required()->default('unknown'),
-            Forms\Components\TextInput::make('map')->label('Mapa')->required()->maxLength(255),
-            Forms\Components\TextInput::make('game_version')->label('Verze hry')->maxLength(255),
+            Forms\Components\Select::make('map')->label('Mapa')->options([
+                'chernarusplus' => 'Chernarus+',
+                'enoch' => 'Livonia (Enoch)',
+                'sakhal' => 'Sakhal',
+                'namalsk' => 'Namalsk',
+                'deerisle' => 'Deerisle',
+                'custom' => 'Vlastní mapa',
+            ])->searchable()->required(),
+            Forms\Components\Select::make('game_version')->label('Verze hry')->options([
+                '1.28' => '1.28 (aktuální)', '1.27' => '1.27', '1.26' => '1.26', 'custom' => 'Jiná verze',
+            ])->searchable()->native(false),
             Forms\Components\Textarea::make('description')->label('Popis')->columnSpanFull(),
         ])->columns(2);
     }
