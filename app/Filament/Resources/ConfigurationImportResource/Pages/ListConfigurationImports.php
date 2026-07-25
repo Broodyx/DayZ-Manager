@@ -16,6 +16,13 @@ class ListConfigurationImports extends ListRecords
 {
     protected static string $resource = ConfigurationImportResource::class;
 
+    public function booted(): void
+    {
+        if (request()->boolean('open')) {
+            $this->mountAction('import');
+        }
+    }
+
     protected function getHeaderActions(): array
     {
         return [
