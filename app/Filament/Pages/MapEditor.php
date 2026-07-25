@@ -90,6 +90,7 @@ class MapEditor extends Page
                     'y' => round((1 - ($z / 15360)) * 100, 3),
                     'worldX' => $x,
                     'worldZ' => $z,
+                    'filename' => $filename,
                 ];
             }
         }

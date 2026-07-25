@@ -118,7 +118,9 @@
             markers.forEach((marker) => {
                 const px = (marker.worldX ?? (marker.x * 15360 / 100)) / 15360 * 3000;
                 const py = 2900 - ((marker.worldZ ?? ((100 - marker.y) * 15360 / 100)) / 15360 * 2900);
-                L.circleMarker([py, px], { radius: 6, color: '#b8ed55', fillColor: '#b8ed55', fillOpacity: .9 }).addTo(map).bindTooltip(marker.label);
+                const imported = L.circleMarker([py, px], { radius: 6, color: '#b8ed55', fillColor: '#b8ed55', fillOpacity: .9 }).addTo(map);
+                imported.bindPopup('<strong>' + marker.label + '</strong><br><small>Importovaný bod z XML</small><br><button class="dz-map-delete" type="button">Smazat bod a vytvořit revizi</button>');
+                imported.on('popupopen', (event) => event.popup.getElement().querySelector('.dz-map-delete')?.addEventListener('click', () => { if (!window.confirm('Odstranit bod z XML a vytvořit novou revizi?')) return; fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),filename:marker.filename,x:marker.worldX,z:marker.worldZ})}).then((r) => { if (!r.ok) throw new Error(); map.removeLayer(imported); }).catch(() => window.alert('Bod se nepodařilo odstranit.')); }));
             });
         });
     </script>

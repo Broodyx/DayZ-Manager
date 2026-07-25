@@ -26,6 +26,22 @@ Route::post('/admin/map-editor/points', function (Request $request, \App\Service
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number]);
 })->middleware('auth')->name('map-editor.points.store');
 
+Route::post('/admin/map-editor/points/delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor) {
+    $data = $request->validate(['project_id'=>'required|integer','filename'=>'required|in:events.xml,cfgeventspawns.xml,mapgrouppos.xml','x'=>'required|numeric','z'=>'required|numeric']);
+    $project = Project::where('user_id', auth()->id())->findOrFail($data['project_id']);
+    $source = $project->revisions()->with('configurationImport')->get()->first(fn ($r) => strtolower($r->configurationImport?->original_filename ?? '') === $data['filename']);
+    abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422);
+    $xml = simplexml_load_string(Storage::disk('dayz')->get($source->storage_path), \SimpleXMLElement::class, LIBXML_NONET);
+    $removed = false;
+    foreach ($xml->xpath('//*[@x and (@z or @y)]') ?: [] as $node) {
+        $z = isset($node['z']) ? (float) $node['z'] : (float) $node['y'];
+        if (abs((float) $node['x'] - (float) $data['x']) < 2 && abs($z - (float) $data['z']) < 2) { unset($node[0]); $removed = true; break; }
+    }
+    abort_unless($removed, 404, 'Bod nebyl v XML nalezen.');
+    $editor->save($project, $source, $xml->asXML(), 'Odstraněn bod z mapového editoru', auth()->user());
+    return response()->json(['ok'=>true]);
+})->middleware('auth')->name('map-editor.points.delete');
+
 Route::get('/admin/projects/{project}/configuration/{revision}/download', function (Project $project, \App\Models\ConfigurationRevision $revision) {
     abort_unless((int) $project->user_id === (int) auth()->id() && (int) $revision->project_id === (int) $project->id, 403);
     $disk = Storage::disk('dayz');
