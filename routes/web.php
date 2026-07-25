@@ -4,12 +4,27 @@ use App\Models\Project;
 use App\Services\Import\ConfigurationImporter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
 Route::get('/up', fn () => response()->json(['status' => 'ok']))->name('health');
+
+Route::post('/admin/map-editor/points', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor) {
+    $data = $request->validate(['project_id'=>'required|integer','type'=>'required|string|max:40','label'=>'required|string|max:120','x'=>'required|numeric|min:0|max:15360','z'=>'required|numeric|min:0|max:15360']);
+    $project = Project::where('user_id', auth()->id())->findOrFail($data['project_id']);
+    $filename = in_array($data['type'], ['vehicle','dynamic','animal','infected','heli','convoy'], true) ? 'events.xml' : 'cfgeventspawns.xml';
+    $source = $project->revisions()->with('configurationImport')->get()->first(fn ($r) => strtolower($r->configurationImport?->original_filename ?? '') === $filename);
+    abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422, "Nejprve importujte {$filename}.");
+    $xml = simplexml_load_string(Storage::disk('dayz')->get($source->storage_path), \SimpleXMLElement::class, LIBXML_NONET);
+    abort_unless($xml, 422, 'XML soubor není validní.');
+    if ($filename === 'events.xml') { $node = $xml->addChild('event'); $node->addAttribute('name', $data['label']); $pos = $node->addChild('pos'); $pos->addAttribute('x', (string) $data['x']); $pos->addAttribute('z', (string) $data['z']); }
+    else { $node = $xml->addChild('event'); $node->addAttribute('name', $data['label']); $node->addAttribute('x', (string) $data['x']); $node->addAttribute('z', (string) $data['z']); }
+    $saved = $editor->save($project, $source, $xml->asXML(), 'Přidán bod z mapového editoru', auth()->user());
+    return response()->json(['ok'=>true,'revision'=>$saved->revision_number]);
+})->middleware('auth')->name('map-editor.points.store');
 
 Route::get('/admin/projects/{project}/configuration/{revision}/download', function (Project $project, \App\Models\ConfigurationRevision $revision) {
     abort_unless((int) $project->user_id === (int) auth()->id() && (int) $revision->project_id === (int) $project->id, 403);
