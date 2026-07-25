@@ -30,16 +30,23 @@ class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        $serverItems = auth()->check()
+        $serverItems = [
+            NavigationItem::make('Servery')
+                ->label('Servery')
+                ->icon('heroicon-o-server-stack')
+                ->url(fn (): string => ProjectResource::getUrl())
+                ->group('DayZ konfigurace'),
+            ...(auth()->check()
             ? Project::query()->where('user_id', auth()->id())->orderBy('name')->get()->map(
                 fn (Project $server): NavigationItem => NavigationItem::make('server-'.$server->id)
                     ->label($server->name)
                     ->icon('heroicon-o-server')
-                    ->url(ProjectResource::getUrl('configuration', ['record' => $server]))
+                    ->url(fn (): string => ProjectResource::getUrl('configuration', ['record' => $server]))
                     ->group('DayZ konfigurace')
                     ->parentItem('Servery'),
             )->all()
-            : [];
+            : []),
+        ];
 
         return $panel->default()->id('admin')->path('admin')->login()
             ->favicon(asset('favicon.svg'))

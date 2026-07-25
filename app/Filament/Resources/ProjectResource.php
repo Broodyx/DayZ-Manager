@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ProjectResource extends Resource
 {
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static ?string $model = Project::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-folder';
