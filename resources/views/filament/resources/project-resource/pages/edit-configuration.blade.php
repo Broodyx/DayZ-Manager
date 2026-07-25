@@ -28,6 +28,8 @@
         .dz-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; padding:1rem }
         .dz-field { padding:1rem; border:1px solid rgba(190,209,175,.12); border-radius:.35rem; background:#0d130f }
         .dz-field-top { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:.75rem }
+        .dz-field-top > span:first-child { min-width:0; flex:1; overflow-wrap:anywhere; }
+        .dz-field-top strong { overflow-wrap:anywhere; word-break:normal; }
         .dz-field input[type=number] { width:7rem; border:1px solid rgba(190,209,175,.2); border-radius:.25rem; padding:.45rem .55rem; color:#edf2e9; background:#090d0a }
         .dz-field input[type=range] { width:100%; accent-color:#a3e635 }
         .dz-field[data-tooltip] { position:relative }
@@ -363,10 +365,16 @@
                     'template' => 'Název mapového template/economy profilu.',
                 ];
                 @endphp
-                <section class="dz-editor-card"><h3>Whitelist hráčů · whitelist.txt</h3><p class="dz-muted">Každý řádek obsahuje jedno Steam/Xbox/PlayStation UID. Duplicitní a neplatné hodnoty se nepřidají.</p>
+                <section class="dz-editor-card"><h3>Whitelist hráčů · whitelist.txt</h3><p class="dz-muted">Jeden řádek = jedno UID hráče. Používejte přesné UID z platformy (Steam/Xbox/PlayStation), bez mezer a bez komentářů. Duplicitní, prázdné a neplatné hodnoty se nepřidají. Editor ověřuje délku 3–64 znaků; zapnutí vyžaduje <code>enableWhitelist = 1</code> v serverDZ.cfg.</p>
                     <div class="dz-whitelist-add"><input wire:model.defer="newWhitelistUid" placeholder="UID hráče" autocomplete="off"><button type="button" wire:click="addWhitelistEntry" class="dz-save-button">Přidat hráče</button></div>
                     <div class="dz-whitelist-list">@forelse($whitelistEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removeWhitelistEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Whitelist je zatím prázdný.</p>@endforelse</div>
                     <button type="button" wire:click="saveWhitelist" class="dz-save-button">Uložit whitelist.txt jako novou revizi</button>
+                </section>
+            @elseif ($visualKind === 'ban')
+                <section class="dz-editor-card"><h3>Banlist hráčů · ban.txt</h3><p class="dz-muted">Jeden řádek = jedno UID hráče, kterému server odmítne připojení. Používejte přesné UID bez mezer a komentářů; editor kontroluje délku 3–64 znaků a duplicitní hodnoty.</p>
+                    <div class="dz-whitelist-add"><input wire:model.defer="newBanUid" placeholder="UID hráče k zablokování" autocomplete="off"><button type="button" wire:click="addBanEntry" class="dz-save-button">Přidat zákaz</button></div>
+                    <div class="dz-whitelist-list">@forelse($banEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removeBanEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Banlist je zatím prázdný.</p>@endforelse</div>
+                    <button type="button" wire:click="saveBan" class="dz-save-button">Uložit ban.txt jako novou revizi</button>
                 </section>
             @elseif ($visualKind === 'weather')
                 @php
