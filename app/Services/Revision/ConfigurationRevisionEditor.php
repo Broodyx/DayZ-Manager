@@ -93,9 +93,9 @@ final readonly class ConfigurationRevisionEditor
         $originalName = $revision->configurationImport?->original_filename;
         $extension = strtolower(pathinfo($originalName ?: $revision->storage_path, PATHINFO_EXTENSION));
 
-        if (! in_array($extension, ['xml', 'json'], true)) {
+        if (! in_array($extension, ['xml', 'json', 'cfg', 'txt'], true)) {
             throw ValidationException::withMessages([
-                'content' => 'V základním editoru lze upravovat pouze XML a JSON. ZIP nejprve importujte jako jednotlivé soubory.',
+                'content' => 'Podporované editovatelné soubory jsou XML, JSON, CFG a TXT. ZIP nejprve importujte jako jednotlivé soubory.',
             ]);
         }
 
