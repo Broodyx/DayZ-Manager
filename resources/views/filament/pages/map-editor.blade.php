@@ -20,7 +20,7 @@
                     <button data-point="aerial">Letecký event</button>
                     <button data-point="custom">Vlastní bod</button>
                 </div>
-                <div id="dz-event-catalog" class="dz-event-catalog" hidden><label>Konfigurace eventu / vozidla</label><select></select></div>
+                <div id="dz-event-catalog" class="dz-event-catalog" hidden><label>Konfigurace eventu / vozidla</label><select></select><input class="dz-point-name" placeholder="Název bodu / vozidla"><input class="dz-point-radius" type="number" min="1" max="5000" value="50" placeholder="Poloměr zóny (m)"><small>Vyberte konkrétní event nebo zadejte vlastní název. U zón lze nastavit poloměr.</small></div>
             </div>
         </div>
         <div class="dz-map-toolbar">
@@ -97,7 +97,12 @@
                     const catalog = document.getElementById('dz-event-catalog'); const select = catalog.querySelector('select');
                     select.innerHTML = '<option value="">Vyberte existující event...</option>' + @js($eventCatalog).map((item) => '<option>' + item.name + '</option>').join(''); catalog.hidden = false;
                 }
-                L.marker([Number(modal.dataset.lat), Number(modal.dataset.lng)]).addTo(map).bindPopup('<strong>' + label + '</strong><br>Nový bod · konfigurace').openPopup();
+                const chosen = document.querySelector('#dz-event-catalog select')?.value || document.querySelector('.dz-point-name')?.value || label;
+                const radius = Number(document.querySelector('.dz-point-radius')?.value || 50);
+                const marker = L.marker([Number(modal.dataset.lat), Number(modal.dataset.lng)]).addTo(map);
+                const popup = () => '<strong>' + (chosen || label) + '</strong><br><small>Typ: ' + label + '<br>X/Z: ' + Math.round(Number(modal.dataset.lng) / 3000 * 15360) + ' / ' + Math.round((1 - Number(modal.dataset.lat) / 2900) * 15360) + '</small><br><button class="dz-map-edit" type="button">Upravit bod</button> <button class="dz-map-delete" type="button">Smazat</button>';
+                marker.bindPopup(popup()).openPopup();
+                marker.on('popupopen', (event) => { const root = event.popup.getElement(); root.querySelector('.dz-map-delete')?.addEventListener('click', () => { map.removeLayer(marker); }); root.querySelector('.dz-map-edit')?.addEventListener('click', () => { const name = window.prompt('Název bodu / vozidla', chosen || label); if (name) marker.setPopupContent('<strong>' + name + '</strong><br><small>Typ: ' + label + '</small><br><button class="dz-map-edit" type="button">Upravit bod</button> <button class="dz-map-delete" type="button">Smazat</button>'); }); });
                 modal.hidden = true;
             });
             const markers = @js($markers);
