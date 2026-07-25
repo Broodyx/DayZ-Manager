@@ -60,13 +60,14 @@
         .dz-picker-categories { display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:1rem }
         .dz-picker-category { padding:.5rem .7rem; border:1px solid rgba(190,209,175,.18); border-radius:.25rem; color:#cbd5c0; background:#0d130f; cursor:pointer }
         .dz-picker-category.active { color:#17210d; background:#b6e94f; border-color:#b6e94f }
-        .dz-picker-items { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.5rem }
-        .dz-picker-item { padding:.7rem; border:1px solid rgba(190,209,175,.14); border-radius:.25rem; color:#dce8d5; background:#0d130f; text-align:left; cursor:pointer }
+        .dz-picker-items { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.35rem }
+        .dz-picker-item { display:flex; align-items:center; justify-content:space-between; gap:.5rem; min-height:2.65rem; padding:.45rem .6rem; border:1px solid rgba(190,209,175,.14); border-radius:.25rem; color:#dce8d5; background:#0d130f; text-align:left; cursor:pointer }
+        .dz-picker-item small { color:#aab6a4; white-space:nowrap }
         .dz-picker-item:hover { border-color:#b6e94f; color:#17210d; background:#b6e94f }
         .dz-picker-loading { padding:.75rem; color:#b6e94f; text-align:center }
         .dz-picker-search { width:100%; margin-bottom:1rem; padding:.7rem .8rem; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; color:#edf2e9; background:#090d0a }
         .dz-picker-more { display:block; width:100%; margin-top:1rem; padding:.7rem; border:1px solid rgba(182,233,79,.25); border-radius:.25rem; color:#b6e94f; background:#151e17; font-weight:700 }
-        @media(max-width:640px){.dz-picker-items{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:640px){.dz-picker-items{grid-template-columns:1fr}.dz-picker-item{min-height:2.4rem}}
         .dz-savebar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; padding:1rem; border-top:1px solid rgba(182,233,79,.13); background:#111813 }
         .dz-warning { padding:.85rem 1rem; border-left:3px solid #d97738; color:#e8c8b3; background:rgba(217,119,56,.08) }
         .dz-error { margin-top:.4rem; color:#fb8b8b; font-size:.85rem }
