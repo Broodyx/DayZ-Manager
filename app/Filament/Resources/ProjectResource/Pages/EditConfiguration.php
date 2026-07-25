@@ -219,7 +219,10 @@ class EditConfiguration extends Page
                         );
                         $revision = $import->revisions()->latest('revision_number')->firstOrFail();
                         $this->revisionId = $revision->id;
-                        $this->loadRevision();
+                        // The upload creates a new revision; load that exact
+                        // revision so raw data and the matching visual editor
+                        // are refreshed immediately in the current page.
+                        $this->loadRevision($revision);
 
                         Notification::make()
                             ->success()
