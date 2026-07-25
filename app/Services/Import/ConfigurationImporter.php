@@ -142,6 +142,10 @@ final readonly class ConfigurationImporter
             );
         }
 
+        if (in_array($extension, ['cfg', 'txt'], true)) {
+            return [];
+        }
+
         try {
             json_decode($content, true, flags: JSON_THROW_ON_ERROR);
 

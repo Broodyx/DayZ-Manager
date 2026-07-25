@@ -44,7 +44,7 @@ class ConfigurationImport extends Page implements HasForms
             ])->required(),
             Select::make('project_id')->label('Server')->options(fn (): array => Project::where('user_id', auth()->id())->orderBy('name')->pluck('name', 'id')->all())->searchable()->required(),
             Select::make('platform')->label('Platforma')->options(['playstation' => 'PlayStation', 'xbox' => 'Xbox', 'steam' => 'PC / Steam'])->required(),
-            FileUpload::make('file')->label('Soubor konfigurace')->acceptedFileTypes(['application/xml', 'text/xml', 'text/plain', 'application/json', 'application/zip', 'application/x-zip-compressed'])->storeFiles(false)->required(),
+            FileUpload::make('file')->label('Soubor konfigurace')->acceptedFileTypes(['application/xml', 'text/xml', 'text/plain', 'application/json', 'application/zip', 'application/x-zip-compressed', 'application/octet-stream'])->storeFiles(false)->required(),
             TextInput::make('summary')->label('Poznámka k revizi')->maxLength(255),
         ];
     }
