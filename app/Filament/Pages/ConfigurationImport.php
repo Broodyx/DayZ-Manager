@@ -25,7 +25,13 @@ class ConfigurationImport extends Page implements HasForms
 
     public function mount(): void
     {
-        $this->form->fill(['area' => request()->string('area')->toString() ?: null]);
+        $projectId = request()->integer('project');
+        $project = $projectId ? Project::where('user_id', auth()->id())->find($projectId) : null;
+        $this->form->fill([
+            'area' => request()->string('area')->toString() ?: null,
+            'project_id' => $project?->id,
+            'platform' => $project?->platform !== 'unknown' ? $project?->platform : null,
+        ]);
     }
 
     protected function getFormStatePath(): string
@@ -61,6 +67,7 @@ class ConfigurationImport extends Page implements HasForms
         $result = $importer->import($project, $state['file'], auth()->user());
         $project->update(['platform' => $state['platform'], 'platform_confidence' => 100]);
         Notification::make()->success()->title('Konfigurace importována')->body($result->original_filename)->send();
-        $this->redirect('/admin/configuration-imports');
+        $revision = $result->revisions()->latest('revision_number')->first();
+        $this->redirect('/admin/projects/'.$project->id.'/configuration?revision='.$revision?->id);
     }
 }
