@@ -49,7 +49,7 @@ class AdminPanelProvider extends PanelProvider
             : []),
         ];
         $serverItems[] = NavigationItem::make('map-editor')
-            ->label('Mapa Chernarus')
+            ->label('Mapy')
             ->icon('heroicon-o-map')
             ->url(fn (): string => MapEditor::getUrl())
             ->group('DayZ konfigurace');

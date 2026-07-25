@@ -7,11 +7,6 @@
                 <h2>Mapa {{ $map }}</h2>
                 <p class="dz-muted">Přehled spawnů, heli crashů, konvojů a dalších eventů z konfigurace serveru.</p>
             </div>
-            <select wire:model.live="map" class="dz-map-select">
-                <option>Chernarus</option>
-                <option>Livonia</option>
-                <option>Namalsk</option>
-            </select>
             <select wire:model.live="projectId" class="dz-map-select" aria-label="Server">
                 @foreach ($projects as $id => $name)
                     <option value="{{ $id }}">{{ $name }}</option>
