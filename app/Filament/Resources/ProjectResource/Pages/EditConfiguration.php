@@ -540,7 +540,8 @@ class EditConfiguration extends Page
 
     public function saveServerConfig(ServerConfigEditor $editor, ConfigurationRevisionEditor $revisionEditor): void
     {
-        $revision = $this->project->revisions()->findOrFail($this->revisionId);
+        $project = $this->getRecord();
+        $revision = $project->revisions()->findOrFail($this->revisionId);
         $original = $editor->parse($this->rawContent);
         foreach (['password', 'passwordAdmin'] as $secret) {
             if (array_key_exists($secret, $this->serverConfig) && trim((string) $this->serverConfig[$secret]) === '') {
@@ -548,7 +549,7 @@ class EditConfiguration extends Page
             }
         }
         $content = $editor->update($this->rawContent, $this->serverConfig);
-        $saved = $revisionEditor->save($this->project, $revision, $content, 'Úprava serverDZ.cfg ve vizuálním editoru', auth()->user());
+        $saved = $revisionEditor->save($project, $revision, $content, 'Úprava serverDZ.cfg ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
         session()->flash('status', 'serverDZ.cfg byl uložen jako nová revize.');
     }
@@ -573,7 +574,7 @@ class EditConfiguration extends Page
     {
         $entries = array_values(array_unique(array_filter(array_map('trim', $this->whitelistEntries))));
         $content = $entries === [] ? "" : implode("\n", $entries)."\n";
-        $saved = $revisionEditor->save($this->project, $this->sourceRevision(), $content, 'Úprava whitelist.txt ve vizuálním editoru', auth()->user());
+        $saved = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, 'Úprava whitelist.txt ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
         session()->flash('status', 'Whitelist byl uložen jako nová revize.');
     }
