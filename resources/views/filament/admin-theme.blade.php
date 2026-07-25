@@ -306,6 +306,14 @@
     .dz-point-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.55rem; margin-top:1rem; }
     .dz-point-options button { min-height:3rem; text-align:left; border:1px solid #3e5c28; border-radius:.5rem; background:#18251a; color:#e7f7d2; padding:.65rem; cursor:pointer; }
     .dz-point-options button:hover { border-color:#b8ed55; background:#263b20; color:#d8f57b; }
+    .dz-event-catalog { margin-top:1rem; display:grid; gap:.55rem; }
+    .dz-event-catalog[hidden] { display:none; }
+    .dz-event-catalog label { color:#d8f57b; font-weight:700; }
+    .dz-event-catalog select, .dz-event-catalog input { width:100%; min-height:2.8rem; border:1px solid #496b31; border-radius:.45rem; background:#0b120d; color:#e7f7d2; padding:.65rem .75rem; color-scheme:dark; }
+    .dz-event-catalog select:focus, .dz-event-catalog input:focus { outline:2px solid #b8ed55; outline-offset:1px; }
+    .dz-event-catalog select option { background:#111a14; color:#e7f7d2; }
+    .dz-event-catalog small { color:#aab6a4; line-height:1.35; }
+    .dz-point-confirm { min-height:2.8rem; border:1px solid #9bd447; border-radius:.45rem; background:#b8ed55; color:#0d160d; font-weight:800; cursor:pointer; padding:.65rem 1rem; }
     @media (max-width:800px) { .dz-fields-grid { grid-template-columns:1fr; } }
     .dz-map-legend { border:1px solid #34472d; border-radius:.7rem; background:#111a14; padding:1rem; }
     .dz-map-legend h3 { color:#d8f57b; margin-top:0; } .dz-map-legend label { display:block; padding:.55rem 0; color:#c5d2bf; }
