@@ -26,11 +26,12 @@
         .dz-server-settings { border-color:rgba(56,189,248,.35); background:linear-gradient(135deg,rgba(14,116,144,.18),rgba(17,24,19,.95)) }
         .dz-server-badge { color:#8bdcff; background:rgba(14,165,233,.14); border:1px solid rgba(56,189,248,.35) }
         .dz-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; padding:1rem }
-        .dz-field { padding:1rem; border:1px solid rgba(190,209,175,.12); border-radius:.35rem; background:#0d130f }
-        .dz-field-top { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:.75rem }
-        .dz-field-top > span:first-child { min-width:0; flex:1; overflow-wrap:anywhere; }
-        .dz-field-top strong { overflow-wrap:anywhere; word-break:normal; }
+        .dz-field { min-width:0; padding:1rem; border:1px solid rgba(190,209,175,.12); border-radius:.35rem; background:#0d130f }
+        .dz-field-top { display:grid; grid-template-columns:minmax(0,1fr) 7rem; align-items:start; gap:1rem; margin-bottom:.75rem }
+        .dz-field-top > span:first-child { min-width:0; overflow-wrap:break-word; word-break:normal; white-space:normal }
+        .dz-field-top strong { display:block; overflow-wrap:break-word; word-break:normal; white-space:normal }
         .dz-field input[type=number] { width:7rem; border:1px solid rgba(190,209,175,.2); border-radius:.25rem; padding:.45rem .55rem; color:#edf2e9; background:#090d0a }
+        .dz-field-top input[type=text],.dz-field-top input[type=number] { min-width:0; width:100%; box-sizing:border-box }
         .dz-field input[type=range] { width:100%; accent-color:#a3e635 }
         .dz-field[data-tooltip] { position:relative }
         .dz-field[data-tooltip]::after { content:attr(data-tooltip); position:absolute; z-index:20; left:.75rem; bottom:calc(100% + .35rem); max-width:28rem; padding:.45rem .6rem; border:1px solid rgba(182,233,79,.3); border-radius:.25rem; color:#e7f4dc; background:#0a100c; box-shadow:0 8px 24px rgba(0,0,0,.45); font:12px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:normal; opacity:0; pointer-events:none; transform:translateY(.25rem); transition:opacity .15s,transform .15s }
@@ -100,7 +101,7 @@
             .dz-list{max-height:50vh}
             .dz-fields,.dz-add-grid{padding:.65rem;gap:.65rem}
             .dz-field{padding:.75rem}
-            .dz-field-top{align-items:flex-start;gap:.5rem}
+            .dz-field-top{grid-template-columns:minmax(0,1fr) 5.5rem;align-items:start;gap:.5rem}
             .dz-field input[type=number]{width:5.5rem}
             .dz-savebar{padding:.75rem;align-items:stretch}
             .dz-summary,.dz-action,.dz-secondary{width:100%;min-width:0}
