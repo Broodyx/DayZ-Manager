@@ -35,9 +35,8 @@
                 @endforeach
             </select>
             <div class="dz-map-upload">
-                <label class="dz-file-button">Vybrat soubor<input type="file" wire:model="mapFile" accept=".xml,.json,.zip"></label>
-                <button type="button" wire:click="importMapConfiguration" wire:loading.attr="disabled">Nahrát mapovou konfiguraci</button>
-                <small>cfgeventspawns.xml, mapgrouppos.xml, events.xml nebo ZIP</small>
+                <a class="dz-map-upload-button" href="{{ url('/admin/configuration-import?area=map&project='.$projectId) }}">Nahrát mapovou konfiguraci</a>
+                <small>Otevře společný importní formulář: cfgeventspawns.xml, mapgrouppos.xml, events.xml nebo ZIP.</small>
             </div>
         </div>
         <div class="dz-map-layout">

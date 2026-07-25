@@ -68,6 +68,9 @@ class ConfigurationImport extends Page implements HasForms
         $project->update(['platform' => $state['platform'], 'platform_confidence' => 100]);
         Notification::make()->success()->title('Konfigurace importována')->body($result->original_filename)->send();
         $revision = $result->revisions()->latest('revision_number')->first();
-        $this->redirect('/admin/projects/'.$project->id.'/configuration?revision='.$revision?->id);
+        $destination = ($state['area'] ?? null) === 'map'
+            ? '/admin/map-editor?project='.$project->id
+            : '/admin/projects/'.$project->id.'/configuration?revision='.$revision?->id;
+        $this->redirect($destination);
     }
 }
