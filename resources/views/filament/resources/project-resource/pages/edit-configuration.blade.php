@@ -417,6 +417,24 @@
                     <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny JSON konfigurace"><button type="button" wire:click="saveJson" wire:loading.attr="disabled" class="dz-action">Validovat a uložit JSON revizi</button></div>
                 </section>
             @endif
+        @elseif ($visualKind === 'xml')
+            <section class="dz-panel dz-server-settings">
+                <div class="dz-panel-head"><strong>{{ $currentFilename }} · vizuální editor</strong><p class="dz-muted text-sm mt-1">Parametry XML jsou rozdělené podle sekcí a u každého pole je uveden raw XPath zápis.</p></div>
+                <div class="p-3">
+                    @foreach (collect($xmlFields)->groupBy('section') as $section => $fields)
+                        <details class="dz-group" open><summary><span>{{ $section }}</span><span class="dz-badge dz-server-badge">{{ count($fields) }} parametrů</span></summary>
+                            <div class="dz-fields">
+                                @foreach ($fields as $field)
+                                    <label class="dz-field" data-tooltip="Raw XML: {{ $field['raw'] }}">
+                                        <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $field['raw'] }}</small></span><input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}" wire:model="xmlValues.{{ $field['path'] }}"></span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </details>
+                    @endforeach
+                </div>
+                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny XML konfigurace"><button type="button" wire:click="saveXml" wire:loading.attr="disabled" class="dz-action">Validovat a uložit XML revizi</button></div>
+            </section>
         @else
             <section class="dz-panel">
                 <div class="dz-panel-head">

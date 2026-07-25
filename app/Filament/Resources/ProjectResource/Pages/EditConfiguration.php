@@ -11,6 +11,7 @@ use App\Services\Revision\ConfigurationRevisionEditor;
 use App\Services\Revision\JsonConfigurationEditor;
 use App\Services\Revision\TypesXmlEditor;
 use App\Services\Revision\WeatherXmlEditor;
+use App\Services\Revision\XmlConfigurationEditor;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -66,6 +67,10 @@ class EditConfiguration extends Page
     public array $jsonFields = [];
 
     public array $jsonValues = [];
+
+    public array $xmlFields = [];
+
+    public array $xmlValues = [];
 
     public bool $showAddForm = false;
 
@@ -573,6 +578,15 @@ class EditConfiguration extends Page
         Notification::make()->success()->title("Konfigurace uložena v revizi #{$revision->revision_number}")->send();
     }
 
+    public function saveXml(XmlConfigurationEditor $xmlEditor, ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
+    {
+        $content = $xmlEditor->update($this->rawContent, $this->xmlValues);
+        $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
+        $revision = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, $this->changeSummary ?: 'Úprava XML konfigurace', auth()->user());
+        $this->loadRevision($revision);
+        Notification::make()->success()->title("Konfigurace uložena v revizi #{$revision->revision_number}")->send();
+    }
+
     private function loadLatestRevision(): void
     {
         $revision = $this->getRecord()->revisions()
@@ -596,10 +610,12 @@ class EditConfiguration extends Page
         $typesEditor = app(TypesXmlEditor::class);
         $weatherEditor = app(WeatherXmlEditor::class);
         $jsonEditor = app(JsonConfigurationEditor::class);
+        $xmlEditor = app(XmlConfigurationEditor::class);
         $this->visualKind = match (true) {
             $typesEditor->supports($filename, $this->rawContent) => 'types',
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
             $jsonEditor->supports($this->rawContent) => 'json',
+            $xmlEditor->supports($this->rawContent) => 'xml',
             default => null,
         };
         $this->visualSupported = $this->visualKind !== null;
@@ -607,6 +623,8 @@ class EditConfiguration extends Page
         $this->weatherForm = $this->visualKind === 'weather' ? $weatherEditor->values($this->rawContent) : [];
         $this->jsonFields = $this->visualKind === 'json' ? $jsonEditor->fields($this->rawContent) : [];
         $this->jsonValues = collect($this->jsonFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
+        $this->xmlFields = $this->visualKind === 'xml' ? $xmlEditor->fields($this->rawContent) : [];
+        $this->xmlValues = collect($this->xmlFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
         $this->mode = $this->visualSupported ? 'visual' : 'raw';
 
         $detection = app(PlatformDetector::class)->detect($this->rawContent, [$filename]);
