@@ -316,7 +316,7 @@
                     'password' => 'Heslo pro připojení na server; prázdné znamená bez hesla.',
                     'passwordAdmin' => 'Heslo pro administrátorské příkazy ve hře.',
                     'enableWhitelist' => 'Zapíná nebo vypíná kontrolu whitelistu.',
-                    'verifySignatures' => 'Kontrola podpisů modů při připojení.',
+                    'verifySignatures' => 'Režim kontroly podpisů: 0 vypnuto, 1 ověřovat, 2 vyžadovat platné podpisy.',
                     'forceSameBuild' => 'Vyžaduje stejnou verzi hry jako server.',
                     'serverTime' => 'Výchozí čas serveru při startu.',
                     'serverTimeAcceleration' => 'Zrychlení průběhu dne.',

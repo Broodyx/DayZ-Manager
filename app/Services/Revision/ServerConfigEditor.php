@@ -43,10 +43,17 @@ final class ServerConfigEditor
         if (isset($values['maxPlayers']) && ((int) $values['maxPlayers'] < 1 || (int) $values['maxPlayers'] > 128)) {
             throw new RuntimeException('maxPlayers musí být v rozsahu 1–128.');
         }
-        foreach (['enableWhitelist', 'verifySignatures', 'forceSameBuild', 'disableVoN', 'disable3rdPerson'] as $key) {
+        foreach (['enableWhitelist', 'forceSameBuild', 'disableVoN', 'disable3rdPerson'] as $key) {
             if (isset($values[$key]) && ! in_array((string) $values[$key], ['0', '1', 'true', 'false'], true)) {
                 throw new RuntimeException($key.' musí být 0/1 nebo true/false.');
             }
+        }
+
+        // DayZ uses three signature-verification modes: 0 (off), 1 (verify
+        // signatures) and 2 (strict/required signatures). Some server
+        // templates also expose the boolean spellings, so accept both forms.
+        if (isset($values['verifySignatures']) && ! in_array((string) $values['verifySignatures'], ['0', '1', '2', 'true', 'false'], true)) {
+            throw new RuntimeException('verifySignatures musí být 0, 1, 2 nebo true/false.');
         }
     }
 }
