@@ -275,8 +275,16 @@
     .dz-map-marker span { width:.55rem; height:.55rem; border-radius:50%; background:#b8ed55; box-shadow:0 0 0 4px #b8ed5533; }
     .dz-map-marker-heli span { background:#f1b44c; } .dz-map-marker-convoy span { background:#e96a5f; } .dz-map-marker-event span { background:#80b8ff; }
     .dz-map-empty { position:absolute; inset:45% 10% auto; text-align:center; color:#9aa99b; }
+    .dz-point-modal { position:fixed; inset:0; z-index:2000; display:grid; place-items:center; background:#050906bb; padding:1rem; }
+    .dz-point-modal[hidden] { display:none; }
+    .dz-point-modal-card { position:relative; width:min(620px,100%); border:1px solid #668f32; border-radius:.8rem; background:#111a14; padding:1.4rem; box-shadow:0 20px 70px #000b; }
+    .dz-point-modal-card h3 { color:#d8f57b; margin:0; font-size:1.2rem; }
+    .dz-point-close { position:absolute; top:.7rem; right:.8rem; border:0; background:transparent; color:#c4d3bd; font-size:1.6rem; cursor:pointer; }
+    .dz-point-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.55rem; margin-top:1rem; }
+    .dz-point-options button { min-height:3rem; text-align:left; border:1px solid #3e5c28; border-radius:.5rem; background:#18251a; color:#e7f7d2; padding:.65rem; cursor:pointer; }
+    .dz-point-options button:hover { border-color:#b8ed55; background:#263b20; color:#d8f57b; }
     .dz-map-legend { border:1px solid #34472d; border-radius:.7rem; background:#111a14; padding:1rem; }
     .dz-map-legend h3 { color:#d8f57b; margin-top:0; } .dz-map-legend label { display:block; padding:.55rem 0; color:#c5d2bf; }
     .dz-map-legend input { accent-color:#b8ed55; margin-right:.5rem; }
-    @media (max-width: 760px) { .dz-map-toolbar { align-items:stretch; flex-direction:column; } .dz-map-layout { grid-template-columns:1fr; } .dz-map-canvas { min-height:420px; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } }
+    @media (max-width: 760px) { .dz-map-toolbar { align-items:stretch; flex-direction:column; } .dz-map-layout { grid-template-columns:1fr; } .dz-map-canvas { min-height:420px; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } .dz-point-options { grid-template-columns:1fr 1fr; } }
 </style>

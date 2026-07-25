@@ -1,6 +1,27 @@
 <x-filament-panels::page>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <div class="dz-map-page">
+        <div id="dz-point-modal" class="dz-point-modal" hidden>
+            <div class="dz-point-modal-card">
+                <button type="button" class="dz-point-close" aria-label="Zavřít">×</button>
+                <h3>Přidat bod do mapy</h3>
+                <p class="dz-muted">Vyberte typ bodu, který chcete umístit na mapu.</p>
+                <div class="dz-point-options">
+                    <button data-point="loot">Loot / loot skupina</button>
+                    <button data-point="heli">Heli crash</button>
+                    <button data-point="convoy">Konvoj</button>
+                    <button data-point="dynamic">Dynamický event</button>
+                    <button data-point="contaminated">Kontaminovaná zóna</button>
+                    <button data-point="infected">Zóna nakažených</button>
+                    <button data-point="animal">Stádo zvířat</button>
+                    <button data-point="vehicle">Spawn vozidla</button>
+                    <button data-point="player">Spawn hráče</button>
+                    <button data-point="territory">Území / základna</button>
+                    <button data-point="aerial">Letecký event</button>
+                    <button data-point="custom">Vlastní bod</button>
+                </div>
+            </div>
+        </div>
         <div class="dz-map-toolbar">
             <div>
                 <p class="dz-eyebrow">DAYZ MAP EDITOR</p>
@@ -47,9 +68,17 @@
             L.control.scale({ imperial: false }).addTo(map);
             map.on('click', (event) => {
                 if (!event.originalEvent.ctrlKey) return;
-                const type = window.prompt('Co chcete přidat? (loot, heli, konvoj, event)', 'event');
-                if (!type) return;
-                L.marker(event.latlng).addTo(map).bindPopup('<strong>' + type + '</strong><br>Nový bod · kliknutím upravíte souřadnici').openPopup();
+                const modal = document.getElementById('dz-point-modal');
+                modal.hidden = false;
+                modal.dataset.lat = event.latlng.lat;
+                modal.dataset.lng = event.latlng.lng;
+            });
+            const modal = document.getElementById('dz-point-modal');
+            modal.querySelector('.dz-point-close').onclick = () => modal.hidden = true;
+            modal.querySelectorAll('[data-point]').forEach((button) => button.onclick = () => {
+                const label = button.textContent.trim();
+                L.marker([Number(modal.dataset.lat), Number(modal.dataset.lng)]).addTo(map).bindPopup('<strong>' + label + '</strong><br>Nový bod · konfigurace').openPopup();
+                modal.hidden = true;
             });
             const markers = @js($markers);
             markers.forEach((marker) => {
