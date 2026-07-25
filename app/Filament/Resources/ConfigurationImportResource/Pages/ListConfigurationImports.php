@@ -16,6 +16,14 @@ class ListConfigurationImports extends ListRecords
 {
     protected static string $resource = ConfigurationImportResource::class;
 
+    public function mount(): void
+    {
+        parent::mount();
+        if (request()->boolean('open')) {
+            $this->mountAction('import');
+        }
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -41,6 +49,7 @@ class ListConfigurationImports extends ListRecords
                             'admin' => 'Administrace · ban.txt, whitelist.txt, messages.xml',
                         ])
                         ->helperText('Volba pomáhá začátečníkům. Samotný formát se ještě ověří podle obsahu souboru.')
+                        ->default(fn (): ?string => request()->string('area')->toString() ?: null)
                         ->required(),
                     Forms\Components\Placeholder::make('workflow_server')
                         ->label('2 · Vyberte server')

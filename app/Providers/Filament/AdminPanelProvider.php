@@ -37,6 +37,7 @@ class AdminPanelProvider extends PanelProvider
                 ->label('Servery')
                 ->icon('heroicon-o-server-stack')
                 ->url(fn (): string => ProjectResource::getUrl())
+                ->sort(10)
                 ->group('DayZ konfigurace'),
             ...(auth()->check()
             ? Project::query()->where('user_id', auth()->id())->orderBy('name')->get()->map(
@@ -53,11 +54,13 @@ class AdminPanelProvider extends PanelProvider
             ->label('Mapy')
             ->icon('heroicon-o-map')
             ->url(fn (): string => MapEditor::getUrl())
+            ->sort(30)
             ->group('DayZ konfigurace');
         $serverItems[] = NavigationItem::make('configuration-wizard')
             ->label('Průvodce konfigurací')
             ->icon('heroicon-o-sparkles')
             ->url(fn (): string => ConfigurationWizard::getUrl())
+            ->sort(0)
             ->group('DayZ konfigurace');
 
         return $panel->default()->id('admin')->path('admin')->login()
