@@ -264,7 +264,9 @@
     .dz-map-upload button { background:#b8ed55; color:#14200f; border:0; border-radius:.45rem; padding:.65rem .8rem; font-weight:700; }
     .dz-map-upload small { width:100%; color:#879987; }
     .dz-map-layout { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:1rem; }
-    .dz-map-canvas { min-height:560px; position:relative; overflow:hidden; border:1px solid #3e5c28; border-radius:.7rem; background:#1c2b20 url('/maps/chernarus_big_hq.jpg') center/cover no-repeat; }
+    .dz-map-canvas { height:min(72vh,760px); min-height:560px; position:relative; overflow:hidden; border:1px solid #3e5c28; border-radius:.7rem; background:#1c2b20; }
+    #dayz-leaflet-map { width:100%; height:100%; background:#1c2b20; }
+    .leaflet-container { background:#1c2b20; font-family:inherit; }
     .dz-map-grid { position:absolute; inset:0; opacity:.12; background-image:linear-gradient(#d8f57b 1px,transparent 1px),linear-gradient(90deg,#d8f57b 1px,transparent 1px); background-size:48px 48px; }
     .dz-map-land { display:none; }
     .dz-map-marker { position:absolute; transform:translate(-50%,-50%); border:0; background:#172218dd; color:#f0f7e8; border-radius:999px; padding:.35rem .55rem; font-size:.72rem; display:flex; gap:.35rem; align-items:center; cursor:pointer; }

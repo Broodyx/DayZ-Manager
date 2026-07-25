@@ -1,4 +1,5 @@
 <x-filament-panels::page>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <div class="dz-map-page">
         <div class="dz-map-toolbar">
             <div>
@@ -23,16 +24,8 @@
             </div>
         </div>
         <div class="dz-map-layout">
-            <section class="dz-map-canvas" aria-label="Mapa serveru">
-                <div class="dz-map-grid"></div>
-                <div class="dz-map-land">CHERNARUS</div>
-                @forelse ($markers as $marker)
-                    <button class="dz-map-marker dz-map-marker-{{ $marker['type'] }}" style="left: {{ $marker['x'] }}%; top: {{ $marker['y'] }}%" title="{{ $marker['label'] }}">
-                        <span></span>{{ $marker['label'] }}
-                    </button>
-                @empty
-                    <div class="dz-map-empty">Vybraný server zatím nemá importované souřadnice z mapových XML.</div>
-                @endforelse
+            <section wire:ignore class="dz-map-canvas" aria-label="Mapa serveru">
+                <div id="dayz-leaflet-map"></div>
             </section>
             <aside class="dz-map-legend">
                 <h3>Vrstvy mapy</h3>
@@ -45,4 +38,24 @@
             </aside>
         </div>
     </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const el = document.getElementById('dayz-leaflet-map');
+            if (!el || el.dataset.ready) return;
+            el.dataset.ready = '1';
+            const map = L.map(el, { crs: L.CRS.Simple, minZoom: -2, maxZoom: 4, zoomSnap: 0.25 });
+            const bounds = [[0, 0], [2900, 3000]];
+            L.imageOverlay('/maps/chernarus_big_hq.jpg', bounds).addTo(map);
+            L.rectangle(bounds, { color: '#b8ed55', weight: 1, fill: false, opacity: .35 }).addTo(map);
+            map.fitBounds(bounds);
+            L.control.scale({ imperial: false }).addTo(map);
+            const markers = @js($markers);
+            markers.forEach((marker) => {
+                const px = (marker.worldX ?? (marker.x * 15360 / 100)) / 15360 * 3000;
+                const py = 2900 - ((marker.worldZ ?? ((100 - marker.y) * 15360 / 100)) / 15360 * 2900);
+                L.circleMarker([py, px], { radius: 6, color: '#b8ed55', fillColor: '#b8ed55', fillOpacity: .9 }).addTo(map).bindTooltip(marker.label);
+            });
+        });
+    </script>
 </x-filament-panels::page>
