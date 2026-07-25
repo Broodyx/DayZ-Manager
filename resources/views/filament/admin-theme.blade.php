@@ -261,6 +261,8 @@
     .dz-map-select { background:#111a14; border:1px solid #506d2b; border-radius:.5rem; color:#e7f7d2; padding:.7rem 1rem; }
     .dz-map-upload { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; }
     .dz-map-upload input { max-width:180px; color:#b8c8b4; font-size:.75rem; }
+    .dz-file-button { display:inline-flex; align-items:center; cursor:pointer; background:#273725; color:#e7f7d2; border:1px solid #5b7f35; border-radius:.45rem; padding:.65rem .8rem; font-weight:700; }
+    .dz-file-button input { display:none; }
     .dz-map-upload button { background:#b8ed55; color:#14200f; border:0; border-radius:.45rem; padding:.65rem .8rem; font-weight:700; }
     .dz-map-upload small { width:100%; color:#879987; }
     .dz-map-layout { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:1rem; }

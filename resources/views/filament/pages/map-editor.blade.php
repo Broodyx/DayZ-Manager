@@ -13,7 +13,7 @@
                 @endforeach
             </select>
             <div class="dz-map-upload">
-                <input type="file" wire:model="mapFile" accept=".xml,.json,.zip">
+                <label class="dz-file-button">Vybrat soubor<input type="file" wire:model="mapFile" accept=".xml,.json,.zip"></label>
                 <button type="button" wire:click="importMapConfiguration" wire:loading.attr="disabled">Nahrát mapovou konfiguraci</button>
                 <small>cfgeventspawns.xml, mapgrouppos.xml, events.xml nebo ZIP</small>
             </div>
@@ -45,6 +45,12 @@
             L.rectangle(bounds, { color: '#b8ed55', weight: 1, fill: false, opacity: .35 }).addTo(map);
             map.fitBounds(bounds);
             L.control.scale({ imperial: false }).addTo(map);
+            map.on('click', (event) => {
+                if (!event.originalEvent.ctrlKey) return;
+                const type = window.prompt('Co chcete přidat? (loot, heli, konvoj, event)', 'event');
+                if (!type) return;
+                L.marker(event.latlng).addTo(map).bindPopup('<strong>' + type + '</strong><br>Nový bod · kliknutím upravíte souřadnici').openPopup();
+            });
             const markers = @js($markers);
             markers.forEach((marker) => {
                 const px = (marker.worldX ?? (marker.x * 15360 / 100)) / 15360 * 3000;
