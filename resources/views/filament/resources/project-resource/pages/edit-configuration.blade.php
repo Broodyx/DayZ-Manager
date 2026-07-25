@@ -50,7 +50,8 @@
         .dz-file-option { display:block; width:100%; padding:.55rem .65rem; border:0; border-bottom:1px solid rgba(190,209,175,.1); color:#dce8d5; background:transparent; text-align:left; cursor:pointer }
         .dz-file-option:last-child { border-bottom:0 }
         .dz-file-option:hover,.dz-file-option.active { color:#17210d; background:#b6e94f }
-        .dz-file-option-title { display:block; font-size:.9rem; font-weight:800; line-height:1.25 }
+        .dz-file-option-title { display:block; font-size:.95rem; font-weight:800; line-height:1.25; color:#e7f7d2 }
+        .dz-file-option-revision { display:block; margin-top:.12rem; color:#b8ed55; font-size:.72rem; font-weight:800; letter-spacing:.03em }
         .dz-file-option-description { display:block; margin-top:.15rem; color:#aab6a4; font-size:.7rem; line-height:1.25; font-weight:400 }
         .dz-file-option:hover .dz-file-option-description,.dz-file-option.active .dz-file-option-description { color:#31451f }
         .dz-modal-backdrop { position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; padding:1rem; background:rgba(0,0,0,.72) }
@@ -131,9 +132,13 @@
                     <summary>{{ $currentFilename ?: 'Vybrat konfiguraci' }} · revize #{{ $revisionNumber }}</summary>
                     <div class="dz-file-menu-list" aria-label="Výběr konfigurace">
                     @foreach ($this->editableFiles() as $id => $label)
+                        @php
+                            [$fileLabel, $revisionLabel] = array_pad(explode(' · ', $label, 2), 2, '');
+                        @endphp
                         <button type="button" wire:click="selectRevision({{ $id }})" class="dz-file-option {{ (int) $revisionId === (int) $id ? 'active' : '' }}">
-                            <span class="dz-file-option-title">{{ $label }}</span>
-                            <span class="dz-file-option-description">{{ $this->descriptionForFilename(strtok($label, ' ·')) }}</span>
+                            <span class="dz-file-option-title">{{ $fileLabel }}</span>
+                            <span class="dz-file-option-revision">{{ $revisionLabel }}</span>
+                            <span class="dz-file-option-description">{{ $this->descriptionForFilename($fileLabel) }}</span>
                         </button>
                     @endforeach
                     </div>

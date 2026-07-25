@@ -164,6 +164,10 @@ class EditConfiguration extends Page
     public function descriptionForFilename(string $filename): string
     {
         return match (strtolower($filename)) {
+            'serverdz.cfg' => 'Hlavní nastavení serveru: přístup, hráči, čas, síť, logování a persistence.',
+            'whitelist.txt' => 'Seznam povolených hráčských UID; aktivuje se volbou enableWhitelist v serverDZ.cfg.',
+            'ban.txt' => 'Seznam zablokovaných hráčských UID, které se nesmí připojit na server.',
+            'cfglimitsdefinition.xml' => 'Kategorie a usage flagy používané ekonomikou při výběru lootů.',
             'globals.xml' => 'Globální limity zvířat, infikovaných, loot economy a cleanup serveru.',
             'events.xml' => 'Počty, minima, maxima a životnost dynamických eventů jako zombie, loot nebo heli crash.',
             'cfgeventspawns.xml' => 'Souřadnice a orientace pevných eventů na mapě.',
