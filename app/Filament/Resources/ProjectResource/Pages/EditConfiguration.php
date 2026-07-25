@@ -235,6 +235,11 @@ class EditConfiguration extends Page
                         $action->halt();
                     }
                 }),
+            Actions\Action::make('downloadConfiguration')
+                ->label('Stáhnout do počítače')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('gray')
+                ->url(fn (): string => route('configuration-revision.download', ['project' => $this->getRecord()->id, 'revision' => $this->revisionId])),
         ];
     }
 
