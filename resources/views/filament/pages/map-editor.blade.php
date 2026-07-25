@@ -20,6 +20,7 @@
                     <button data-point="aerial">Letecký event</button>
                     <button data-point="custom">Vlastní bod</button>
                 </div>
+                <div id="dz-event-catalog" class="dz-event-catalog" hidden><label>Konfigurace eventu / vozidla</label><select></select></div>
             </div>
         </div>
         <div class="dz-map-toolbar">
@@ -92,6 +93,10 @@
             modal.querySelector('.dz-point-close').onclick = () => modal.hidden = true;
             modal.querySelectorAll('[data-point]').forEach((button) => button.onclick = () => {
                 const label = button.textContent.trim();
+                if (button.dataset.point === 'vehicle' || button.dataset.point === 'dynamic' || button.dataset.point === 'animal' || button.dataset.point === 'infected') {
+                    const catalog = document.getElementById('dz-event-catalog'); const select = catalog.querySelector('select');
+                    select.innerHTML = '<option value="">Vyberte existující event...</option>' + @js($eventCatalog).map((item) => '<option>' + item.name + '</option>').join(''); catalog.hidden = false;
+                }
                 L.marker([Number(modal.dataset.lat), Number(modal.dataset.lng)]).addTo(map).bindPopup('<strong>' + label + '</strong><br>Nový bod · konfigurace').openPopup();
                 modal.hidden = true;
             });

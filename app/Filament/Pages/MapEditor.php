@@ -26,16 +26,38 @@ class MapEditor extends Page
 
     public array $markers = [];
 
+    public array $eventCatalog = [];
+
     public function mount(): void
     {
         $this->projects = Project::query()->where('user_id', auth()->id())->orderBy('name')->pluck('name', 'id')->all();
         $this->projectId = request()->integer('project') ?: array_key_first($this->projects);
         $this->loadMarkers();
+        $this->loadEventCatalog();
     }
 
     public function updatedProjectId(): void
     {
         $this->loadMarkers();
+        $this->loadEventCatalog();
+    }
+
+    public function loadEventCatalog(): void
+    {
+        $this->eventCatalog = [];
+        $project = $this->projectId ? Project::query()->where('user_id', auth()->id())->find($this->projectId) : null;
+        $revision = $project?->revisions()->with('configurationImport')->latest()->get()->first(fn ($item) => strtolower($item->configurationImport?->original_filename ?? '') === 'events.xml');
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            return;
+        }
+        $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
+        foreach ($xml?->event ?? [] as $event) {
+            $children = [];
+            foreach ($event->children->child ?? [] as $child) {
+                $children[] = (string) ($child['type'] ?? '');
+            }
+            $this->eventCatalog[] = ['name' => (string) $event['name'], 'children' => array_values(array_filter($children))];
+        }
     }
 
     public function loadMarkers(): void
