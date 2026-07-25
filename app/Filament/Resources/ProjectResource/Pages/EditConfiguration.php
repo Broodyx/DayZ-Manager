@@ -534,6 +534,12 @@ class EditConfiguration extends Page
     public function saveServerConfig(ServerConfigEditor $editor, ConfigurationRevisionEditor $revisionEditor): void
     {
         $revision = $this->project->revisions()->findOrFail($this->revisionId);
+        $original = $editor->parse($this->rawContent);
+        foreach (['password', 'passwordAdmin'] as $secret) {
+            if (array_key_exists($secret, $this->serverConfig) && trim((string) $this->serverConfig[$secret]) === '') {
+                $this->serverConfig[$secret] = $original[$secret] ?? '';
+            }
+        }
         $content = $editor->update($this->rawContent, $this->serverConfig);
         $saved = $revisionEditor->save($this->project, $revision, $content, 'Úprava serverDZ.cfg ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
@@ -635,6 +641,11 @@ class EditConfiguration extends Page
         $this->typeEntries = $this->visualKind === 'types' ? $typesEditor->entries($this->rawContent) : [];
         $this->weatherForm = $this->visualKind === 'weather' ? $weatherEditor->values($this->rawContent) : [];
         $this->serverConfig = str_ends_with(strtolower($filename), '.cfg') ? app(ServerConfigEditor::class)->parse($this->rawContent) : [];
+        foreach (['password', 'passwordAdmin'] as $secret) {
+            if (array_key_exists($secret, $this->serverConfig)) {
+                $this->serverConfig[$secret] = '';
+            }
+        }
         $this->jsonFields = $this->visualKind === 'json' ? $jsonEditor->fields($this->rawContent) : [];
         $this->jsonValues = collect($this->jsonFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
         $this->xmlFields = $this->visualKind === 'xml' ? $xmlEditor->fields($this->rawContent) : [];

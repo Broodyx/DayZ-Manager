@@ -288,9 +288,12 @@
                 </section>
             </div>
             @elseif ($visualKind === 'server')
-                <section class="dz-editor-card"><h3>Serverová nastavení · serverDZ.cfg</h3><p class="dz-muted">Upravujte hodnoty serveru bez ručního psaní CFG syntaxe. Hesla se zobrazují jako text pouze v raw datech.</p><div class="dz-fields-grid">
+                <section class="dz-editor-card"><h3>Serverová nastavení · serverDZ.cfg</h3><p class="dz-muted">Upravujte hodnoty serveru bez ručního psaní CFG syntaxe. Hesla jsou skrytá; prázdné pole zachová původní hodnotu.</p><div class="dz-fields-grid">
                     @foreach ($serverConfig as $key => $value)
-                        <label class="dz-field"><span>{{ $key }}</span><input type="text" wire:model="serverConfig.{{ $key }}"><small>Raw: {{ $key }} = {{ $value }};</small></label>
+                        @php
+                            $secret = in_array(strtolower($key), ['password', 'passwordadmin'], true);
+                        @endphp
+                        <label class="dz-field"><span>{{ $key }}</span><input type="{{ $secret ? 'password' : 'text' }}" autocomplete="{{ $secret ? 'new-password' : 'off' }}" placeholder="{{ $secret ? 'Ponechte prázdné pro zachování' : '' }}" wire:model.defer="serverConfig.{{ $key }}"><small>Raw: {{ $key }} = {{ $secret ? '•••••••• (skryto)' : $value }};</small></label>
                     @endforeach
                 </div><button type="button" wire:click="saveServerConfig" class="dz-save-button">Uložit serverDZ.cfg jako novou revizi</button></section>
             @elseif ($visualKind === 'weather')
