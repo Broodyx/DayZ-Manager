@@ -26,7 +26,7 @@ class ConfigurationImportResource extends Resource
 
     protected static ?string $navigationGroup = 'DayZ konfigurace';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {
