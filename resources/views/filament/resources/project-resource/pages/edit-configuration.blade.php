@@ -287,6 +287,12 @@
                     @endif
                 </section>
             </div>
+            @elseif ($visualKind === 'server')
+                <section class="dz-editor-card"><h3>Serverová nastavení · serverDZ.cfg</h3><p class="dz-muted">Upravujte hodnoty serveru bez ručního psaní CFG syntaxe. Hesla se zobrazují jako text pouze v raw datech.</p><div class="dz-fields-grid">
+                    @foreach ($serverConfig as $key => $value)
+                        <label class="dz-field"><span>{{ $key }}</span><input type="text" wire:model="serverConfig.{{ $key }}"><small>Raw: {{ $key }} = {{ $value }};</small></label>
+                    @endforeach
+                </div><button type="button" wire:click="saveServerConfig" class="dz-save-button">Uložit serverDZ.cfg jako novou revizi</button></section>
             @elseif ($visualKind === 'weather')
                 @php
                     $weatherSections = [

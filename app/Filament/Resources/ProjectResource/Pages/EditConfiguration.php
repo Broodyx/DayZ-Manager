@@ -9,6 +9,7 @@ use App\Services\PlatformDetection\PlatformCompatibility;
 use App\Services\PlatformDetection\PlatformDetector;
 use App\Services\Revision\ConfigurationRevisionEditor;
 use App\Services\Revision\JsonConfigurationEditor;
+use App\Services\Revision\ServerConfigEditor;
 use App\Services\Revision\TypesXmlEditor;
 use App\Services\Revision\WeatherXmlEditor;
 use App\Services\Revision\XmlConfigurationEditor;
@@ -63,6 +64,8 @@ class EditConfiguration extends Page
 
     /** @var array<string, mixed> */
     public array $weatherForm = [];
+
+    public array $serverConfig = [];
 
     public array $jsonFields = [];
 
@@ -528,6 +531,15 @@ class EditConfiguration extends Page
             ->send();
     }
 
+    public function saveServerConfig(ServerConfigEditor $editor, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $revision = $this->project->revisions()->findOrFail($this->revisionId);
+        $content = $editor->update($this->rawContent, $this->serverConfig);
+        $saved = $revisionEditor->save($this->project, $revision, $content, 'Úprava serverDZ.cfg ve vizuálním editoru', auth()->user());
+        $this->loadRevision($saved);
+        session()->flash('status', 'serverDZ.cfg byl uložen jako nová revize.');
+    }
+
     public function saveWeather(
         WeatherXmlEditor $weatherEditor,
         ConfigurationRevisionEditor $revisionEditor,
@@ -612,6 +624,7 @@ class EditConfiguration extends Page
         $jsonEditor = app(JsonConfigurationEditor::class);
         $xmlEditor = app(XmlConfigurationEditor::class);
         $this->visualKind = match (true) {
+            str_ends_with(strtolower($filename), '.cfg') => 'server',
             $typesEditor->supports($filename, $this->rawContent) => 'types',
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
             $jsonEditor->supports($this->rawContent) => 'json',
@@ -621,6 +634,7 @@ class EditConfiguration extends Page
         $this->visualSupported = $this->visualKind !== null;
         $this->typeEntries = $this->visualKind === 'types' ? $typesEditor->entries($this->rawContent) : [];
         $this->weatherForm = $this->visualKind === 'weather' ? $weatherEditor->values($this->rawContent) : [];
+        $this->serverConfig = str_ends_with(strtolower($filename), '.cfg') ? app(ServerConfigEditor::class)->parse($this->rawContent) : [];
         $this->jsonFields = $this->visualKind === 'json' ? $jsonEditor->fields($this->rawContent) : [];
         $this->jsonValues = collect($this->jsonFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
         $this->xmlFields = $this->visualKind === 'xml' ? $xmlEditor->fields($this->rawContent) : [];
