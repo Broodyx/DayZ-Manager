@@ -63,6 +63,7 @@
         .dz-picker-items { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.5rem }
         .dz-picker-item { padding:.7rem; border:1px solid rgba(190,209,175,.14); border-radius:.25rem; color:#dce8d5; background:#0d130f; text-align:left; cursor:pointer }
         .dz-picker-item:hover { border-color:#b6e94f; color:#17210d; background:#b6e94f }
+        .dz-picker-loading { padding:.75rem; color:#b6e94f; text-align:center }
         .dz-picker-search { width:100%; margin-bottom:1rem; padding:.7rem .8rem; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; color:#edf2e9; background:#090d0a }
         .dz-picker-more { display:block; width:100%; margin-top:1rem; padding:.7rem; border:1px solid rgba(182,233,79,.25); border-radius:.25rem; color:#b6e94f; background:#151e17; font-weight:700 }
         @media(max-width:640px){.dz-picker-items{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -443,7 +444,8 @@
                     <div><strong>Vyber položku z katalogu</strong><p class="dz-muted text-sm mt-1">Katalog obsahuje položky načtené z aktuálního types.xml.</p></div>
                     <button type="button" wire:click="closeClassPicker" class="dz-secondary">Zavřít</button>
                 </div>
-                <div class="dz-modal-body">
+                <div class="dz-modal-body" wire:loading.class="opacity-60" wire:target="classPickerSearch, classPickerCategory, loadMoreCatalog, chooseClass">
+                    <div wire:loading wire:target="classPickerSearch, classPickerCategory, loadMoreCatalog, chooseClass" class="dz-picker-loading">Načítám katalog…</div>
                     <input wire:model.live.debounce.200ms="classPickerSearch" class="dz-picker-search" placeholder="Hledat v celém katalogu, například PlateCarrier nebo AKM…">
                     <div class="dz-picker-categories">
                         @foreach ($this->pickerCategories() as $category)

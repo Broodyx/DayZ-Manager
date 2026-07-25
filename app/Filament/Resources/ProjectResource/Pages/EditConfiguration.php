@@ -17,6 +17,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -55,8 +56,6 @@ class EditConfiguration extends Page
     public array $typeEntries = [];
 
     /** @var list<array<string, mixed>> */
-    public array $catalogEntries = [];
-
     public bool $visualSupported = false;
 
     public ?string $visualKind = null;
@@ -103,7 +102,6 @@ class EditConfiguration extends Page
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
-        $this->loadCatalog();
         $requestedRevision = request()->integer('revision');
         $requested = $requestedRevision
             ? $this->getRecord()->revisions()->whereKey($requestedRevision)->first()
@@ -366,7 +364,7 @@ class EditConfiguration extends Page
     public function pickerEntries(): array
     {
         $entries = array_values(array_filter(
-            $this->catalogEntries,
+            $this->catalogEntries(),
             fn (array $entry): bool => ($entry['category'] ?: 'other') === $this->classPickerCategory,
         ));
 
@@ -380,7 +378,7 @@ class EditConfiguration extends Page
 
     public function pickerCategories(): array
     {
-        return collect($this->catalogEntries)
+        return collect($this->catalogEntries())
             ->pluck('category')
             ->filter()
             ->unique()
@@ -389,17 +387,14 @@ class EditConfiguration extends Page
             ->all();
     }
 
-    private function loadCatalog(): void
+    private function catalogEntries(): array
     {
-        $path = base_path('database/seeders/fixtures/dayz-types-chernarus.xml');
-        if (! is_file($path)) {
-            return;
-        }
+        return Cache::remember('dayz.catalog.types.v1', now()->addDay(), function (): array {
+            $path = base_path('database/seeders/fixtures/dayz-types-chernarus.xml');
+            $content = is_file($path) ? file_get_contents($path) : false;
 
-        $content = file_get_contents($path);
-        if ($content !== false) {
-            $this->catalogEntries = app(TypesXmlEditor::class)->entries($content);
-        }
+            return $content === false ? [] : app(TypesXmlEditor::class)->entries($content);
+        });
     }
 
     public function addType(
