@@ -259,6 +259,9 @@
     .dz-field span { color:#d8f57b; font-weight:700; overflow-wrap:anywhere; }
     .dz-field input { width:100%; min-width:0; box-sizing:border-box; background:#0b110d; color:#e7f7d2; border:1px solid #486a2c; border-radius:.4rem; padding:.6rem .7rem; }
     .dz-field input:focus { outline:2px solid #b8ed55; outline-offset:1px; }
+    .dz-secret-control { display:flex; gap:.4rem; min-width:0; }
+    .dz-secret-control input { flex:1 1 auto; min-width:0; }
+    .dz-reveal { flex:0 0 auto; border:1px solid #486a2c; border-radius:.4rem; background:#18251a; color:#d8f57b; padding:.45rem .6rem; cursor:pointer; }
     .dz-field small { color:#9aa99b; font:.75rem/1.35 ui-monospace,SFMono-Regular,monospace; overflow-wrap:anywhere; }
     .dz-save-button { margin-top:1rem; border:0; border-radius:.45rem; background:#b8ed55; color:#14200f; padding:.75rem 1rem; font-weight:800; cursor:pointer; }
     .dz-whitelist-add { display:flex; gap:.75rem; flex-wrap:wrap; margin:1rem 0; }

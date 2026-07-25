@@ -679,11 +679,6 @@ class EditConfiguration extends Page
         $this->typeEntries = $this->visualKind === 'types' ? $typesEditor->entries($this->rawContent) : [];
         $this->weatherForm = $this->visualKind === 'weather' ? $weatherEditor->values($this->rawContent) : [];
         $this->serverConfig = str_ends_with(strtolower($filename), '.cfg') ? app(ServerConfigEditor::class)->parse($this->rawContent) : [];
-        foreach (['password', 'passwordAdmin'] as $secret) {
-            if (array_key_exists($secret, $this->serverConfig)) {
-                $this->serverConfig[$secret] = '';
-            }
-        }
         $this->whitelistEntries = $this->visualKind === 'whitelist'
             ? array_values(array_filter(array_map('trim', preg_split('/\R/', $this->rawContent) ?: [])))
             : [];

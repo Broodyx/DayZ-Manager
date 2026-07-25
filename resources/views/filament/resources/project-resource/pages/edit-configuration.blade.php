@@ -305,7 +305,7 @@
                         @php
                             $secret = in_array(strtolower($key), ['password', 'passwordadmin'], true);
                         @endphp
-                        <label class="dz-field"><span>{{ $key }}</span><input type="{{ $secret ? 'password' : 'text' }}" autocomplete="{{ $secret ? 'new-password' : 'off' }}" placeholder="{{ $secret ? 'Ponechte prázdné pro zachování' : '' }}" wire:model.defer="serverConfig.{{ $key }}"><small>{{ $cfgDescriptions[$key] ?? 'Popis této volby není v aktuální dokumentaci DayZ dostupný; podrobnosti ověřte v komentáři raw konfigurace.' }}</small><small>Raw: {{ $key }} = {{ $secret ? '•••••••• (skryto)' : $value }};</small></label>
+                        <label class="dz-field"><span>{{ $key }}</span><span class="dz-secret-control"><input id="cfg-{{ $key }}" type="{{ $secret ? 'password' : 'text' }}" autocomplete="{{ $secret ? 'new-password' : 'off' }}" placeholder="{{ $secret ? 'Ponechte prázdné pro zachování' : '' }}" wire:model.defer="serverConfig.{{ $key }}">@if($secret)<button type="button" class="dz-reveal" onclick="const i=document.getElementById('cfg-{{ $key }}'); i.type=i.type==='password'?'text':'password'; this.textContent=i.type==='password'?'Zobrazit':'Skrýt';">Zobrazit</button>@endif</span><small>{{ $cfgDescriptions[$key] ?? 'Popis této volby není v aktuální dokumentaci DayZ dostupný; podrobnosti ověřte v komentáři raw konfigurace.' }}</small><small>Raw: {{ $key }} = {{ $secret ? '•••••••• (skryto)' : $value }};</small></label>
                     @endforeach
                 </div><button type="button" wire:click="saveServerConfig" class="dz-save-button">Uložit serverDZ.cfg jako novou revizi</button></section>
             @elseif ($visualKind === 'whitelist')
