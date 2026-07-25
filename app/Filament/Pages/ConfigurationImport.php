@@ -1,0 +1,66 @@
+<?php
+
+namespace App\Filament\Pages;
+
+use App\Models\Project;
+use App\Services\Import\ConfigurationImporter;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+
+class ConfigurationImport extends Page implements HasForms
+{
+    use InteractsWithForms;
+
+    protected static string $view = 'filament.pages.configuration-import';
+
+    protected static bool $shouldRegisterNavigation = false;
+
+    public ?array $data = [];
+
+    public function mount(): void
+    {
+        $this->form->fill(['area' => request()->string('area')->toString() ?: null]);
+    }
+
+    protected function getFormStatePath(): string
+    {
+        return 'data';
+    }
+
+    protected function getFormSchema(): array
+    {
+        return [
+            Select::make('area')->label('Co chcete editovat?')->options([
+                'server' => 'Server a pravidla · serverDZ.cfg', 'economy' => 'Loot a ekonomika · types.xml',
+                'events' => 'Eventy a vozidla · events.xml', 'map' => 'Mapa a spawn body',
+                'weather' => 'Počasí · cfgweather.xml', 'gameplay' => 'Gameplay · cfggameplay.json',
+                'admin' => 'Administrace · ban.txt, whitelist.txt, messages.xml',
+            ])->required(),
+            Select::make('project_id')->label('Server')->options(fn (): array => Project::where('user_id', auth()->id())->orderBy('name')->pluck('name', 'id')->all())->searchable()->required(),
+            Select::make('platform')->label('Platforma')->options(['playstation' => 'PlayStation', 'xbox' => 'Xbox', 'steam' => 'PC / Steam'])->required(),
+            FileUpload::make('file')->label('Soubor konfigurace')->acceptedFileTypes(['application/xml', 'text/xml', 'text/plain', 'application/json', 'application/zip', 'application/x-zip-compressed'])->storeFiles(false)->required(),
+            TextInput::make('summary')->label('Poznámka k revizi')->maxLength(255),
+        ];
+    }
+
+    public function import(ConfigurationImporter $importer): void
+    {
+        $state = $this->form->getState();
+        $project = Project::where('user_id', auth()->id())->findOrFail($state['project_id']);
+        if (! ($state['file'] ?? null) instanceof TemporaryUploadedFile) {
+            Notification::make()->danger()->title('Vyberte soubor')->send();
+
+            return;
+        }
+        $result = $importer->import($project, $state['file'], auth()->user());
+        $project->update(['platform' => $state['platform'], 'platform_confidence' => 100]);
+        Notification::make()->success()->title('Konfigurace importována')->body($result->original_filename)->send();
+        $this->redirect('/admin/configuration-imports');
+    }
+}
