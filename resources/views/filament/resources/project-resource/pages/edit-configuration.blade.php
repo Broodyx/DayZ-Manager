@@ -298,7 +298,46 @@
             </div>
             @elseif ($visualKind === 'server')
                 @php
-                $cfgDescriptions = ['hostname'=>'Název serveru zobrazovaný v prohlížeči serverů.','maxPlayers'=>'Maximální počet současně připojených hráčů.','password'=>'Heslo potřebné pro připojení na server.','passwordAdmin'=>'Heslo pro administrátorské příkazy ve hře.','enableWhitelist'=>'Zapíná kontrolu UID v whitelist.txt.','verifySignatures'=>'Ověřuje .pbo soubory proti podpisům .bisign.','forceSameBuild'=>'Povolí připojení pouze klientům se stejnou revizí hry.','disableVoN'=>'Vypíná vestavěnou hlasovou komunikaci.','vonCodecQuality'=>'Kvalita hlasového kodeku; vyšší hodnota znamená lepší zvuk.','disable3rdPerson'=>'Zakáže hráčům pohled ze třetí osoby.','disableCrosshair'=>'Zakáže zaměřovací kříž u střelných zbraní.','disablePersonalLight'=>'Zakáže osobní světlo, které hráč používá v noci.','lightingConfig'=>'Volba profilu osvětlení mapy.','serverTime'=>'Čas, kterým server začne po restartu; SystemTime použije čas stroje.','serverTimeAcceleration'=>'Násobek rychlosti plynutí denního času.','serverNightTimeAcceleration'=>'Násobek rychlosti plynutí noci (násobí se i denní akcelerací).','serverTimePersistent'=>'Uloží čas do persistence a použije ho po dalším restartu.','guaranteedUpdates'=>'Zapíná garantované síťové aktualizace objektů.','loginQueueConcurrentPlayers'=>'Kolik připojení se zpracovává současně ve frontě.','loginQueueMaxPlayers'=>'Maximální počet hráčů čekajících na připojení.','instanceId'=>'ID instance určující složku persistence při více serverech na stroji.','storeHouseStateDisabled'=>'Vypíná ukládání stavu domů a dveří do persistence.','storageAutoFix'=>'Při poškození persistence vytvoří prázdný náhradní soubor.','template'=>'Mission template/mapa, například dayzOffline.chernarusplus.','steamport'=>'UDP port serveru pro Steam komunikaci.','steamqueryport'=>'Port pro dotazy serverového prohlížeče ve Steamu.','adminLogPlayerHitsOnly'=>'Do admin logu zapisuje pouze zásahy hráčů.','adminLogPlacement'=>'Loguje umisťování předmětů a staveb.','adminLogBuildActions'=>'Loguje stavební akce hráčů.','adminLogPlayerList'=>'Loguje seznam připojených hráčů.','disableBaseDamage'=>'Zakáže poškození základů a staveb.','disableContainerDamage'=>'Zakáže poškození kontejnerů a jejich obsahu.','disableRespawnDialog'=>'Zakáže dialog pro volbu respawnu.','disableRespawnInUnconsciousness'=>'Zakáže respawn během bezvědomí.','enableCfgGameplayFile'=>'Načte doplňkový soubor cfggameplay.json.','networkObjectBatchSend'=>'Počet síťových objektů odesílaných v jedné dávce.','networkObjectBatchCompute'=>'Počet objektů zpracovaných při výpočtu síťové dávky.','description'=>'Textový popis serveru zobrazovaný v prohlížeči.'];
+                $cfgDescriptions = [
+                    'hostname'=>'Název serveru v seznamu; libovolný text (doporučeno 3–64 znaků).',
+                    'maxPlayers'=>'Maximální počet hráčů; celé číslo 1–128.',
+                    'password'=>'Heslo pro připojení; prázdné = server bez hesla.',
+                    'passwordAdmin'=>'Heslo pro administrátorské příkazy; libovolný neprázdný text.',
+                    'enableWhitelist'=>'Whitelist: 0 = vypnuto, 1 = zapnuto. Při 1 se kontroluje whitelist.txt.',
+                    'verifySignatures'=>'Podpisy modů: 0 = vypnuto, 1 = ověřovat, 2 = vyžadovat platné podpisy.',
+                    'forceSameBuild'=>'Stejná verze hry: 0 = dovolí jiné buildy, 1 = vyžaduje shodný build.',
+                    'disableVoN'=>'Hlasová komunikace: 0 = povolena, 1 = zakázána.',
+                    'vonCodecQuality'=>'Kvalita hlasu; celé číslo 0–30, vyšší = kvalitnější a náročnější zvuk.',
+                    'disable3rdPerson'=>'Pohled třetí osoby: 0 = povolen, 1 = zakázán.',
+                    'disableCrosshair'=>'Zaměřovací kříž: 0 = povolen, 1 = zakázán.',
+                    'disablePersonalLight'=>'Osobní světlo: 0 = povoleno, 1 = zakázáno.',
+                    'lightingConfig'=>'Profil osvětlení: 0 = standardní, 1 = alternativní profil (hodnoty závisí na mapě).',
+                    'serverTime'=>'Počáteční čas; HH:MM nebo SystemTime (čas stroje).',
+                    'serverTimeAcceleration'=>'Zrychlení dne; kladné celé číslo, 1 = reálný čas, 12 = den 12× rychleji.',
+                    'serverNightTimeAcceleration'=>'Zrychlení noci; kladné číslo, násobí denní akceleraci.',
+                    'serverTimePersistent'=>'Uložení času: 0 = po restartu použije serverTime, 1 = načte čas z persistence.',
+                    'guaranteedUpdates'=>'Garantované síťové aktualizace: 0 = vypnuto, 1 = zapnuto.',
+                    'loginQueueConcurrentPlayers'=>'Současná zpracování fronty; celé číslo 1–20.',
+                    'loginQueueMaxPlayers'=>'Maximální počet čekajících; celé číslo 1–500.',
+                    'instanceId'=>'ID persistence instance; celé číslo 0–9999, odděluje uložené světy.',
+                    'storeHouseStateDisabled'=>'Ukládání domů: 0 = ukládat, 1 = vypnout ukládání.',
+                    'storageAutoFix'=>'Oprava persistence: 0 = vypnuto, 1 = automaticky opravit poškozený soubor.',
+                    'template'=>'Mission template mapy, např. dayzOffline.chernarusplus.',
+                    'steamport'=>'UDP port serveru; 1024–65535, musí být volný.',
+                    'steamqueryport'=>'Steam query port; 1024–65535, obvykle jiný než steamport.',
+                    'adminLogPlayerHitsOnly'=>'Admin log zásahů: 0 = všechny zásahy, 1 = pouze zásahy hráčů.',
+                    'adminLogPlacement'=>'Logování umisťování: 0 = vypnuto, 1 = zapnuto.',
+                    'adminLogBuildActions'=>'Logování stavění: 0 = vypnuto, 1 = zapnuto.',
+                    'adminLogPlayerList'=>'Logování seznamu hráčů: 0 = vypnuto, 1 = zapnuto.',
+                    'disableBaseDamage'=>'Poškození základen: 0 = povoleno, 1 = zakázáno.',
+                    'disableContainerDamage'=>'Poškození kontejnerů: 0 = povoleno, 1 = zakázáno.',
+                    'disableRespawnDialog'=>'Dialog respawnu: 0 = zobrazit, 1 = skrýt.',
+                    'disableRespawnInUnconsciousness'=>'Respawn v bezvědomí: 0 = povolen, 1 = zakázán.',
+                    'enableCfgGameplayFile'=>'Načtení cfggameplay.json: 0 = vypnuto, 1 = zapnuto.',
+                    'networkObjectBatchSend'=>'Objekty v síťové dávce; celé číslo 1–1000.',
+                    'networkObjectBatchCompute'=>'Objekty zpracované v dávce; celé číslo 1–1000.',
+                    'description'=>'Popis serveru v prohlížeči; libovolný text (doporučeno do 255 znaků).',
+                ];
                 @endphp
                 <section class="dz-editor-card"><h3>Serverová nastavení · serverDZ.cfg</h3><p class="dz-muted">Upravujte hodnoty serveru bez ručního psaní CFG syntaxe. Hesla jsou skrytá; prázdné pole zachová původní hodnotu.</p><div class="dz-fields-grid">
                     @foreach ($serverConfig as $key => $value)
