@@ -32,15 +32,12 @@
         .dz-field-top strong { display:block; overflow-wrap:break-word; word-break:normal; white-space:normal }
         .dz-field input[type=number] { width:7rem; border:1px solid rgba(190,209,175,.2); border-radius:.25rem; padding:.45rem .55rem; color:#edf2e9; background:#090d0a }
         .dz-field-top input[type=text],.dz-field-top input[type=number] { min-width:0; width:100%; box-sizing:border-box }
-        .dz-switch-control { display:flex; align-items:center; justify-content:flex-end; gap:.5rem; min-width:7rem; cursor:pointer }
+        .dz-switch-control { display:flex; align-items:center; justify-content:flex-end; min-width:7rem; cursor:pointer }
         .dz-switch-control input { position:absolute; opacity:0; pointer-events:none }
-        .dz-switch { position:relative; width:2.8rem; height:1.5rem; flex:0 0 auto; border-radius:999px; background:#263229; border:1px solid rgba(190,209,175,.3); transition:.15s }
-        .dz-switch::after { content:''; position:absolute; top:.17rem; left:.18rem; width:1.05rem; height:1.05rem; border-radius:50%; background:#aab6a4; transition:.15s }
-        .dz-switch-control input:checked + .dz-switch { background:#86b832; border-color:#b6e94f }
-        .dz-switch-control input:checked + .dz-switch::after { left:1.48rem; background:#17210d }
-        .dz-boolean-state { min-width:4.8rem; padding:.25rem .45rem; border-radius:999px; text-align:center; font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.03em }
-        .dz-boolean-state.on { color:#17210d; background:#b6e94f }
-        .dz-boolean-state.off { color:#cbd5c0; background:#263229; border:1px solid rgba(190,209,175,.25) }
+        .dz-toggle-button { min-width:6.8rem; padding:.55rem .75rem; border-radius:.35rem; text-align:center; font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; transition:.15s }
+        .dz-toggle-button.on { color:#17210d; background:#b6e94f; border:1px solid #d4fa78 }
+        .dz-toggle-button.off { color:#cbd5c0; background:#263229; border:1px solid rgba(190,209,175,.35) }
+        .dz-toggle-button:hover { filter:brightness(1.12) }
         .dz-field input[type=range] { width:100%; accent-color:#a3e635 }
         .dz-field[data-tooltip] { position:relative }
         .dz-field[data-tooltip]::after { content:attr(data-tooltip); position:absolute; z-index:20; left:.75rem; bottom:calc(100% + .35rem); max-width:28rem; padding:.45rem .6rem; border:1px solid rgba(182,233,79,.3); border-radius:.25rem; color:#e7f4dc; background:#0a100c; box-shadow:0 8px 24px rgba(0,0,0,.45); font:12px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:normal; opacity:0; pointer-events:none; transform:translateY(.25rem); transition:opacity .15s,transform .15s }
@@ -501,7 +498,7 @@
                                         <label class="dz-field" data-tooltip="Raw JSON: {{ $field['path'] }}">
                                             <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $field['path'] }} · {{ $field['type'] === 'boolean' ? 'true = zapnuto, false = vypnuto' : ($field['type'] === 'number' ? 'číselná hodnota; rozsah dle DayZ parametru' : 'textová hodnota') }}</small></span>
                                                 @if ($field['type'] === 'boolean')
-                                                    <label class="dz-switch-control" x-data="{ enabled: @js((bool) ($jsonValues[$field['path']] ?? false)) }"><input type="checkbox" wire:model.live="jsonValues.{{ $field['path'] }}" x-model="enabled"><span class="dz-switch" aria-hidden="true"></span><span class="dz-boolean-state" :class="enabled ? 'on' : 'off'" x-text="enabled ? 'Zapnuto' : 'Vypnuto'"></span></label>
+                                                    <label class="dz-switch-control" x-data="{ enabled: @js((bool) ($jsonValues[$field['path']] ?? false)) }"><input type="checkbox" wire:model.live="jsonValues.{{ $field['path'] }}" x-model="enabled"><span class="dz-toggle-button" :class="enabled ? 'on' : 'off'" x-text="enabled ? 'Zapnuto' : 'Vypnuto'"></span></label>
                                                 @elseif ($field['type'] === 'number')
                                                     <input type="number" wire:model="jsonValues.{{ $field['path'] }}">
                                                 @else
