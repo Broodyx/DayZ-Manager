@@ -26,6 +26,25 @@ class ListConfigurationImports extends ListRecords
                 ->modalHeading('Import DayZ konfigurace')
                 ->modalDescription('Nahrajte XML, JSON nebo ZIP. Soubor se bezpečně uloží, zvaliduje a vytvoří novou revizi projektu.')
                 ->form([
+                    Forms\Components\Placeholder::make('workflow_help')
+                        ->label('1 · Vyberte oblast nastavení')
+                        ->content('Po importu se editor řídí názvem a obsahem souboru. Každá oblast otevře jiný formulář a validaci.'),
+                    Forms\Components\Select::make('configuration_area')
+                        ->label('Co chcete editovat?')
+                        ->options([
+                            'server' => 'Server a pravidla · serverDZ.cfg',
+                            'economy' => 'Loot a ekonomika · types.xml, globals.xml, economycore.xml',
+                            'events' => 'Eventy, vozidla a zvířata · events.xml, cfgeventspawns.xml',
+                            'map' => 'Mapa a spawn body · mapgrouppos.xml, cfglplayerspawnpoints.xml',
+                            'weather' => 'Počasí · cfgweather.xml',
+                            'gameplay' => 'Gameplay · cfggameplay.json',
+                            'admin' => 'Administrace · ban.txt, whitelist.txt, messages.xml',
+                        ])
+                        ->helperText('Volba pomáhá začátečníkům. Samotný formát se ještě ověří podle obsahu souboru.')
+                        ->required(),
+                    Forms\Components\Placeholder::make('workflow_server')
+                        ->label('2 · Vyberte server')
+                        ->content('Konfigurace se uloží do zvoleného serveru jako nová revize.'),
                     Forms\Components\Select::make('project_id')
                         ->label('Server')
                         ->options(fn (): array => Project::query()
@@ -36,7 +55,7 @@ class ListConfigurationImports extends ListRecords
                         ->searchable()
                         ->required(),
                     Forms\Components\Select::make('server_platform')
-                        ->label('Typ serveru')
+                        ->label('Platforma serveru')
                         ->options([
                             'playstation' => 'PlayStation',
                             'xbox' => 'Xbox',
@@ -44,8 +63,11 @@ class ListConfigurationImports extends ListRecords
                         ])
                         ->helperText('Určuje dostupné možnosti editoru. Obsah souboru se navíc automaticky kontroluje na PC-only prvky.')
                         ->required(),
+                    Forms\Components\Placeholder::make('workflow_file')
+                        ->label('3 · Nahrajte soubor')
+                        ->content('XML, JSON, CFG, TXT nebo ZIP. Po nahrání se vytvoří revize a bezpečnostní validace.'),
                     Forms\Components\FileUpload::make('file')
-                        ->label('Konfigurační soubor')
+                        ->label('Soubor konfigurace')
                         ->acceptedFileTypes([
                             'application/xml',
                             'text/xml',
@@ -54,7 +76,7 @@ class ListConfigurationImports extends ListRecords
                             'application/zip',
                             'application/x-zip-compressed',
                         ])
-                        ->helperText('Povolené formáty: XML, JSON a ZIP. Maximum odpovídá MAX_UPLOAD_SIZE.')
+                        ->helperText('Povolené formáty: XML, JSON, CFG, TXT a ZIP. Maximum odpovídá MAX_UPLOAD_SIZE.')
                         ->maxSize((int) config('dayz.max_upload_size'))
                         ->storeFiles(false)
                         ->required(),
