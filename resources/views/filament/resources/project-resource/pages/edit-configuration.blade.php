@@ -288,14 +288,38 @@
                 </section>
             </div>
             @elseif ($visualKind === 'server')
+                @php
+                $cfgDescriptions = ['hostname'=>'Název serveru v seznamu serverů.','maxPlayers'=>'Maximální počet současně připojených hráčů.','password'=>'Heslo pro připojení na server.','passwordAdmin'=>'Heslo pro administrátorské příkazy.','enableWhitelist'=>'Zapíná kontrolu whitelistu.','verifySignatures'=>'Kontrola podpisů modů.','forceSameBuild'=>'Vyžaduje stejnou verzi hry jako server.','serverTime'=>'Výchozí čas serveru při startu.','serverTimeAcceleration'=>'Zrychlení dne.','serverNightTimeAcceleration'=>'Zrychlení noci.','template'=>'Název mapového economy profilu.'];
+                @endphp
                 <section class="dz-editor-card"><h3>Serverová nastavení · serverDZ.cfg</h3><p class="dz-muted">Upravujte hodnoty serveru bez ručního psaní CFG syntaxe. Hesla jsou skrytá; prázdné pole zachová původní hodnotu.</p><div class="dz-fields-grid">
                     @foreach ($serverConfig as $key => $value)
                         @php
                             $secret = in_array(strtolower($key), ['password', 'passwordadmin'], true);
                         @endphp
-                        <label class="dz-field"><span>{{ $key }}</span><input type="{{ $secret ? 'password' : 'text' }}" autocomplete="{{ $secret ? 'new-password' : 'off' }}" placeholder="{{ $secret ? 'Ponechte prázdné pro zachování' : '' }}" wire:model.defer="serverConfig.{{ $key }}"><small>Raw: {{ $key }} = {{ $secret ? '•••••••• (skryto)' : $value }};</small></label>
+                        <label class="dz-field"><span>{{ $key }}</span><input type="{{ $secret ? 'password' : 'text' }}" autocomplete="{{ $secret ? 'new-password' : 'off' }}" placeholder="{{ $secret ? 'Ponechte prázdné pro zachování' : '' }}" wire:model.defer="serverConfig.{{ $key }}"><small>{{ $cfgDescriptions[$key] ?? 'Hodnota serverové konfigurace.' }}</small><small>Raw: {{ $key }} = {{ $secret ? '•••••••• (skryto)' : $value }};</small></label>
                     @endforeach
                 </div><button type="button" wire:click="saveServerConfig" class="dz-save-button">Uložit serverDZ.cfg jako novou revizi</button></section>
+            @elseif ($visualKind === 'whitelist')
+                @php
+                $cfgDescriptions = [
+                    'hostname' => 'Název serveru zobrazovaný v seznamu serverů.',
+                    'maxPlayers' => 'Maximální počet současně připojených hráčů.',
+                    'password' => 'Heslo pro připojení na server; prázdné znamená bez hesla.',
+                    'passwordAdmin' => 'Heslo pro administrátorské příkazy ve hře.',
+                    'enableWhitelist' => 'Zapíná nebo vypíná kontrolu whitelistu.',
+                    'verifySignatures' => 'Kontrola podpisů modů při připojení.',
+                    'forceSameBuild' => 'Vyžaduje stejnou verzi hry jako server.',
+                    'serverTime' => 'Výchozí čas serveru při startu.',
+                    'serverTimeAcceleration' => 'Zrychlení průběhu dne.',
+                    'serverNightTimeAcceleration' => 'Zrychlení průběhu noci.',
+                    'template' => 'Název mapového template/economy profilu.',
+                ];
+                @endphp
+                <section class="dz-editor-card"><h3>Whitelist hráčů · whitelist.txt</h3><p class="dz-muted">Každý řádek obsahuje jedno Steam/Xbox/PlayStation UID. Duplicitní a neplatné hodnoty se nepřidají.</p>
+                    <div class="dz-whitelist-add"><input wire:model.defer="newWhitelistUid" placeholder="UID hráče" autocomplete="off"><button type="button" wire:click="addWhitelistEntry" class="dz-save-button">Přidat hráče</button></div>
+                    <div class="dz-whitelist-list">@forelse($whitelistEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removeWhitelistEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Whitelist je zatím prázdný.</p>@endforelse</div>
+                    <button type="button" wire:click="saveWhitelist" class="dz-save-button">Uložit whitelist.txt jako novou revizi</button>
+                </section>
             @elseif ($visualKind === 'weather')
                 @php
                     $weatherSections = [

@@ -261,6 +261,12 @@
     .dz-field input:focus { outline:2px solid #b8ed55; outline-offset:1px; }
     .dz-field small { color:#9aa99b; font:.75rem/1.35 ui-monospace,SFMono-Regular,monospace; overflow-wrap:anywhere; }
     .dz-save-button { margin-top:1rem; border:0; border-radius:.45rem; background:#b8ed55; color:#14200f; padding:.75rem 1rem; font-weight:800; cursor:pointer; }
+    .dz-whitelist-add { display:flex; gap:.75rem; flex-wrap:wrap; margin:1rem 0; }
+    .dz-whitelist-add input { flex:1 1 18rem; min-width:0; background:#0b110d; color:#e7f7d2; border:1px solid #486a2c; border-radius:.4rem; padding:.65rem .75rem; }
+    .dz-whitelist-list { display:grid; gap:.5rem; margin-bottom:1rem; }
+    .dz-whitelist-row { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.7rem .85rem; border:1px solid #34472d; border-radius:.45rem; background:#111a14; }
+    .dz-whitelist-row code { color:#d8f57b; overflow-wrap:anywhere; }
+    .dz-danger { border:1px solid #8b4b43; border-radius:.35rem; background:#281614; color:#ffb3a8; padding:.4rem .6rem; cursor:pointer; }
     .dz-map-toolbar { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; margin-bottom:1rem; }
     .dz-map-toolbar h2 { margin:.15rem 0; color:#d8f57b; font-size:1.5rem; }
     .dz-eyebrow { color:#a9df42; font-size:.7rem; letter-spacing:.16em; font-weight:700; margin:0; }

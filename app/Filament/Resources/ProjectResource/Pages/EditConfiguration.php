@@ -66,6 +66,8 @@ class EditConfiguration extends Page
     public array $weatherForm = [];
 
     public array $serverConfig = [];
+    public array $whitelistEntries = [];
+    public string $newWhitelistUid = '';
 
     public array $jsonFields = [];
 
@@ -546,6 +548,31 @@ class EditConfiguration extends Page
         session()->flash('status', 'serverDZ.cfg byl uložen jako nová revize.');
     }
 
+    public function addWhitelistEntry(): void
+    {
+        $uid = trim($this->newWhitelistUid);
+        if ($uid === '' || ! preg_match('/^[A-Za-z0-9_-]{3,64}$/', $uid) || in_array($uid, $this->whitelistEntries, true)) {
+            return;
+        }
+        $this->whitelistEntries[] = $uid;
+        $this->newWhitelistUid = '';
+    }
+
+    public function removeWhitelistEntry(int $index): void
+    {
+        unset($this->whitelistEntries[$index]);
+        $this->whitelistEntries = array_values($this->whitelistEntries);
+    }
+
+    public function saveWhitelist(ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $entries = array_values(array_unique(array_filter(array_map('trim', $this->whitelistEntries))));
+        $content = $entries === [] ? "" : implode("\n", $entries)."\n";
+        $saved = $revisionEditor->save($this->project, $this->sourceRevision(), $content, 'Úprava whitelist.txt ve vizuálním editoru', auth()->user());
+        $this->loadRevision($saved);
+        session()->flash('status', 'Whitelist byl uložen jako nová revize.');
+    }
+
     public function saveWeather(
         WeatherXmlEditor $weatherEditor,
         ConfigurationRevisionEditor $revisionEditor,
@@ -631,6 +658,7 @@ class EditConfiguration extends Page
         $xmlEditor = app(XmlConfigurationEditor::class);
         $this->visualKind = match (true) {
             str_ends_with(strtolower($filename), '.cfg') => 'server',
+            strtolower(basename($filename)) === 'whitelist.txt' => 'whitelist',
             $typesEditor->supports($filename, $this->rawContent) => 'types',
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
             $jsonEditor->supports($this->rawContent) => 'json',
@@ -646,6 +674,9 @@ class EditConfiguration extends Page
                 $this->serverConfig[$secret] = '';
             }
         }
+        $this->whitelistEntries = $this->visualKind === 'whitelist'
+            ? array_values(array_filter(array_map('trim', preg_split('/\R/', $this->rawContent) ?: [])))
+            : [];
         $this->jsonFields = $this->visualKind === 'json' ? $jsonEditor->fields($this->rawContent) : [];
         $this->jsonValues = collect($this->jsonFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
         $this->xmlFields = $this->visualKind === 'xml' ? $xmlEditor->fields($this->rawContent) : [];
