@@ -18,7 +18,7 @@ class ConfigurationImportResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
 
-    protected static ?string $navigationLabel = 'Import konfigurací';
+    protected static ?string $navigationLabel = 'Historie importů';
 
     protected static ?string $modelLabel = 'import konfigurace';
 
@@ -31,7 +31,7 @@ class ConfigurationImportResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('project_id')->label('Projekt')->relationship(
+            Forms\Components\Select::make('project_id')->label('Server')->relationship(
                 name: 'project', titleAttribute: 'name',
                 modifyQueryUsing: fn ($query) => $query->where('user_id', auth()->id()),
             )->disabled(),
@@ -55,7 +55,7 @@ class ConfigurationImportResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('project.name')->label('Projekt')->searchable(),
+            Tables\Columns\TextColumn::make('project.name')->label('Server')->searchable(),
             Tables\Columns\TextColumn::make('original_filename')->label('Soubor')->searchable(),
             Tables\Columns\TextColumn::make('detected_platform')->label('Platforma')->badge(),
             Tables\Columns\TextColumn::make('detection_confidence')->label('Jistota')->suffix('%'),

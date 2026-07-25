@@ -49,7 +49,7 @@ class ConfigurationRevisionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            Tables\Columns\TextColumn::make('project.name')->label('Projekt')->searchable(),
+            Tables\Columns\TextColumn::make('project.name')->label('Server')->searchable(),
             Tables\Columns\TextColumn::make('project.platform')
                 ->label('Server')
                 ->badge()

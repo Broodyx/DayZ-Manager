@@ -30,7 +30,7 @@ class DayzOverview extends StatsOverviewWidget
         );
 
         return [
-            Stat::make('Projekty', (clone $projects)->count())
+            Stat::make('Servery', (clone $projects)->count())
                 ->description('Spravované DayZ servery')
                 ->descriptionIcon('heroicon-m-server-stack')
                 ->url(ProjectResource::getUrl()),

@@ -20,14 +20,14 @@ class ListConfigurationImports extends ListRecords
     {
         return [
             Actions\Action::make('import')
-                ->label('Importovat konfiguraci')
+                ->label('Nahrát konfiguraci')
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('primary')
                 ->modalHeading('Import DayZ konfigurace')
                 ->modalDescription('Nahrajte XML, JSON nebo ZIP. Soubor se bezpečně uloží, zvaliduje a vytvoří novou revizi projektu.')
                 ->form([
                     Forms\Components\Select::make('project_id')
-                        ->label('Projekt')
+                        ->label('Server')
                         ->options(fn (): array => Project::query()
                             ->where('user_id', auth()->id())
                             ->orderBy('name')

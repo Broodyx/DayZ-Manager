@@ -85,7 +85,7 @@ class ConfigurationImporterTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/configuration-imports')
             ->assertOk()
-            ->assertSee('Importovat konfiguraci');
+            ->assertSee('Nahrát konfiguraci');
 
         $this->actingAs($user)
             ->get('/admin/projects')
@@ -107,7 +107,7 @@ class ConfigurationImporterTest extends TestCase
             ->get('/admin')
             ->assertOk()
             ->assertSee('Položky v ekonomice serverů')
-            ->assertSee('Naposledy upravené projekty');
+            ->assertSee('Naposledy upravené servery');
 
         $this->actingAs($user)
             ->get('/admin/projects')

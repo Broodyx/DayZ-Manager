@@ -12,7 +12,7 @@ class RecentProjects extends TableWidget
 {
     protected static bool $isLazy = false;
 
-    protected static ?string $heading = 'Naposledy upravené projekty';
+    protected static ?string $heading = 'Naposledy upravené servery';
 
     protected static ?int $sort = 3;
 

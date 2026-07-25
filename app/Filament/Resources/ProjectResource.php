@@ -18,11 +18,11 @@ class ProjectResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-folder';
 
-    protected static ?string $navigationLabel = 'Projekty';
+    protected static ?string $navigationLabel = 'Servery';
 
-    protected static ?string $modelLabel = 'projekt';
+    protected static ?string $modelLabel = 'server';
 
-    protected static ?string $pluralModelLabel = 'projekty';
+    protected static ?string $pluralModelLabel = 'servery';
 
     protected static ?string $navigationGroup = 'DayZ konfigurace';
 
@@ -54,7 +54,7 @@ class ProjectResource extends Resource
             ->recordUrl(fn (Project $record): string => static::getUrl('configuration', ['record' => $record]))
             ->actions([
                 EditProjectConfigurationAction::make(),
-                Tables\Actions\EditAction::make()->label('Nastavení projektu'),
+                Tables\Actions\EditAction::make()->label('Nastavení serveru'),
             ])
             ->bulkActions([Tables\Actions\BulkActionGroup::make([Tables\Actions\DeleteBulkAction::make()])]);
     }

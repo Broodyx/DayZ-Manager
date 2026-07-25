@@ -148,7 +148,7 @@ class EditConfiguration extends Page
      */
     public function getBreadcrumbs(): array
     {
-        return [ProjectResource::getUrl() => 'Projekty'];
+        return [ProjectResource::getUrl() => 'Servery'];
     }
 
     public function configurationDescription(): string
