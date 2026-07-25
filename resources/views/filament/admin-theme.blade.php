@@ -294,3 +294,17 @@
     .dz-map-legend input { accent-color:#b8ed55; margin-right:.5rem; }
     @media (max-width: 760px) { .dz-map-toolbar { align-items:stretch; flex-direction:column; } .dz-map-layout { grid-template-columns:1fr; } .dz-map-canvas { min-height:420px; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } .dz-point-options { grid-template-columns:1fr 1fr; } }
 </style>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!new URLSearchParams(window.location.search).has('open')) return;
+        const openImport = () => {
+            const button = [...document.querySelectorAll('button')].find((item) => item.textContent.includes('Nahrát konfiguraci'));
+            if (button) { button.click(); return true; }
+            return false;
+        };
+        if (!openImport()) {
+            const timer = window.setInterval(() => { if (openImport()) window.clearInterval(timer); }, 250);
+            window.setTimeout(() => window.clearInterval(timer), 10000);
+        }
+    });
+</script>
