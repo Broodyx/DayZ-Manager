@@ -1,5 +1,5 @@
-<link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}?v=2">
-<link rel="shortcut icon" href="{{ asset('favicon.svg') }}?v=2">
+<link rel="icon" type="image/svg+xml" href="{{ secure_asset('favicon.svg') }}?v=3">
+<link rel="shortcut icon" href="{{ secure_asset('favicon.svg') }}?v=3">
 <style>
     :root {
         color-scheme: dark;

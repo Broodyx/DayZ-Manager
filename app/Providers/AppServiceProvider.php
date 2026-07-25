@@ -23,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
         // Coolify terminates TLS at the proxy. Keep signed Livewire URLs and assets HTTPS.
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
+            if ($this->app->runningInConsole() === false && request()->getHost() !== '') {
+                URL::forceRootUrl('https://'.request()->getHost());
+            }
         }
     }
 }
