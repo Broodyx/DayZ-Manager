@@ -12,10 +12,12 @@ Route::get('/', function () {
 Route::get('/up', fn () => response()->json(['status' => 'ok']))->name('health');
 
 Route::get('/admin/projects/{project}/configuration/{revision}/download', function (Project $project, \App\Models\ConfigurationRevision $revision) {
-    abort_unless($project->user_id === auth()->id() && $revision->project_id === $project->id, 403);
-    abort_unless(Storage::disk('dayz')->exists($revision->storage_path), 404);
-    $name = app(\App\Services\Revision\ConfigurationRevisionEditor::class)->downloadName($revision->loadMissing('configurationImport'));
-    return Storage::disk('dayz')->download($revision->storage_path, $name);
+    abort_unless((int) $project->user_id === (int) auth()->id() && (int) $revision->project_id === (int) $project->id, 403);
+    $disk = Storage::disk('dayz');
+    abort_unless($disk->exists($revision->storage_path), 404, 'Soubor revize již není v úložišti.');
+    $revision->load('configurationImport');
+    $name = app(\App\Services\Revision\ConfigurationRevisionEditor::class)->downloadName($revision);
+    return $disk->download($revision->storage_path, $name, ['Content-Type' => 'application/octet-stream']);
 })->middleware('auth')->name('configuration-revision.download');
 
 Route::post('/admin/configuration-import/upload', function (ConfigurationImporter $importer) {
