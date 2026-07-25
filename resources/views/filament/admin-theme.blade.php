@@ -270,6 +270,11 @@
     #dayz-leaflet-map { width:100%; height:100%; background:#1c2b20; }
     .leaflet-container { background:#1c2b20; font-family:inherit; }
     .dz-coordinate-control { background:#111a14e8; border:1px solid #6c9337; border-radius:.35rem; color:#d8f57b; padding:.4rem .6rem; font:700 .78rem/1.2 ui-monospace,monospace; }
+    .dz-wizard-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; }
+    .dz-wizard-intro { grid-column:1/-1; padding:1rem 0; } .dz-wizard-intro h2 { color:#d8f57b; margin:.2rem 0; }
+    .dz-wizard-card { display:flex; flex-direction:column; gap:.45rem; min-height:150px; padding:1.1rem; border:1px solid #3e5c28; border-radius:.7rem; background:#111a14; color:#e7f7d2; text-decoration:none; }
+    .dz-wizard-card:hover { border-color:#b8ed55; transform:translateY(-2px); } .dz-wizard-card strong { color:#d8f57b; font-size:1.05rem; } .dz-wizard-card span { color:#9aa99b; font-size:.8rem; } .dz-wizard-card em { margin-top:auto; color:#b8ed55; font-style:normal; font-weight:700; font-size:.8rem; } .dz-wizard-icon { width:1.5rem; color:#b8ed55; }
+    @media (max-width:760px) { .dz-wizard-grid { grid-template-columns:1fr; } }
     .dz-map-grid { position:absolute; inset:0; opacity:.12; background-image:linear-gradient(#d8f57b 1px,transparent 1px),linear-gradient(90deg,#d8f57b 1px,transparent 1px); background-size:48px 48px; }
     .dz-map-land { display:none; }
     .dz-map-marker { position:absolute; transform:translate(-50%,-50%); border:0; background:#172218dd; color:#f0f7e8; border-radius:999px; padding:.35rem .55rem; font-size:.72rem; display:flex; gap:.35rem; align-items:center; cursor:pointer; }

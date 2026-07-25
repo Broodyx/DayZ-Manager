@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\ConfigurationWizard;
 use App\Filament\Pages\MapEditor;
 use App\Filament\Resources\ProjectResource;
 use App\Filament\Widgets\DayzOverview;
@@ -52,6 +53,11 @@ class AdminPanelProvider extends PanelProvider
             ->label('Mapy')
             ->icon('heroicon-o-map')
             ->url(fn (): string => MapEditor::getUrl())
+            ->group('DayZ konfigurace');
+        $serverItems[] = NavigationItem::make('configuration-wizard')
+            ->label('Průvodce konfigurací')
+            ->icon('heroicon-o-sparkles')
+            ->url(fn (): string => ConfigurationWizard::getUrl())
             ->group('DayZ konfigurace');
 
         return $panel->default()->id('admin')->path('admin')->login()
