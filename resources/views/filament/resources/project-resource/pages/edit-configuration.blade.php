@@ -49,11 +49,15 @@
         .dz-file-menu-list { position:absolute; right:0; top:calc(100% + .4rem); width:min(32rem,calc(100vw - 2rem)); max-height:24rem; overflow:auto; padding:.3rem; border:1px solid rgba(182,233,79,.3); border-radius:.5rem; background:#0d140f; box-shadow:0 16px 40px rgba(0,0,0,.55) }
         .dz-file-option { display:block; width:100%; padding:.55rem .65rem; border:0; border-bottom:1px solid rgba(190,209,175,.1); color:#dce8d5; background:transparent; text-align:left; cursor:pointer }
         .dz-file-option:last-child { border-bottom:0 }
-        .dz-file-option:hover,.dz-file-option.active { color:#17210d; background:#b6e94f }
+        .dz-file-option:hover { color:#17210d; background:#b6e94f }
+        .dz-file-option.active { color:#e7f7d2; background:linear-gradient(90deg,rgba(182,233,79,.24),rgba(182,233,79,.1)); box-shadow:inset 3px 0 #b6e94f }
         .dz-file-option-title { display:block; font-size:.95rem; font-weight:800; line-height:1.25; color:#e7f7d2 }
         .dz-file-option-revision { display:block; margin-top:.12rem; color:#b8ed55; font-size:.72rem; font-weight:800; letter-spacing:.03em }
         .dz-file-option-description { display:block; margin-top:.15rem; color:#aab6a4; font-size:.7rem; line-height:1.25; font-weight:400 }
-        .dz-file-option:hover .dz-file-option-description,.dz-file-option.active .dz-file-option-description { color:#31451f }
+        .dz-file-option:hover .dz-file-option-description { color:#31451f }
+        .dz-file-option.active .dz-file-option-title { color:#f3ffd9 }
+        .dz-file-option.active .dz-file-option-revision { color:#b6e94f }
+        .dz-file-option.active .dz-file-option-description { color:#c4d6b8 }
         .dz-modal-backdrop { position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; padding:1rem; background:rgba(0,0,0,.72) }
         .dz-modal { width:min(48rem,100%); max-height:85vh; overflow:hidden; border:1px solid rgba(182,233,79,.35); border-radius:.45rem; background:#111813; box-shadow:0 24px 80px rgba(0,0,0,.65) }
         .dz-modal-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem; border-bottom:1px solid rgba(182,233,79,.15) }
