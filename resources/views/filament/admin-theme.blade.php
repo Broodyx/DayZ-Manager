@@ -253,4 +253,21 @@
             min-width: 0;
         }
     }
+
+    .dz-map-toolbar { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; margin-bottom:1rem; }
+    .dz-map-toolbar h2 { margin:.15rem 0; color:#d8f57b; font-size:1.5rem; }
+    .dz-eyebrow { color:#a9df42; font-size:.7rem; letter-spacing:.16em; font-weight:700; margin:0; }
+    .dz-muted { color:#9aa99b; font-size:.9rem; }
+    .dz-map-select { background:#111a14; border:1px solid #506d2b; border-radius:.5rem; color:#e7f7d2; padding:.7rem 1rem; }
+    .dz-map-layout { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:1rem; }
+    .dz-map-canvas { min-height:560px; position:relative; overflow:hidden; border:1px solid #3e5c28; border-radius:.7rem; background:linear-gradient(145deg,#263c27,#15231a 55%,#101713); }
+    .dz-map-grid { position:absolute; inset:0; opacity:.2; background-image:linear-gradient(#a6ce69 1px,transparent 1px),linear-gradient(90deg,#a6ce69 1px,transparent 1px); background-size:48px 48px; }
+    .dz-map-land { position:absolute; inset:18% 12%; border:2px solid #718f49; border-radius:48% 38% 44% 33%; color:#a9c68a; opacity:.35; display:grid; place-items:center; font-size:2.5rem; letter-spacing:.3em; }
+    .dz-map-marker { position:absolute; transform:translate(-50%,-50%); border:0; background:#172218dd; color:#f0f7e8; border-radius:999px; padding:.35rem .55rem; font-size:.72rem; display:flex; gap:.35rem; align-items:center; cursor:pointer; }
+    .dz-map-marker span { width:.55rem; height:.55rem; border-radius:50%; background:#b8ed55; box-shadow:0 0 0 4px #b8ed5533; }
+    .dz-map-marker-heli span { background:#f1b44c; } .dz-map-marker-convoy span { background:#e96a5f; } .dz-map-marker-event span { background:#80b8ff; }
+    .dz-map-legend { border:1px solid #34472d; border-radius:.7rem; background:#111a14; padding:1rem; }
+    .dz-map-legend h3 { color:#d8f57b; margin-top:0; } .dz-map-legend label { display:block; padding:.55rem 0; color:#c5d2bf; }
+    .dz-map-legend input { accent-color:#b8ed55; margin-right:.5rem; }
+    @media (max-width: 760px) { .dz-map-toolbar { align-items:stretch; flex-direction:column; } .dz-map-layout { grid-template-columns:1fr; } .dz-map-canvas { min-height:420px; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } }
 </style>

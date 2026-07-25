@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\MapEditor;
 use App\Filament\Resources\ProjectResource;
 use App\Filament\Widgets\DayzOverview;
 use App\Filament\Widgets\ItemCategoriesChart;
@@ -47,6 +48,11 @@ class AdminPanelProvider extends PanelProvider
             )->all()
             : []),
         ];
+        $serverItems[] = NavigationItem::make('map-editor')
+            ->label('Mapa Chernarus')
+            ->icon('heroicon-o-map')
+            ->url(fn (): string => MapEditor::getUrl())
+            ->group('DayZ konfigurace');
 
         return $panel->default()->id('admin')->path('admin')->login()
             ->favicon(asset('favicon.svg'))
@@ -58,8 +64,9 @@ class AdminPanelProvider extends PanelProvider
                 fn (): string => view('filament.admin-theme')->render(),
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
+            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->navigationItems($serverItems)
-            ->pages([Pages\Dashboard::class])
+            ->pages([Pages\Dashboard::class, MapEditor::class])
             ->widgets([
                 DayzOverview::class,
                 ItemCategoriesChart::class,
