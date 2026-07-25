@@ -41,17 +41,17 @@
         .dz-file-button { display:inline-flex; align-items:center; gap:.35rem; padding:.58rem .75rem; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; color:#cbd5c0; background:#090d0a; font-size:.78rem; font-weight:700; text-align:left }
         .dz-file-button:hover { border-color:#91c52b; color:#edf2e9 }
         .dz-file-button.active { border-color:#b6e94f; color:#17210d; background:#b6e94f }
-        .dz-file-menu { position:relative; min-width:22rem; z-index:30 }
+        .dz-file-menu { position:relative; width:min(28rem,100%); z-index:30 }
         .dz-file-menu summary { display:flex; align-items:center; justify-content:space-between; gap:.75rem; cursor:pointer; list-style:none; padding:.65rem .8rem; border:1px solid rgba(182,233,79,.35); border-radius:.3rem; color:#edf2e9; background:#111813; font-weight:800 }
         .dz-file-menu summary::-webkit-details-marker { display:none }
         .dz-file-menu summary::after { content:'▾'; color:#b6e94f }
         .dz-file-menu[open] summary::after { content:'▴' }
-        .dz-file-menu-list { position:absolute; right:0; top:calc(100% + .4rem); width:min(34rem,90vw); max-height:28rem; overflow:auto; padding:.4rem; border:1px solid rgba(182,233,79,.3); border-radius:.35rem; background:#0d140f; box-shadow:0 16px 40px rgba(0,0,0,.55) }
-        .dz-file-option { display:block; width:100%; padding:.7rem; border:0; border-bottom:1px solid rgba(190,209,175,.1); color:#dce8d5; background:transparent; text-align:left; cursor:pointer }
+        .dz-file-menu-list { position:absolute; right:0; top:calc(100% + .4rem); width:min(32rem,calc(100vw - 2rem)); max-height:24rem; overflow:auto; padding:.3rem; border:1px solid rgba(182,233,79,.3); border-radius:.5rem; background:#0d140f; box-shadow:0 16px 40px rgba(0,0,0,.55) }
+        .dz-file-option { display:block; width:100%; padding:.55rem .65rem; border:0; border-bottom:1px solid rgba(190,209,175,.1); color:#dce8d5; background:transparent; text-align:left; cursor:pointer }
         .dz-file-option:last-child { border-bottom:0 }
         .dz-file-option:hover,.dz-file-option.active { color:#17210d; background:#b6e94f }
-        .dz-file-option-title { display:block; font-weight:800 }
-        .dz-file-option-description { display:block; margin-top:.2rem; color:#aab6a4; font-size:.78rem; font-weight:400 }
+        .dz-file-option-title { display:block; font-size:.9rem; font-weight:800; line-height:1.25 }
+        .dz-file-option-description { display:block; margin-top:.15rem; color:#aab6a4; font-size:.7rem; line-height:1.25; font-weight:400 }
         .dz-file-option:hover .dz-file-option-description,.dz-file-option.active .dz-file-option-description { color:#31451f }
         .dz-modal-backdrop { position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; padding:1rem; background:rgba(0,0,0,.72) }
         .dz-modal { width:min(48rem,100%); max-height:85vh; overflow:hidden; border:1px solid rgba(182,233,79,.35); border-radius:.45rem; background:#111813; box-shadow:0 24px 80px rgba(0,0,0,.65) }
