@@ -266,6 +266,7 @@
     .dz-map-marker { position:absolute; transform:translate(-50%,-50%); border:0; background:#172218dd; color:#f0f7e8; border-radius:999px; padding:.35rem .55rem; font-size:.72rem; display:flex; gap:.35rem; align-items:center; cursor:pointer; }
     .dz-map-marker span { width:.55rem; height:.55rem; border-radius:50%; background:#b8ed55; box-shadow:0 0 0 4px #b8ed5533; }
     .dz-map-marker-heli span { background:#f1b44c; } .dz-map-marker-convoy span { background:#e96a5f; } .dz-map-marker-event span { background:#80b8ff; }
+    .dz-map-empty { position:absolute; inset:45% 10% auto; text-align:center; color:#9aa99b; }
     .dz-map-legend { border:1px solid #34472d; border-radius:.7rem; background:#111a14; padding:1rem; }
     .dz-map-legend h3 { color:#d8f57b; margin-top:0; } .dz-map-legend label { display:block; padding:.55rem 0; color:#c5d2bf; }
     .dz-map-legend input { accent-color:#b8ed55; margin-right:.5rem; }

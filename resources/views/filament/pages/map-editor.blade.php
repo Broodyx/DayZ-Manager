@@ -11,16 +11,23 @@
                 <option>Livonia</option>
                 <option>Namalsk</option>
             </select>
+            <select wire:model.live="projectId" class="dz-map-select" aria-label="Server">
+                @foreach ($projects as $id => $name)
+                    <option value="{{ $id }}">{{ $name }}</option>
+                @endforeach
+            </select>
         </div>
         <div class="dz-map-layout">
             <section class="dz-map-canvas" aria-label="Mapa serveru">
                 <div class="dz-map-grid"></div>
                 <div class="dz-map-land">CHERNARUS</div>
-                @foreach ($markers as $marker)
+                @forelse ($markers as $marker)
                     <button class="dz-map-marker dz-map-marker-{{ $marker['type'] }}" style="left: {{ $marker['x'] }}%; top: {{ $marker['y'] }}%" title="{{ $marker['label'] }}">
                         <span></span>{{ $marker['label'] }}
                     </button>
-                @endforeach
+                @empty
+                    <div class="dz-map-empty">Vybraný server zatím nemá importované souřadnice z mapových XML.</div>
+                @endforelse
             </section>
             <aside class="dz-map-legend">
                 <h3>Vrstvy mapy</h3>
