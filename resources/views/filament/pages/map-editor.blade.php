@@ -16,6 +16,11 @@
                     <option value="{{ $id }}">{{ $name }}</option>
                 @endforeach
             </select>
+            <div class="dz-map-upload">
+                <input type="file" wire:model="mapFile" accept=".xml,.json,.zip">
+                <button type="button" wire:click="importMapConfiguration" wire:loading.attr="disabled">Nahrát mapovou konfiguraci</button>
+                <small>cfgeventspawns.xml, mapgrouppos.xml, events.xml nebo ZIP</small>
+            </div>
         </div>
         <div class="dz-map-layout">
             <section class="dz-map-canvas" aria-label="Mapa serveru">

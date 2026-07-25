@@ -259,6 +259,10 @@
     .dz-eyebrow { color:#a9df42; font-size:.7rem; letter-spacing:.16em; font-weight:700; margin:0; }
     .dz-muted { color:#9aa99b; font-size:.9rem; }
     .dz-map-select { background:#111a14; border:1px solid #506d2b; border-radius:.5rem; color:#e7f7d2; padding:.7rem 1rem; }
+    .dz-map-upload { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; }
+    .dz-map-upload input { max-width:180px; color:#b8c8b4; font-size:.75rem; }
+    .dz-map-upload button { background:#b8ed55; color:#14200f; border:0; border-radius:.45rem; padding:.65rem .8rem; font-weight:700; }
+    .dz-map-upload small { width:100%; color:#879987; }
     .dz-map-layout { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:1rem; }
     .dz-map-canvas { min-height:560px; position:relative; overflow:hidden; border:1px solid #3e5c28; border-radius:.7rem; background:linear-gradient(145deg,#263c27,#15231a 55%,#101713); }
     .dz-map-grid { position:absolute; inset:0; opacity:.2; background-image:linear-gradient(#a6ce69 1px,transparent 1px),linear-gradient(90deg,#a6ce69 1px,transparent 1px); background-size:48px 48px; }

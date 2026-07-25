@@ -3,11 +3,15 @@
 namespace App\Filament\Pages;
 
 use App\Models\Project;
+use App\Services\Import\ConfigurationImporter;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
+use Livewire\WithFileUploads;
 
 class MapEditor extends Page
 {
+    use WithFileUploads;
+
     protected static string $view = 'filament.pages.map-editor';
 
     protected static bool $shouldRegisterNavigation = false;
@@ -17,6 +21,8 @@ class MapEditor extends Page
     public ?int $projectId = null;
 
     public array $projects = [];
+
+    public $mapFile;
 
     public array $markers = [];
 
@@ -65,6 +71,17 @@ class MapEditor extends Page
                 ];
             }
         }
+    }
+
+    public function importMapConfiguration(ConfigurationImporter $importer): void
+    {
+        $project = $this->projectId ? Project::query()->where('user_id', auth()->id())->find($this->projectId) : null;
+        if (! $project || ! $this->mapFile) {
+            return;
+        }
+        $importer->import($project, $this->mapFile, auth()->user());
+        $this->reset('mapFile');
+        $this->loadMarkers();
     }
 
     public function getTitle(): string
