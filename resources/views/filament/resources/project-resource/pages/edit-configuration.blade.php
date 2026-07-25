@@ -264,13 +264,13 @@
                         </div>
                         <div class="dz-fields">
                             @foreach ([
-                                'nominal' => ['Cílové množství', 1000, 'Počet kusů, který se ekonomika snaží udržet.'],
-                                'min' => ['Minimální množství', 1000, 'Hranice, pod kterou začne doplňování.'],
-                                'lifetime' => ['Životnost (sekundy)', 3888000, 'Jak dlouho předmět zůstane ve světě.'],
-                                'restock' => ['Doba doplnění (sekundy)', 86400, 'Prodleva mezi jednotlivými doplněními.'],
-                                'quantmin' => ['Minimální naplnění (%)', 100, '-1 znamená výchozí chování hry.'],
-                                'quantmax' => ['Maximální naplnění (%)', 100, '-1 znamená výchozí chování hry.'],
-                                'cost' => ['Priorita ekonomiky', 1000, 'Relativní váha položky v ekonomice.'],
+                                'nominal' => ['Cílové množství', 1000, 'Počet kusů, který ekonomika udržuje; rozsah 0–1000. 0 = předmět se nespawnuje.'],
+                                'min' => ['Minimální množství', 1000, 'Hranice doplnění; rozsah 0–1000. Pod touto hodnotou začne ekonomika doplňovat.'],
+                                'lifetime' => ['Životnost (sekundy)', 3888000, 'Jak dlouho předmět zůstane ve světě; rozsah 0–3 888 000 s.'],
+                                'restock' => ['Doba doplnění (sekundy)', 86400, 'Prodleva mezi doplněními; rozsah 0–86 400 s.'],
+                                'quantmin' => ['Minimální naplnění (%)', 100, 'Rozsah −1 až 100 %. −1 = výchozí chování hry.'],
+                                'quantmax' => ['Maximální naplnění (%)', 100, 'Rozsah −1 až 100 %. −1 = výchozí chování hry.'],
+                                'cost' => ['Priorita ekonomiky', 1000, 'Relativní váha v ekonomice; rozsah 0–1000, vyšší = přednostní loot.'],
                             ] as $field => [$label, $max, $help])
                                 <label class="dz-field" title="Raw: &lt;{{ $field }}&gt;{{ $typeForm[$field] ?? '' }}&lt;/{{ $field }}&gt;">
                                     <span class="dz-field-top">
@@ -481,7 +481,7 @@
                                 <div class="dz-fields">
                                     @foreach ($fields as $field)
                                         <label class="dz-field" data-tooltip="Raw JSON: {{ $field['path'] }}">
-                                            <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $field['path'] }}</small></span>
+                                            <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $field['path'] }} · {{ $field['type'] === 'boolean' ? 'true = zapnuto, false = vypnuto' : ($field['type'] === 'number' ? 'číselná hodnota; rozsah dle DayZ parametru' : 'textová hodnota') }}</small></span>
                                                 @if ($field['type'] === 'boolean')
                                                     <input type="checkbox" wire:model="jsonValues.{{ $field['path'] }}">
                                                 @elseif ($field['type'] === 'number')
@@ -508,7 +508,7 @@
                             <div class="dz-fields">
                                 @foreach ($fields as $field)
                                     <label class="dz-field" data-tooltip="Raw XML: {{ $field['raw'] }}">
-                                        <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $field['raw'] }}</small></span><input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}" wire:model="xmlValues.{{ $field['path'] }}"></span>
+                                        <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $field['raw'] }} · {{ $field['type'] === 'number' ? 'číselná hodnota; rozsah ověřte podle popisu XML' : 'textová hodnota' }}</small></span><input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}" wire:model="xmlValues.{{ $field['path'] }}"></span>
                                     </label>
                                 @endforeach
                             </div>
