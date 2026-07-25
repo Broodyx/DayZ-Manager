@@ -32,6 +32,11 @@
         .dz-field-top strong { display:block; overflow-wrap:break-word; word-break:normal; white-space:normal }
         .dz-field input[type=number] { width:7rem; border:1px solid rgba(190,209,175,.2); border-radius:.25rem; padding:.45rem .55rem; color:#edf2e9; background:#090d0a }
         .dz-field-top input[type=text],.dz-field-top input[type=number] { min-width:0; width:100%; box-sizing:border-box }
+        .dz-boolean-control { display:flex; align-items:center; justify-content:flex-end; gap:.5rem; min-width:7rem }
+        .dz-boolean-control input { width:1.1rem; height:1.1rem; accent-color:#b6e94f }
+        .dz-boolean-state { min-width:4.8rem; padding:.25rem .45rem; border-radius:999px; text-align:center; font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.03em }
+        .dz-boolean-state.on { color:#17210d; background:#b6e94f }
+        .dz-boolean-state.off { color:#cbd5c0; background:#263229; border:1px solid rgba(190,209,175,.25) }
         .dz-field input[type=range] { width:100%; accent-color:#a3e635 }
         .dz-field[data-tooltip] { position:relative }
         .dz-field[data-tooltip]::after { content:attr(data-tooltip); position:absolute; z-index:20; left:.75rem; bottom:calc(100% + .35rem); max-width:28rem; padding:.45rem .6rem; border:1px solid rgba(182,233,79,.3); border-radius:.25rem; color:#e7f4dc; background:#0a100c; box-shadow:0 8px 24px rgba(0,0,0,.45); font:12px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:normal; opacity:0; pointer-events:none; transform:translateY(.25rem); transition:opacity .15s,transform .15s }
@@ -492,7 +497,7 @@
                                         <label class="dz-field" data-tooltip="Raw JSON: {{ $field['path'] }}">
                                             <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $field['path'] }} · {{ $field['type'] === 'boolean' ? 'true = zapnuto, false = vypnuto' : ($field['type'] === 'number' ? 'číselná hodnota; rozsah dle DayZ parametru' : 'textová hodnota') }}</small></span>
                                                 @if ($field['type'] === 'boolean')
-                                                    <input type="checkbox" wire:model="jsonValues.{{ $field['path'] }}">
+                                                    <span class="dz-boolean-control"><input type="checkbox" wire:model.live="jsonValues.{{ $field['path'] }}"><span class="dz-boolean-state {{ ($jsonValues[$field['path']] ?? false) ? 'on' : 'off' }}">{{ ($jsonValues[$field['path']] ?? false) ? 'Zapnuto' : 'Vypnuto' }}</span></span>
                                                 @elseif ($field['type'] === 'number')
                                                     <input type="number" wire:model="jsonValues.{{ $field['path'] }}">
                                                 @else
