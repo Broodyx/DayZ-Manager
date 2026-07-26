@@ -487,6 +487,29 @@
                     </div>
                 </section>
             @elseif ($visualKind === 'json')
+                @php
+                    $jsonDescriptions = [
+                        'sprintStaminaModifierErc' => 'Násobič spotřeby staminy při běhu vpřed; 1 = výchozí, <1 menší spotřeba, >1 větší spotřeba. Doporučený rozsah 0–5.',
+                        'sprintStaminaModifierCro' => 'Násobič spotřeby staminy při běhu skrčmo; 1 = výchozí, <1 menší spotřeba, >1 větší spotřeba. Doporučený rozsah 0–5.',
+                        'staminaMax' => 'Maximální zásoba staminy; doporučený rozsah 1–100.',
+                        'staminaMinCap' => 'Minimální zůstatek staminy; rozsah 0–100.',
+                        'staminaWeightLimitThreshold' => 'Hmotnost v gramech, od které se uplatní postih staminy; rozsah 0–50 000 g.',
+                        'staminaKgToStaminaPercentPenalty' => 'Postih staminy za nadlimitní kilogram; kladné desetinné číslo.',
+                        'sprintSwimmingStaminaModifier' => 'Násobič spotřeby při plavání; 1 = výchozí, doporučený rozsah 0–5.',
+                        'sprintLadderStaminaModifier' => 'Násobič spotřeby při lezení po žebříku; 1 = výchozí, rozsah 0–5.',
+                        'meleeStaminaModifier' => 'Násobič spotřeby při útoku zblízka; 1 = výchozí, rozsah 0–5.',
+                        'obstacleTraversalStaminaModifier' => 'Násobič spotřeby při překonávání překážek; 1 = výchozí, rozsah 0–5.',
+                        'holdBreathStaminaModifier' => 'Násobič spotřeby při zadržení dechu; 1 = výchozí, rozsah 0–5.',
+                        'disableBaseDamage' => 'Poškození základen: true = vypnuto, false = povoleno.',
+                        'disableContainerDamage' => 'Poškození kontejnerů: true = vypnuto, false = povoleno.',
+                        'disableRespawnDialog' => 'Dialog respawnu: true = skrytý, false = zobrazený.',
+                        'disableRespawnInUnconsciousness' => 'Respawn v bezvědomí: true = zakázán, false = povolen.',
+                        'lightingConfig' => 'Profil osvětlení světa; 0 = standardní profil, další hodnoty závisí na verzi/mapě.',
+                        'use3DMap' => '3D mapa v rozhraní: true = zapnuto, false = vypnuto.',
+                        'displayPlayerPosition' => 'Zobrazení pozice hráče na mapě: true = zapnuto, false = vypnuto.',
+                        'displayNavInfo' => 'Navigační informace na mapě: true = zapnuto, false = vypnuto.',
+                    ];
+                @endphp
                 <section class="dz-panel dz-server-settings">
                     <div class="dz-panel-head"><strong>{{ $currentFilename }} · vizuální editor</strong><p class="dz-muted text-sm mt-1">Nastavení je rozdělené podle sekcí JSON. Pole jsou odvozena přímo z importovaného souboru.</p></div>
                     <div class="p-3">
@@ -496,7 +519,7 @@
                                 <div class="dz-fields">
                                     @foreach ($fields as $field)
                                         <label class="dz-field" data-tooltip="Raw JSON: {{ $field['path'] }}">
-                                            <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $field['path'] }} · {{ $field['type'] === 'boolean' ? 'true = zapnuto, false = vypnuto' : ($field['type'] === 'number' ? 'číselná hodnota; rozsah dle DayZ parametru' : 'textová hodnota') }}</small></span>
+                                            <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $jsonDescriptions[str($field['path'])->afterLast('.')->toString()] ?? ($field['path'].' · '.($field['type'] === 'boolean' ? 'true = zapnuto, false = vypnuto' : ($field['type'] === 'number' ? 'číselná hodnota; rozsah dle DayZ parametru' : 'textová hodnota'))) }}</small></span>
                                                 @if ($field['type'] === 'boolean')
                                                     <label class="dz-switch-control" x-data="{ enabled: @js((bool) ($jsonValues[$field['path']] ?? false)) }"><input type="checkbox" wire:model.live="jsonValues.{{ $field['path'] }}" x-model="enabled"><span class="dz-toggle-button" :class="enabled ? 'on' : 'off'" x-text="enabled ? 'Zapnuto' : 'Vypnuto'"></span></label>
                                                 @elseif ($field['type'] === 'number')
