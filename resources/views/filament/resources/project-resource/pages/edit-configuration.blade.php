@@ -537,7 +537,7 @@
                                         <label class="dz-field" data-tooltip="Raw JSON: {{ $field['path'] }}">
                                             <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $jsonDescriptions[str($field['path'])->afterLast('.')->toString()] ?? ($field['path'].' · '.($field['type'] === 'boolean' ? 'true = zapnuto, false = vypnuto' : ($field['type'] === 'number' ? 'číselná hodnota; rozsah dle DayZ parametru' : 'textová hodnota'))) }}</small></span>
                                                 @if ($field['type'] === 'boolean')
-                                                    <label class="dz-switch-control" x-data="{ enabled: @js((bool) ($jsonValues[$field['path']] ?? false)) }"><input type="checkbox" wire:model.live="jsonValues.{{ $field['path'] }}" x-model="enabled"><span class="dz-toggle-button" :class="enabled ? 'on' : 'off'" x-text="enabled ? 'Zapnuto' : 'Vypnuto'"></span></label>
+                                                    <label class="dz-switch-control" x-data="{ enabled: @js((bool) data_get($jsonValues, $field['path'], false)) }"><input type="checkbox" wire:model.live="jsonValues.{{ $field['path'] }}" x-model="enabled"><span class="dz-toggle-button" :class="enabled ? 'on' : 'off'" x-text="enabled ? 'Zapnuto' : 'Vypnuto'"></span></label>
                                                 @elseif ($field['type'] === 'number')
                                                     <input type="number" wire:model="jsonValues.{{ $field['path'] }}">
                                                 @else

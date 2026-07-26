@@ -600,11 +600,27 @@ class EditConfiguration extends Page
 
     public function saveJson(JsonConfigurationEditor $jsonEditor, ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
     {
-        $content = $jsonEditor->update($this->rawContent, $this->jsonValues);
+        $content = $jsonEditor->update($this->rawContent, $this->flattenJsonValues($this->jsonValues));
         $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
         $revision = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, $this->changeSummary ?: 'Úprava JSON konfigurace', auth()->user());
         $this->loadRevision($revision);
         Notification::make()->success()->title("Konfigurace uložena v revizi #{$revision->revision_number}")->send();
+    }
+
+    /** @return array<string, mixed> */
+    private function flattenJsonValues(array $values, string $prefix = ''): array
+    {
+        $flat = [];
+        foreach ($values as $key => $value) {
+            $path = $prefix === '' ? (string) $key : $prefix.'.'.$key;
+            if (is_array($value) && ! array_is_list($value)) {
+                $flat += $this->flattenJsonValues($value, $path);
+            } else {
+                $flat[$path] = $value;
+            }
+        }
+
+        return $flat;
     }
 
     public function saveXml(XmlConfigurationEditor $xmlEditor, ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
@@ -661,7 +677,10 @@ class EditConfiguration extends Page
             ? array_values(array_filter(array_map('trim', preg_split('/\R/', $this->rawContent) ?: [])))
             : [];
         $this->jsonFields = $this->visualKind === 'json' ? $jsonEditor->fields($this->rawContent) : [];
-        $this->jsonValues = collect($this->jsonFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
+        $this->jsonValues = [];
+        foreach ($this->jsonFields as $field) {
+            data_set($this->jsonValues, $field['path'], $field['value']);
+        }
         $this->xmlFields = $this->visualKind === 'xml' ? $xmlEditor->fields($this->rawContent) : [];
         $this->xmlValues = collect($this->xmlFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
         $this->mode = $this->visualSupported ? 'visual' : 'raw';
