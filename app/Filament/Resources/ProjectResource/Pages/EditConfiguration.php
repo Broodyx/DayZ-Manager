@@ -165,6 +165,10 @@ class EditConfiguration extends Page
 
     public function descriptionForFilename(string $filename): string
     {
+        if (str_ends_with(strtolower($filename), '_territories.xml')) {
+            return 'Teritoria zvířat; souřadnice a hustota výskytu konkrétního druhu na mapě.';
+        }
+
         return match (strtolower($filename)) {
             'serverdz.cfg' => 'Hlavní nastavení serveru: přístup, hráči, čas, síť, logování a persistence.',
             'whitelist.txt' => 'Seznam povolených hráčských UID; aktivuje se volbou enableWhitelist v serverDZ.cfg.',
@@ -177,8 +181,27 @@ class EditConfiguration extends Page
             'cfglimitsdefinition.xml' => 'Kategorie, usage flagy a definice limitů pro ekonomiku.',
             'mapgrouppos.xml' => 'Pozice skupin budov a loot zón na mapě.',
             'economycore.xml' => 'Základní chování dynamické ekonomiky a respawnu.',
+            'cfgeconomycore.xml' => 'Přepínače a vazby ekonomiky mezi economy, events a types.',
+            'cfgeventgroups.xml' => 'Skupiny eventů a jejich společné spawnování.',
+            'cfgignorelist.xml' => 'Seznam tříd a objektů, které má ekonomika ignorovat.',
+            'cfglimitsdefinitionuser.xml' => 'Vlastní definice kategorií a usage flagů serveru.',
+            'cfgplayerspawnpoints.xml' => 'Pevné body pro spawn hráčů na mapě.',
+            'cfgrandompresets.xml' => 'Přednastavené náhodné konfigurace eventů a ekonomiky.',
+            'cfgeffectarea.json' => 'Efektové oblasti, kontaminace a jejich parametry.',
+            'cfgundergroundtriggers.json' => 'Spouštěče podzemních oblastí a jejich aktivace.',
+            'mapclusterproto.xml' => 'Prototypy mapových clusterů budov.',
+            'mapgroupproto.xml' => 'Prototypy skupin budov a loot skupin.',
+            'mapgroupcluster.xml' => 'Umístění clusterů budov na mapě.',
+            'mapgroupcluster01.xml' => 'Umístění clusterů budov na mapě (část 1).',
+            'mapgroupcluster02.xml' => 'Umístění clusterů budov na mapě (část 2).',
+            'mapgroupcluster03.xml' => 'Umístění clusterů budov na mapě (část 3).',
+            'mapgroupcluster04.xml' => 'Umístění clusterů budov na mapě (část 4).',
+            'mapgroupdirt.xml' => 'Doplňková data mapových skupin.',
             'messages.xml' => 'Automatické serverové zprávy, intervaly a jejich životnost.',
             'cfggameplay.json' => 'Gameplay nastavení: stamina, damage, respawn, UI, svět a pohyb hráče.',
+            'cfgenvironment.xml' => 'Teploty, prostředí a chování okolního světa.',
+            'cfgplayerspawnpoints.xml' => 'Spawnovací body hráčů a jejich orientace.',
+            'territory-type' => 'Teritoria zvířat; souřadnice a hustota výskytu druhu.',
             default => 'Pokročilá konfigurace serveru. Před uložením se ověří syntaxe XML nebo JSON.',
         };
     }

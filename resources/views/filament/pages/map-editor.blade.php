@@ -50,7 +50,7 @@
                 <label><input type="checkbox" checked> Konvoje</label>
                 <label><input type="checkbox" checked> Event spawny</label>
                 <hr>
-                <p class="dz-muted">Napojení na reálné souřadnice z <code>cfgeventspawns.xml</code> a <code>mapgrouppos.xml</code> bude použito při importu konfigurace.</p>
+                <p class="dz-muted">Mapové zdroje: <code>cfgeventspawns.xml</code>, <code>events.xml</code>, <code>cfgeventgroups.xml</code>, <code>cfgplayerspawnpoints.xml</code>, <code>mapgrouppos.xml</code>, <code>mapgroupcluster*.xml</code>, <code>mapgroupproto.xml</code> a <code>*_territories.xml</code>. Body se načítají z jejich souřadnic a ukládají jako nové revize.</p>
             </aside>
         </div>
     </div>

@@ -70,7 +70,13 @@ class MapEditor extends Page
 
         foreach ($project->revisions()->with('configurationImport')->latest()->get() as $revision) {
             $filename = strtolower($revision->configurationImport?->original_filename ?? basename($revision->storage_path));
-            if (! in_array($filename, ['cfgeventspawns.xml', 'mapgrouppos.xml', 'events.xml'], true) || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            $isMapSource = in_array($filename, [
+                'cfgeventspawns.xml', 'mapgrouppos.xml', 'events.xml', 'cfgeventgroups.xml',
+                'cfgplayerspawnpoints.xml', 'mapclusterproto.xml', 'mapgroupproto.xml',
+                'mapgroupcluster.xml', 'mapgroupcluster01.xml', 'mapgroupcluster02.xml',
+                'mapgroupcluster03.xml', 'mapgroupcluster04.xml', 'mapgroupdirt.xml',
+            ], true) || str_ends_with($filename, '_territories.xml');
+            if (! $isMapSource || ! Storage::disk('dayz')->exists($revision->storage_path)) {
                 continue;
             }
             $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
@@ -84,7 +90,7 @@ class MapEditor extends Page
                     continue;
                 }
                 $this->markers[] = [
-                    'type' => str_contains($filename, 'event') ? 'event' : 'spawn',
+                    'type' => str_contains($filename, 'event') ? 'event' : (str_contains($filename, 'territor') ? 'animal' : 'spawn'),
                     'label' => $filename.' · '.number_format($x, 0).' / '.number_format($z, 0),
                     'x' => round(($x / 15360) * 100, 3),
                     'y' => round((1 - ($z / 15360)) * 100, 3),
