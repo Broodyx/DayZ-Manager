@@ -71,6 +71,20 @@
                 </div>
             </div>
         </div>
+        <div id="dz-raw-modal" class="dz-point-modal" hidden role="dialog" aria-modal="true" aria-labelledby="dz-raw-modal-title">
+            <div class="dz-point-modal-card dz-map-raw-card">
+                <button type="button" class="dz-point-close" aria-label="Zavřít">×</button>
+                <div class="dz-map-raw-heading">
+                    <div>
+                        <p class="dz-eyebrow">RAW DATA · AKTUÁLNÍ REVIZE</p>
+                        <h3 id="dz-raw-modal-title">Načítání souboru…</h3>
+                    </div>
+                    <button type="button" class="dz-map-raw-copy">Kopírovat</button>
+                </div>
+                <p class="dz-map-raw-status dz-muted">Načítám obsah revize…</p>
+                <pre class="dz-map-raw-content" tabindex="0"><code></code></pre>
+            </div>
+        </div>
         <div class="dz-map-toolbar">
             <div>
                 <p class="dz-eyebrow">MAPOVÝ WORKSPACE · {{ strtoupper($map) }}</p>
@@ -130,7 +144,16 @@
                     <strong>Mapové konfigurační soubory</strong>
                     @foreach ($mapSources as $source)
                         @if ($source['uploaded'])
-                            <a class="dz-map-source uploaded" href="{{ url('/admin/projects/'.$projectId.'/configuration?revision='.$source['revision_id']) }}"><span><code>{{ $source['filename'] }}</code><small>{{ $source['description'] }}</small></span><b>Upravit<br>revizi #{{ $source['revision_number'] }}</b></a>
+                            <article class="dz-map-source uploaded">
+                                <span><code>{{ $source['filename'] }}</code><small>{{ $source['description'] }}</small><em>Aktuální revize #{{ $source['revision_number'] }}</em></span>
+                                <div class="dz-map-source-actions">
+                                    <a href="{{ url('/admin/projects/'.$projectId.'/configuration?revision='.$source['revision_id']) }}">Upravit</a>
+                                    <a href="{{ route('configuration-revision.download', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Stáhnout</a>
+                                    <button type="button" class="dz-source-raw"
+                                        data-filename="{{ $source['filename'] }}"
+                                        data-url="{{ route('configuration-revision.raw', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Raw data</button>
+                                </div>
+                            </article>
                         @else
                             <a class="dz-map-source missing" href="{{ url('/admin/configuration-import?area=map&project='.$projectId.'&expected='.urlencode($source['filename'])) }}"><span><code>{{ $source['filename'] }}</code><small>{{ $source['description'] }}</small></span><b>Nahrát soubor</b></a>
                         @endif
@@ -268,11 +291,42 @@
             });
             dialogCancel.onclick = () => closeSystemDialog(false);
             dialogConfirm.onclick = () => closeSystemDialog(true);
+            const rawModal = document.getElementById('dz-raw-modal');
+            const rawCode = rawModal.querySelector('.dz-map-raw-content code');
+            const rawStatus = rawModal.querySelector('.dz-map-raw-status');
+            const rawCopy = rawModal.querySelector('.dz-map-raw-copy');
+            let rawText = '';
+            const closeRawModal = () => {
+                rawModal.hidden = true;
+                rawText = '';
+                rawCode.textContent = '';
+            };
+            rawModal.querySelector('.dz-point-close').onclick = closeRawModal;
+            rawModal.addEventListener('click', (event) => {
+                if (event.target === rawModal) closeRawModal();
+            });
+            rawCopy.onclick = async () => {
+                if (!rawText) return;
+                try {
+                    await navigator.clipboard.writeText(rawText);
+                    rawCopy.textContent = 'Zkopírováno';
+                    setTimeout(() => rawCopy.textContent = 'Kopírovat', 1400);
+                } catch {
+                    await showSystemDialog({
+                        title:'Kopírování se nepodařilo',
+                        message:'Prohlížeč nepovolil přístup ke schránce. Označte text v okně a zkopírujte jej ručně.',
+                        confirmLabel:'Rozumím',
+                        notice:true
+                    });
+                }
+            };
             systemDialog.addEventListener('click', (event) => {
                 if (event.target === systemDialog && !dialogCancel.hidden) closeSystemDialog(false);
             });
             document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape' && !systemDialog.hidden) closeSystemDialog(false);
+                if (event.key !== 'Escape') return;
+                if (!systemDialog.hidden) closeSystemDialog(false);
+                else if (!rawModal.hidden) closeRawModal();
             });
             let activeMarker = null;
             let pendingButton = null;
@@ -537,6 +591,29 @@
                 select.addEventListener('change', () => {
                     const button = select.closest('.dz-layer-cleanup')?.querySelector('.dz-layer-delete');
                     if (button) highlightScope(button.dataset.filename, select.value);
+                });
+            });
+            document.querySelectorAll('.dz-source-raw').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    rawModal.querySelector('#dz-raw-modal-title').textContent = button.dataset.filename;
+                    rawStatus.textContent = 'Načítám obsah revize…';
+                    rawStatus.classList.remove('error');
+                    rawCode.textContent = '';
+                    rawText = '';
+                    rawCopy.disabled = true;
+                    rawCopy.textContent = 'Kopírovat';
+                    rawModal.hidden = false;
+                    try {
+                        const response = await fetch(button.dataset.url, { headers:{'Accept':'text/plain'} });
+                        if (!response.ok) throw new Error('Raw obsah se nepodařilo načíst (HTTP ' + response.status + ').');
+                        rawText = await response.text();
+                        rawCode.textContent = rawText;
+                        rawStatus.textContent = 'Načteno ' + rawText.length.toLocaleString() + ' znaků. Obsah je pouze pro čtení.';
+                        rawCopy.disabled = false;
+                    } catch (error) {
+                        rawStatus.textContent = error.message;
+                        rawStatus.classList.add('error');
+                    }
                 });
             });
             document.querySelectorAll('.map-layer-toggle').forEach((toggle) => {

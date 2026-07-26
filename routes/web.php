@@ -159,6 +159,18 @@ Route::get('/admin/projects/{project}/configuration/{revision}/download', functi
     return $disk->download($revision->storage_path, $name, ['Content-Type' => 'application/octet-stream']);
 })->middleware('auth')->name('configuration-revision.download');
 
+Route::get('/admin/projects/{project}/configuration/{revision}/raw', function (Project $project, \App\Models\ConfigurationRevision $revision) {
+    abort_unless(((int) $project->user_id === (int) auth()->id() || auth()->user()?->is_admin) && (int) $revision->project_id === (int) $project->id, 403);
+    $disk = Storage::disk('dayz');
+    abort_unless($disk->exists($revision->storage_path), 404, 'Soubor revize již není v úložišti.');
+
+    return response($disk->get($revision->storage_path), 200, [
+        'Content-Type' => 'text/plain; charset=UTF-8',
+        'Cache-Control' => 'private, no-store',
+        'X-Content-Type-Options' => 'nosniff',
+    ]);
+})->middleware('auth')->name('configuration-revision.raw');
+
 Route::post('/admin/configuration-import/upload', function (ConfigurationImporter $importer) {
     request()->validate(['area' => ['nullable', 'string', 'max:40'], 'project_id' => ['required', 'integer'], 'platform' => ['required', 'in:playstation,xbox,steam'], 'file' => ['required', 'file', 'max:102400']]);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail(request('project_id'));

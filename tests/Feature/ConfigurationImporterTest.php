@@ -47,6 +47,36 @@ class ConfigurationImporterTest extends TestCase
         ]);
     }
 
+    public function test_project_owner_can_read_raw_revision_but_another_user_cannot(): void
+    {
+        Storage::fake('dayz');
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $owner->id,
+            'name' => 'Raw endpoint test',
+            'platform' => 'playstation',
+            'map' => 'ChernarusPlus',
+        ]);
+        $content = '<?xml version="1.0"?><events><event name="VehicleSedan02"/></events>';
+        $import = app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('events.xml', $content),
+            $owner,
+        );
+        $revision = $import->revisions()->latest('id')->firstOrFail();
+
+        $this->actingAs($owner)
+            ->get(route('configuration-revision.raw', [$project, $revision]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'text/plain; charset=UTF-8')
+            ->assertContent($content);
+
+        $this->actingAs($otherUser)
+            ->get(route('configuration-revision.raw', [$project, $revision]))
+            ->assertForbidden();
+    }
+
     public function test_it_records_xml_validation_errors_without_crashing(): void
     {
         Storage::fake('dayz');
