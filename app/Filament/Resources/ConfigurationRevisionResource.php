@@ -32,9 +32,10 @@ class ConfigurationRevisionResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('project_id')->label('Projekt')->relationship(
+            Forms\Components\Select::make('project_id')->label('Server')->relationship(
                 name: 'project', titleAttribute: 'name',
-                modifyQueryUsing: fn ($query) => $query->where('user_id', auth()->id()),
+                modifyQueryUsing: fn (Builder $query): Builder => $query
+                    ->when(! auth()->user()?->is_admin, fn (Builder $projectQuery): Builder => $projectQuery->where('user_id', auth()->id())),
             )->disabled(),
             Forms\Components\Select::make('configuration_import_id')
                 ->label('Zdrojový import')
@@ -51,7 +52,7 @@ class ConfigurationRevisionResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('project.name')->label('Server')->searchable(),
             Tables\Columns\TextColumn::make('project.platform')
-                ->label('Server')
+                ->label('Platforma')
                 ->badge()
                 ->formatStateUsing(fn (string $state): string => match ($state) {
                     'playstation' => 'PlayStation',
@@ -84,7 +85,7 @@ class ConfigurationRevisionResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->whereHas('project', fn ($query) => $query->where('user_id', auth()->id()));
+        return parent::getEloquentQuery()->when(! auth()->user()?->is_admin, fn (Builder $query) => $query->whereHas('project', fn ($project) => $project->where('user_id', auth()->id())));
     }
 
     public static function getPages(): array

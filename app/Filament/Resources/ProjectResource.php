@@ -58,7 +58,9 @@ class ProjectResource extends Resource
         return $table->columns([
             Tables\Columns\TextColumn::make('name')->label('Název')->searchable()->sortable(),
             Tables\Columns\TextColumn::make('user.name')->label('Založil')->searchable()->sortable()->visible(fn (): bool => (bool) auth()->user()?->is_admin),
-            Tables\Columns\TextColumn::make('platform')->label('Platforma')->badge()->sortable(),
+            Tables\Columns\TextColumn::make('platform')->label('Platforma')->badge()->formatStateUsing(fn (string $state): string => match ($state) {
+                'playstation' => 'PlayStation', 'xbox' => 'Xbox', 'steam' => 'PC / Steam', default => 'Neurčeno',
+            })->sortable(),
             Tables\Columns\TextColumn::make('platform_confidence')->label('Jistota')->suffix('%')->hiddenFrom('md'),
             Tables\Columns\TextColumn::make('map')->label('Mapa')->searchable()->sortable()->hiddenFrom('md'),
             Tables\Columns\TextColumn::make('updated_at')->label('Upraveno')->dateTime('d. m. Y H:i')->sortable()->hiddenFrom('md'),

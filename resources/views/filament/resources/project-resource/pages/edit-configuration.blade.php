@@ -605,8 +605,7 @@
                     </div>
                     <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny JSON konfigurace"><button type="button" wire:click="saveJson" wire:loading.attr="disabled" class="dz-action">Validovat a uložit JSON revizi</button></div>
                 </section>
-            @endif
-        @elseif ($visualKind === 'messages')
+            @elseif ($visualKind === 'messages')
             <section class="dz-panel dz-server-settings">
                 <div class="dz-panel-head"><strong>messages.xml · vizuální editor</strong><p class="dz-muted text-sm mt-1">Každá zpráva se zobrazí samostatně. Časy jsou v minutách; <code>onconnect</code> a <code>shutdown</code> používají 0 = vypnuto, 1 = zapnuto.</p><button type="button" wire:click="addMessage" class="dz-save-button">+ Přidat zprávu</button></div>
                 <div class="p-3">
@@ -643,15 +642,21 @@
                 </div>
                 <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny XML konfigurace"><button type="button" wire:click="saveXml" wire:loading.attr="disabled" class="dz-action">Validovat a uložit XML revizi</button></div>
             </section>
+            @endif
         @else
             <section class="dz-panel">
                 <div class="dz-panel-head">
-                    <strong>{{ $currentFilename ?: 'Konfigurace serveru' }}</strong>
-                    <p class="dz-muted text-sm mt-1">{{ $this->configurationDescription() }}</p>
-                    <span class="dz-badge dz-server-badge mt-2">Serverová konfigurace · Raw XML / JSON</span>
+                    <div class="dz-raw-heading">
+                        <div>
+                            <strong>Raw data · {{ $currentFilename ?: 'Konfigurace serveru' }}</strong>
+                            <p class="dz-muted text-sm mt-1">Přesný obsah aktuální revize bez převodu do formulářů. Změny se uloží až tlačítkem dole.</p>
+                        </div>
+                        <button type="button" class="dz-secondary dz-copy-raw" data-copy-target="dz-raw-content">Kopírovat do schránky</button>
+                    </div>
+                    <span class="dz-badge dz-server-badge mt-2">{{ strtoupper(pathinfo($currentFilename, PATHINFO_EXTENSION) ?: 'TEXT') }} · revize #{{ $revisionNumber }}</span>
                 </div>
                 <div class="p-4">
-                    <textarea wire:model="rawContent" class="dz-raw" spellcheck="false"></textarea>
+                    <textarea id="dz-raw-content" wire:model="rawContent" class="dz-raw" spellcheck="false" autocomplete="off" aria-label="Raw obsah souboru {{ $currentFilename }}"></textarea>
                     @error('rawContent') <div class="dz-error">{{ $message }}</div> @enderror
                 </div>
                 <div class="dz-savebar">
@@ -692,4 +697,21 @@
             </section>
         </div>
     @endif
+    <script>
+        document.addEventListener('click', async (event) => {
+            const button = event.target.closest('[data-copy-target]');
+            if (!button) return;
+            const target = document.getElementById(button.dataset.copyTarget);
+            if (!target) return;
+            try {
+                await navigator.clipboard.writeText(target.value);
+            } catch (error) {
+                target.select();
+                document.execCommand('copy');
+            }
+            const original = button.textContent;
+            button.textContent = 'Zkopírováno ✓';
+            window.setTimeout(() => button.textContent = original, 1800);
+        });
+    </script>
 </x-filament-panels::page>

@@ -10,6 +10,8 @@ use Database\Seeders\DayzDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
+use App\Filament\Resources\ProjectResource\Pages\EditConfiguration;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -179,6 +181,35 @@ class ConfigurationImporterTest extends TestCase
             ->assertSee('Položky types.xml')
             ->assertSee('Nová položka')
             ->assertDontSee('No PC-only elements detected');
+    }
+
+    public function test_messages_xml_keeps_visual_editor_separate_from_raw_data_and_raw_can_be_copied(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Messages test',
+            'platform' => 'playstation',
+            'map' => 'chernarusplus',
+        ]);
+        $xml = '<?xml version="1.0"?><messages><message><repeat>5</repeat><delay>10</delay><text>Unikátní testovací zpráva</text></message></messages>';
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('messages.xml', $xml),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->assertSet('visualKind', 'messages')
+            ->assertSet('mode', 'visual')
+            ->assertSee('messages.xml · vizuální editor')
+            ->assertSet('messagesEntries.0.text', 'Unikátní testovací zpráva')
+            ->set('mode', 'raw')
+            ->assertSee('Raw data · messages.xml')
+            ->assertSee('Kopírovat do schránky')
+            ->assertSet('rawContent', $xml);
     }
 
     public function test_editor_save_creates_a_new_revision_without_overwriting_the_source(): void

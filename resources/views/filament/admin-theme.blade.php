@@ -270,26 +270,32 @@
     .dz-whitelist-row { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.7rem .85rem; border:1px solid #34472d; border-radius:.45rem; background:#111a14; }
     .dz-whitelist-row code { color:#d8f57b; overflow-wrap:anywhere; }
     .dz-danger { border:1px solid #8b4b43; border-radius:.35rem; background:#281614; color:#ffb3a8; padding:.4rem .6rem; cursor:pointer; }
-    .dz-map-toolbar { display:flex; justify-content:space-between; gap:1rem; align-items:flex-end; margin-bottom:1rem; }
+    .dz-map-toolbar { display:grid; grid-template-columns:minmax(260px,1fr) minmax(220px,280px) minmax(260px,auto); gap:1rem; align-items:end; margin-bottom:1rem; }
     .dz-map-toolbar h2 { margin:.15rem 0; color:#d8f57b; font-size:1.5rem; }
     .dz-eyebrow { color:#a9df42; font-size:.7rem; letter-spacing:.16em; font-weight:700; margin:0; }
     .dz-muted { color:#9aa99b; font-size:.9rem; }
     .dz-map-select { appearance:none; -webkit-appearance:none; background:#111a14; border:1px solid #506d2b; border-radius:.5rem; color:#e7f7d2; padding:.7rem 2.2rem .7rem 1rem; background-image:linear-gradient(45deg,transparent 50%,#b8ed55 50%),linear-gradient(135deg,#b8ed55 50%,transparent 50%); background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat; }
+    .dz-map-server-picker { display:grid; gap:.35rem; color:#d8f57b; font-size:.78rem; font-weight:800; }
     .dz-map-upload { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; }
     .dz-map-upload input { max-width:180px; color:#b8c8b4; font-size:.75rem; }
     .dz-file-button { display:inline-flex; align-items:center; cursor:pointer; background:#273725; color:#e7f7d2; border:1px solid #5b7f35; border-radius:.45rem; padding:.65rem .8rem; font-weight:700; }
     .dz-file-button input { display:none; }
     .dz-map-upload-button { display:inline-flex; align-items:center; background:#b8ed55; color:#14200f; border:0; border-radius:.45rem; padding:.65rem .8rem; font-weight:700; text-decoration:none; }
     .dz-map-upload small { width:100%; color:#879987; }
-    .dz-map-layout { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:1rem; }
+    .dz-map-info { margin:0 0 1rem; padding:.8rem 1rem; border-left:3px solid #80b8ff; background:rgba(128,184,255,.08); color:#c9d7c5; font-size:.82rem; line-height:1.5; }
+    .dz-map-info strong { color:#e7f7d2; } .dz-map-info code { color:#b8ed55; }
+    .dz-map-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,360px); gap:1rem; align-items:start; }
     .dz-map-canvas { height:min(72vh,760px); min-height:560px; position:relative; overflow:hidden; border:1px solid #3e5c28; border-radius:.7rem; background:#1c2b20; }
     #dayz-leaflet-map { width:100%; height:100%; background:#1c2b20; }
     .leaflet-container { background:#1c2b20; font-family:inherit; }
     .dz-coordinate-control { background:#111a14e8; border:1px solid #6c9337; border-radius:.35rem; color:#d8f57b; padding:.4rem .6rem; font:700 .78rem/1.2 ui-monospace,monospace; }
+    .dz-grid-label { color:#f0f8e8; background:#0b120dc9; border-radius:.2rem; padding:1px 3px; font:700 9px/1.2 ui-monospace,monospace; white-space:nowrap; }
     .dz-wizard-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; }
-    .dz-import-page { max-width:760px; } .dz-import-page h2 { color:#d8f57b; margin:.2rem 0; } .dz-import-form { display:grid; gap:1rem; margin-top:1.5rem; padding:1.25rem; border:1px solid #3e5c28; border-radius:.7rem; background:#111a14; } .dz-import-form label { display:grid; gap:.4rem; color:#d8f57b; font-weight:700; } .dz-import-form select,.dz-import-form input[type=file] { width:100%; min-height:2.8rem; padding:.7rem; border:1px solid #486a2c; border-radius:.45rem; background:#0b110d; color:#e7f7d2; } .dz-import-submit { border:0; border-radius:.45rem; background:#b8ed55; color:#14200f; padding:.8rem 1rem; font-weight:800; cursor:pointer; }
+    .dz-import-page { max-width:820px; } .dz-import-page h2 { color:#d8f57b; margin:.2rem 0; } .dz-import-form { display:grid; gap:1rem; margin-top:1.5rem; padding:1.25rem; border:1px solid #3e5c28; border-radius:.7rem; background:#111a14; } .dz-import-form label { display:grid; gap:.4rem; color:#d8f57b; font-weight:700; } .dz-import-form label span { display:flex; align-items:center; gap:.5rem; } .dz-import-form label span b { display:grid; place-items:center; width:1.45rem; height:1.45rem; border-radius:50%; background:#b8ed55; color:#14200f; font-size:.72rem; } .dz-import-form label small { color:#9aa99b; font-weight:400; } .dz-import-form select,.dz-import-form input[type=file] { width:100%; min-height:2.8rem; padding:.7rem; border:1px solid #486a2c; border-radius:.45rem; background:#0b110d; color:#e7f7d2; } .dz-import-submit { border:0; border-radius:.45rem; background:#b8ed55; color:#14200f; padding:.9rem 1rem; font-weight:800; cursor:pointer; }
     .dz-wizard-intro { grid-column:1/-1; padding:1rem 0; } .dz-wizard-intro h2 { color:#d8f57b; margin:.2rem 0; }
-    .dz-wizard-card { display:flex; flex-direction:column; gap:.45rem; min-height:150px; padding:1.1rem; border:1px solid #3e5c28; border-radius:.7rem; background:#111a14; color:#e7f7d2; text-decoration:none; }
+    .dz-steps { display:flex; flex-wrap:wrap; gap:.55rem; margin:1rem 0 0; padding:0; list-style:none; } .dz-steps li { display:flex; align-items:center; gap:.4rem; padding:.4rem .65rem; border:1px solid #34472d; border-radius:999px; color:#c5d2bf; font-size:.75rem; } .dz-steps b,.dz-card-number { display:grid; place-items:center; width:1.3rem; height:1.3rem; border-radius:50%; background:#b8ed55; color:#14200f; font-size:.65rem; }
+    .dz-wizard-card { position:relative; display:flex; flex-direction:column; gap:.45rem; min-height:168px; padding:1.1rem; border:1px solid #3e5c28; border-radius:.7rem; background:#111a14; color:#e7f7d2; text-decoration:none; }
+    .dz-card-number { position:absolute; top:.8rem; right:.8rem; }
     .dz-wizard-card:hover { border-color:#b8ed55; transform:translateY(-2px); } .dz-wizard-card strong { color:#d8f57b; font-size:1.05rem; } .dz-wizard-card span { color:#9aa99b; font-size:.8rem; } .dz-wizard-card small { color:#c4d6b8; font-size:.76rem; line-height:1.35; } .dz-wizard-card em { margin-top:auto; color:#b8ed55; font-style:normal; font-weight:700; font-size:.8rem; } .dz-wizard-icon { width:1.5rem; color:#b8ed55; }
     @media (max-width:760px) { .dz-wizard-grid { grid-template-columns:1fr; } }
     .dz-map-grid { position:absolute; inset:0; opacity:.12; background-image:linear-gradient(#d8f57b 1px,transparent 1px),linear-gradient(90deg,#d8f57b 1px,transparent 1px); background-size:48px 48px; }
@@ -314,9 +320,13 @@
     .dz-event-catalog select:focus, .dz-event-catalog input:focus { outline:2px solid #b8ed55; outline-offset:1px; }
     .dz-event-catalog select option { background:#111a14; color:#e7f7d2; }
     .dz-event-catalog small { color:#aab6a4; line-height:1.35; }
+    .dz-map-feedback { margin:.25rem 0; padding:.7rem .85rem; border:1px solid rgba(184,237,85,.35); border-radius:.65rem; background:rgba(184,237,85,.08); color:#dff7ad; font-size:.85rem; line-height:1.45; }
+    .dz-map-feedback.error { border-color:rgba(248,113,113,.5); background:rgba(127,29,29,.22); color:#fecaca; }
     .dz-point-confirm { min-height:2.8rem; border:1px solid #9bd447; border-radius:.45rem; background:#b8ed55; color:#0d160d; font-weight:800; cursor:pointer; padding:.65rem 1rem; }
+    .dz-point-confirm:disabled { cursor:not-allowed; filter:saturate(.25); opacity:.55; box-shadow:none; }
+    .dz-edit-coordinate-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin:1rem 0; } .dz-edit-coordinate-grid label { display:grid; gap:.35rem; color:#d8f57b; font-weight:700; } .dz-edit-coordinate-grid input { width:100%; min-height:2.8rem; border:1px solid #496b31; border-radius:.45rem; background:#0b120d; color:#e7f7d2; padding:.65rem .75rem; } .dz-edit-actions { display:flex; justify-content:space-between; gap:.75rem; margin-top:1rem; } .dz-edit-actions button { flex:1; }
     @media (max-width:800px) { .dz-fields-grid { grid-template-columns:1fr; } }
-    .dz-map-legend { border:1px solid #34472d; border-radius:.7rem; background:#111a14; padding:1rem; }
+    .dz-map-legend { position:sticky; top:5.5rem; max-height:calc(100vh - 7rem); overflow:auto; border:1px solid #34472d; border-radius:.7rem; background:#111a14; padding:1rem; }
     .dz-map-legend h3 { color:#d8f57b; margin-top:0; } .dz-map-legend label { display:block; padding:.55rem 0; color:#c5d2bf; }
     .dz-map-source-list { display:grid; gap:.35rem; margin-top:.75rem; color:#aab6a4; font-size:.78rem; line-height:1.35; }
     .dz-map-source-list strong { color:#d8f57b; font-size:.85rem; }
@@ -326,14 +336,17 @@
     .dz-map-source:hover { border-color:#b8ed55; background:rgba(182,233,79,.08); }
     .dz-map-source span { min-width:0; display:grid; gap:.15rem; }
     .dz-map-source small { color:#879987; }
-    .dz-map-source b { flex:0 0 auto; color:#b8ed55; font-size:.68rem; }
+    .dz-map-source b { flex:0 0 auto; max-width:7rem; color:#b8ed55; font-size:.68rem; text-align:right; overflow-wrap:anywhere; }
     .dz-map-source.missing { border-color:rgba(217,119,56,.35); }
     .dz-map-source.missing b { color:#ffc08f; }
     .dz-map-legend input { accent-color:#b8ed55; margin-right:.5rem; }
-    .dz-map-layers label { display:flex; align-items:center; gap:.35rem; padding:.35rem 0; color:#c5d2bf; font-size:.75rem; }
+    .dz-map-layers label { display:flex; align-items:flex-start; gap:.35rem; padding:.4rem 0; color:#c5d2bf; font-size:.75rem; } .dz-map-layers label span { display:grid; gap:.05rem; overflow-wrap:anywhere; } .dz-map-layers label small { color:#7f9182; font-size:.65rem; }
+    .dz-load-dense { display:flex; align-items:flex-start; gap:.45rem; margin:.35rem 0; padding:.55rem; border:1px dashed #506d2b; border-radius:.4rem; color:#d8f57b; text-decoration:none; font-size:.75rem; } .dz-load-dense span { display:grid; gap:.05rem; } .dz-load-dense small { color:#879987; }
     .dz-layer-dot { width:.65rem; height:.65rem; border-radius:50%; display:inline-block; }
     .layer-0 { background:#b8ed55; } .layer-1 { background:#80b8ff; } .layer-2 { background:#f1b44c; } .layer-3 { background:#e96a5f; } .layer-4 { background:#d58cff; } .layer-5 { background:#55e0c1; } .layer-6 { background:#ff82b2; } .layer-7 { background:#f6d365; }
-    @media (max-width: 760px) { .dz-map-toolbar { align-items:stretch; flex-direction:column; } .dz-map-layout { grid-template-columns:1fr; } .dz-map-canvas { min-height:420px; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } .dz-point-options { grid-template-columns:1fr 1fr; } }
+    .dz-raw-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; } .dz-copy-raw { white-space:nowrap; }
+    @media (max-width: 980px) { .dz-map-toolbar { grid-template-columns:1fr 1fr; } .dz-map-toolbar > div:first-child { grid-column:1/-1; } .dz-map-layout { grid-template-columns:1fr; } .dz-map-legend { position:static; max-height:none; } }
+    @media (max-width: 760px) { .dz-map-toolbar { grid-template-columns:1fr; } .dz-map-toolbar > div:first-child { grid-column:auto; } .dz-map-canvas { min-height:420px; height:65vh; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } .dz-point-options { grid-template-columns:1fr 1fr; } .dz-edit-coordinate-grid { grid-template-columns:1fr; } .dz-edit-actions { flex-direction:column-reverse; } .dz-raw-heading { flex-direction:column; } .dz-copy-raw { width:100%; } }
 </style>
 <script>
     document.addEventListener('DOMContentLoaded', () => {

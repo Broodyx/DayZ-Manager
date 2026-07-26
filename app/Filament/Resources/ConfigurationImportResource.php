@@ -33,7 +33,8 @@ class ConfigurationImportResource extends Resource
         return $form->schema([
             Forms\Components\Select::make('project_id')->label('Server')->relationship(
                 name: 'project', titleAttribute: 'name',
-                modifyQueryUsing: fn ($query) => $query->where('user_id', auth()->id()),
+                modifyQueryUsing: fn (Builder $query): Builder => $query
+                    ->when(! auth()->user()?->is_admin, fn (Builder $projectQuery): Builder => $projectQuery->where('user_id', auth()->id())),
             )->disabled(),
             Forms\Components\TextInput::make('original_filename')->label('Původní soubor')->disabled(),
             Forms\Components\TextInput::make('detected_platform')->label('Detekovaná platforma')->disabled(),
@@ -82,7 +83,7 @@ class ConfigurationImportResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->whereHas('project', fn ($query) => $query->where('user_id', auth()->id()));
+        return parent::getEloquentQuery()->when(! auth()->user()?->is_admin, fn (Builder $query) => $query->whereHas('project', fn ($project) => $project->where('user_id', auth()->id())));
     }
 
     public static function getPages(): array

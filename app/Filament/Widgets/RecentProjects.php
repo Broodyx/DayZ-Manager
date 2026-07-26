@@ -7,6 +7,7 @@ use App\Models\Project;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
+use Illuminate\Database\Eloquent\Builder;
 
 class RecentProjects extends TableWidget
 {
@@ -23,13 +24,13 @@ class RecentProjects extends TableWidget
         return $table
             ->query(
                 Project::query()
-                    ->where('user_id', auth()->id())
+                    ->when(! auth()->user()?->is_admin, fn (Builder $query): Builder => $query->where('user_id', auth()->id()))
                     ->withCount(['imports', 'revisions'])
                     ->latest('updated_at'),
             )
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Projekt')
+                    ->label('Server')
                     ->description(fn (Project $record): string => $record->map),
                 Tables\Columns\TextColumn::make('platform')
                     ->label('Platforma')

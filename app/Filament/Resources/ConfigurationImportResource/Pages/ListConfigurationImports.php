@@ -11,6 +11,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Throwable;
+use Illuminate\Database\Eloquent\Builder;
 
 class ListConfigurationImports extends ListRecords
 {
@@ -31,7 +32,7 @@ class ListConfigurationImports extends ListRecords
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('primary')
                 ->modalHeading('Import DayZ konfigurace')
-                ->modalDescription('Nahrajte XML, JSON nebo ZIP. Soubor se bezpečně uloží, zvaliduje a vytvoří novou revizi projektu.')
+                ->modalDescription('Nahrajte XML, JSON, CFG, TXT nebo ZIP. Soubor se zvaliduje a uloží jako nová revize zvoleného serveru.')
                 ->form([
                     Forms\Components\Placeholder::make('workflow_help')
                         ->label('1 · Vyberte oblast nastavení')
@@ -56,7 +57,7 @@ class ListConfigurationImports extends ListRecords
                     Forms\Components\Select::make('project_id')
                         ->label('Server')
                         ->options(fn (): array => Project::query()
-                            ->where('user_id', auth()->id())
+                            ->when(! auth()->user()?->is_admin, fn (Builder $query): Builder => $query->where('user_id', auth()->id()))
                             ->orderBy('name')
                             ->pluck('name', 'id')
                             ->all())
@@ -92,7 +93,7 @@ class ListConfigurationImports extends ListRecords
                 ->action(function (array $data, Actions\Action $action): void {
                     try {
                         $project = Project::query()
-                            ->where('user_id', auth()->id())
+                            ->when(! auth()->user()?->is_admin, fn (Builder $query): Builder => $query->where('user_id', auth()->id()))
                             ->findOrFail($data['project_id']);
                         $file = $data['file'];
 

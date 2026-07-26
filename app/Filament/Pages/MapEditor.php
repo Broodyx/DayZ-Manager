@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Project;
+use App\Services\Dayz\MapConfigurationReader;
 use App\Services\Import\ConfigurationImporter;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
@@ -29,11 +30,15 @@ class MapEditor extends Page
 
     public array $eventCatalog = [];
     public array $mapSources = [];
+    public array $markerCounts = [];
+    public array $loadedSources = [];
+    public bool $showDenseLayers = false;
 
     public function mount(): void
     {
-        $this->projects = Project::query()->where('user_id', auth()->id())->orderBy('name')->pluck('name', 'id')->all();
+        $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
         $this->projectId = request()->integer('project') ?: array_key_first($this->projects);
+        $this->showDenseLayers = request()->boolean('dense');
         $this->loadMarkers();
         $this->loadMapSources();
         $this->loadEventCatalog();
@@ -49,48 +54,49 @@ class MapEditor extends Page
     public function loadMapSources(): void
     {
         $definitions = [
-            'cfgeventspawns.xml' => 'Pevné pozice eventů a jejich orientace.',
-            'events.xml' => 'Dynamické eventy, vozidla a heli crash.',
-            'cfgeventgroups.xml' => 'Skupiny a varianty eventů.',
-            'cfgplayerspawnpoints.xml' => 'Spawnovací body hráčů.',
-            'mapgrouppos.xml' => 'Pozice loot skupin a budov.',
-            'mapgroupcluster.xml' => 'Clustery budov – hlavní část.',
-            'mapgroupcluster01.xml' => 'Clustery budov – část 1.',
-            'mapgroupcluster02.xml' => 'Clustery budov – část 2.',
-            'mapgroupcluster03.xml' => 'Clustery budov – část 3.',
-            'mapgroupcluster04.xml' => 'Clustery budov – část 4.',
-            'mapgroupproto.xml' => 'Prototypy skupin budov.',
-            'mapclusterproto.xml' => 'Prototypy mapových clusterů.',
-            'mapgroupdirt.xml' => 'Doplňková data mapových skupin.',
-            'cfgeffectarea.json' => 'Efektové a kontaminované oblasti.',
-            'cfgundergroundtriggers.json' => 'Spouštěče podzemních oblastí.',
-            '*spawner*.json' => 'Object Spawner: vlastní objekty, pozice a orientace.',
-            '*_territories.xml' => 'Teritoria zvířat podle druhu.',
+            'cfgeventspawns.xml' => ['Pevné kandidátní pozice eventů a jejich orientace.', true],
+            'events.xml' => ['Pravidla dynamických eventů, vozidel a heli crashů; neobsahuje mapové souřadnice.', false],
+            'cfgeventgroups.xml' => ['Složení a varianty eventů; neobsahuje mapové souřadnice.', false],
+            'cfgplayerspawnpoints.xml' => ['Oblasti generátoru spawnů hráčů. Body nejsou přesná místa zrození.', true],
+            'mapgrouppos.xml' => ['Světové pozice loot skupin a budov.', true],
+            'mapgroupcluster.xml' => ['Definice clusterů budov; relativní data se do mapy nekreslí.', false],
+            'mapgroupcluster01.xml' => ['Definice clusterů budov – část 1.', false],
+            'mapgroupcluster02.xml' => ['Definice clusterů budov – část 2.', false],
+            'mapgroupcluster03.xml' => ['Definice clusterů budov – část 3.', false],
+            'mapgroupcluster04.xml' => ['Definice clusterů budov – část 4.', false],
+            'mapgroupproto.xml' => ['Prototypy skupin; souřadnice jsou relativní, nikoli světové.', false],
+            'mapclusterproto.xml' => ['Prototypy clusterů; souřadnice jsou relativní, nikoli světové.', false],
+            'mapgroupdirt.xml' => ['Doplňková prototypová data bez světových bodů.', false],
+            'cfgeffectarea.json' => ['Efektové a kontaminované oblasti.', true],
+            'cfgundergroundtriggers.json' => ['Spouštěče podzemních oblastí.', true],
+            '*spawner*.json' => ['Object Spawner: vlastní objekty, pozice a orientace.', true],
+            '*_territories.xml' => ['Teritoria zvířat podle druhu.', true],
         ];
-        $project = $this->projectId ? Project::query()->where('user_id', auth()->id())->find($this->projectId) : null;
-        $revisions = $project?->revisions()->with('configurationImport')->latest('revision_number')->get() ?? collect();
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $revisions = $this->latestRevisions($project);
         $this->mapSources = [];
-        foreach ($definitions as $filename => $description) {
-            $revision = $revisions->first(function ($item) use ($filename) {
-                $name = strtolower($item->configurationImport?->original_filename ?? basename($item->storage_path));
+        foreach ($definitions as $filename => [$description, $plottable]) {
+            $matches = $revisions->filter(function ($item) use ($filename) {
+                $name = $this->revisionFilename($item);
                 return str_contains($filename, '*') ? Str::is($filename, $name) : $name === $filename;
             });
-            $this->mapSources[] = [
-                'filename' => $filename,
-                'description' => $description,
-                'uploaded' => $revision !== null,
-                'revision_id' => $revision?->id,
-                'revision_number' => $revision?->revision_number,
-            ];
+            if ($matches->isEmpty()) {
+                $this->mapSources[] = $this->source($filename, $description, $plottable);
+                continue;
+            }
+            foreach ($matches as $revision) {
+                $actualName = $this->revisionFilename($revision);
+                $this->mapSources[] = $this->source($actualName, $description, $plottable, $revision);
+            }
         }
     }
 
     public function loadEventCatalog(): void
     {
         $this->eventCatalog = [];
-        $project = $this->projectId ? Project::query()->where('user_id', auth()->id())->find($this->projectId) : null;
-        $revisions = $project?->revisions()->with('configurationImport')->latest()->get() ?? collect();
-        $byName = fn (string $name) => $revisions->first(fn ($item) => strtolower($item->configurationImport?->original_filename ?? basename($item->storage_path)) === $name);
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $revisions = $this->latestRevisions($project);
+        $byName = fn (string $name) => $revisions->first(fn ($item) => $this->revisionFilename($item) === $name);
         $events = $byName('events.xml');
         if ($events && Storage::disk('dayz')->exists($events->storage_path)) {
             $xml = @simplexml_load_string(Storage::disk('dayz')->get($events->storage_path));
@@ -131,92 +137,79 @@ class MapEditor extends Page
     public function loadMarkers(): void
     {
         $this->markers = [];
-        $project = $this->projectId ? Project::query()->where('user_id', auth()->id())->find($this->projectId) : null;
+        $this->markerCounts = [];
+        $this->loadedSources = [];
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
         if (! $project) {
             return;
         }
 
-        foreach ($project->revisions()->with('configurationImport')->latest()->get() as $revision) {
-            $filename = strtolower($revision->configurationImport?->original_filename ?? basename($revision->storage_path));
-            $isMapSource = in_array($filename, [
-                'cfgeventspawns.xml', 'mapgrouppos.xml', 'events.xml', 'cfgeventgroups.xml',
-                'cfgplayerspawnpoints.xml', 'mapclusterproto.xml', 'mapgroupproto.xml',
-                'mapgroupcluster.xml', 'mapgroupcluster01.xml', 'mapgroupcluster02.xml',
-                'mapgroupcluster03.xml', 'mapgroupcluster04.xml', 'mapgroupdirt.xml',
-                'cfgeffectarea.json', 'cfgundergroundtriggers.json',
-            ], true) || str_ends_with($filename, '_territories.xml') || (str_ends_with($filename, '.json') && str_contains($filename, 'spawner'));
-            if (! $isMapSource || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+        $reader = app(MapConfigurationReader::class);
+        foreach ($this->latestRevisions($project) as $revision) {
+            $filename = $this->revisionFilename($revision);
+            if (! Storage::disk('dayz')->exists($revision->storage_path)) {
                 continue;
             }
-            if (str_ends_with($filename, '.json')) {
-                $data = json_decode(Storage::disk('dayz')->get($revision->storage_path), true);
-                if (is_array($data)) {
-                    foreach ($this->jsonPositions($data) as $position) {
-                        [$x, $z, $label] = $position;
-                        if ($x < 0 || $z < 0 || $x > 15360 || $z > 15360) continue;
-                        $this->markers[] = [
-                            'type' => 'json-area',
-                            'label' => $label ?: $filename.' · '.number_format($x, 0).' / '.number_format($z, 0),
-                            'x' => round(($x / 15360) * 100, 3),
-                            'y' => round((1 - ($z / 15360)) * 100, 3),
-                            'worldX' => $x,
-                            'worldZ' => $z,
-                            'filename' => $filename,
-                        ];
-                    }
-                }
+            $content = Storage::disk('dayz')->get($revision->storage_path);
+            if ($filename === 'mapgrouppos.xml' && ! $this->showDenseLayers) {
+                $this->markerCounts[$filename] = substr_count($content, '<group ');
                 continue;
             }
-            $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
-            if (! $xml) {
-                continue;
-            }
-            foreach ($xml->xpath('//*[@x and (@z or @y)]') ?: [] as $node) {
-                $x = (float) $node['x'];
-                $z = isset($node['z']) ? (float) $node['z'] : (float) $node['y'];
-                if ($x < 0 || $z < 0 || $x > 15360 || $z > 15360) {
-                    continue;
-                }
-                $this->markers[] = [
-                    'type' => str_contains($filename, 'event') ? 'event' : (str_contains($filename, 'territor') ? 'animal' : 'spawn'),
-                    'label' => $filename.' · '.number_format($x, 0).' / '.number_format($z, 0),
-                    'x' => round(($x / 15360) * 100, 3),
-                    'y' => round((1 - ($z / 15360)) * 100, 3),
-                    'worldX' => $x,
-                    'worldZ' => $z,
-                    'filename' => $filename,
-                ];
+            foreach ($reader->markers($filename, $content) as $marker) {
+                $marker['revision_id'] = $revision->id;
+                $marker['color'] = $this->colorFor($filename);
+                $this->markers[] = $marker;
+                $this->markerCounts[$filename] = ($this->markerCounts[$filename] ?? 0) + 1;
+                $this->loadedSources[$filename] = true;
             }
         }
     }
 
-    /** @return list<array{0:float,1:float,2:string}> */
-    private function jsonPositions(array $data, string $label = ''): array
+    private function projectQuery()
     {
-        $positions = [];
-        $currentLabel = (string) ($data['AreaName'] ?? $data['name'] ?? $data['Name'] ?? $label);
-        foreach (['Pos', 'pos', 'position', 'Position'] as $key) {
-            $value = $data[$key] ?? null;
-            if (is_array($value) && count($value) >= 3 && is_numeric($value[0]) && is_numeric($value[2])) {
-                $positions[] = [(float) $value[0], (float) $value[2], $currentLabel];
-            }
-        }
-        foreach ($data as $value) {
-            if (! is_array($value)) continue;
-            if (array_is_list($value)) {
-                foreach ($value as $item) {
-                    if (is_array($item)) array_push($positions, ...$this->jsonPositions($item, $currentLabel));
-                }
-            } else {
-                array_push($positions, ...$this->jsonPositions($value, $currentLabel));
-            }
-        }
-        return $positions;
+        return Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()));
+    }
+
+    private function latestRevisions(?Project $project)
+    {
+        return $project?->revisions()
+            ->with('configurationImport')
+            ->orderByDesc('revision_number')
+            ->get()
+            ->unique(fn ($revision) => $this->revisionFilename($revision))
+            ->values() ?? collect();
+    }
+
+    private function revisionFilename($revision): string
+    {
+        return strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
+    }
+
+    private function source(string $filename, string $description, bool $plottable, $revision = null): array
+    {
+        return [
+            'filename' => $filename,
+            'description' => $description,
+            'plottable' => $plottable,
+            'uploaded' => $revision !== null,
+            'revision_id' => $revision?->id,
+            'revision_number' => $revision?->revision_number,
+            'marker_count' => $this->markerCounts[$filename] ?? 0,
+            'loaded' => (bool) ($this->loadedSources[$filename] ?? false),
+            'color' => $this->colorFor($filename),
+        ];
+    }
+
+    private function colorFor(string $filename): string
+    {
+        $colors = ['#b8ed55', '#80b8ff', '#f1b44c', '#e96a5f', '#d58cff', '#55e0c1', '#ff82b2', '#f6d365'];
+
+        return $colors[abs(crc32(strtolower($filename))) % count($colors)];
     }
 
     public function importMapConfiguration(ConfigurationImporter $importer): void
     {
-        $project = $this->projectId ? Project::query()->where('user_id', auth()->id())->find($this->projectId) : null;
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
         if (! $project || ! $this->mapFile) {
             return;
         }

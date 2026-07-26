@@ -7,6 +7,7 @@ use App\Services\Revision\TypesXmlEditor;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
+use Illuminate\Database\Eloquent\Builder;
 
 class ItemCategoriesChart extends ChartWidget
 {
@@ -26,7 +27,10 @@ class ItemCategoriesChart extends ChartWidget
         $editor = app(TypesXmlEditor::class);
 
         $revisions = ConfigurationRevision::query()
-            ->whereHas('project', fn ($query) => $query->where('user_id', auth()->id()))
+            ->when(
+                ! auth()->user()?->is_admin,
+                fn (Builder $query): Builder => $query->whereHas('project', fn (Builder $project): Builder => $project->where('user_id', auth()->id())),
+            )
             ->whereIn('id', function ($query): void {
                 $query->selectRaw('MAX(id)')
                     ->from('configuration_revisions')

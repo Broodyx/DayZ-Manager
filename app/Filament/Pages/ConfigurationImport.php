@@ -13,6 +13,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Illuminate\Database\Eloquent\Builder;
 
 class ConfigurationImport extends Page implements HasForms
 {
@@ -27,7 +28,7 @@ class ConfigurationImport extends Page implements HasForms
     public function mount(): void
     {
         $projectId = request()->integer('project');
-        $project = $projectId ? Project::where('user_id', auth()->id())->find($projectId) : null;
+        $project = $projectId ? $this->projects()->find($projectId) : null;
         $this->form->fill([
             'area' => request()->string('area')->toString() ?: null,
             'project_id' => $project?->id,
@@ -44,7 +45,7 @@ class ConfigurationImport extends Page implements HasForms
     {
         return [
             Select::make('area')->label('Co chcete editovat?')->options(fn (): array => app(ConfigurationCatalog::class)->options())->required(),
-            Select::make('project_id')->label('Server')->options(fn (): array => Project::where('user_id', auth()->id())->orderBy('name')->pluck('name', 'id')->all())->searchable()->required(),
+            Select::make('project_id')->label('Server')->options(fn (): array => $this->projects()->orderBy('name')->pluck('name', 'id')->all())->searchable()->required(),
             Select::make('platform')->label('Platforma')->options(['playstation' => 'PlayStation', 'xbox' => 'Xbox', 'steam' => 'PC / Steam'])->required(),
             FileUpload::make('file')->label('Soubor konfigurace')
                 ->helperText(request()->query('expected') ? 'Očekávaný soubor: '.request()->query('expected') : 'Nahrajte XML, JSON, CFG nebo TXT konfiguraci.')
@@ -56,7 +57,7 @@ class ConfigurationImport extends Page implements HasForms
     public function import(ConfigurationImporter $importer): void
     {
         $state = $this->form->getState();
-        $project = Project::where('user_id', auth()->id())->findOrFail($state['project_id']);
+        $project = $this->projects()->findOrFail($state['project_id']);
         if (! ($state['file'] ?? null) instanceof TemporaryUploadedFile) {
             Notification::make()->danger()->title('Vyberte soubor')->send();
 
@@ -70,5 +71,11 @@ class ConfigurationImport extends Page implements HasForms
             ? '/admin/map-editor?project='.$project->id
             : '/admin/projects/'.$project->id.'/configuration?revision='.$revision?->id;
         $this->redirect($destination);
+    }
+
+    private function projects(): Builder
+    {
+        return Project::query()
+            ->when(! auth()->user()?->is_admin, fn (Builder $query): Builder => $query->where('user_id', auth()->id()));
     }
 }

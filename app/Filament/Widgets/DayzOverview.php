@@ -9,6 +9,7 @@ use App\Models\ConfigurationRevision;
 use App\Models\Project;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Database\Eloquent\Builder;
 
 class DayzOverview extends StatsOverviewWidget
 {
@@ -18,15 +19,15 @@ class DayzOverview extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        $userId = auth()->id();
-        $projects = Project::query()->where('user_id', $userId);
-        $imports = ConfigurationImport::query()->whereHas(
-            'project',
-            fn ($query) => $query->where('user_id', $userId),
+        $ownOnly = ! auth()->user()?->is_admin;
+        $projects = Project::query()->when($ownOnly, fn (Builder $query): Builder => $query->where('user_id', auth()->id()));
+        $imports = ConfigurationImport::query()->when(
+            $ownOnly,
+            fn (Builder $query): Builder => $query->whereHas('project', fn (Builder $project): Builder => $project->where('user_id', auth()->id())),
         );
-        $revisions = ConfigurationRevision::query()->whereHas(
-            'project',
-            fn ($query) => $query->where('user_id', $userId),
+        $revisions = ConfigurationRevision::query()->when(
+            $ownOnly,
+            fn (Builder $query): Builder => $query->whereHas('project', fn (Builder $project): Builder => $project->where('user_id', auth()->id())),
         );
 
         return [
