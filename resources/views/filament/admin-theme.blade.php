@@ -312,21 +312,30 @@
     .dz-map-empty { position:absolute; inset:45% 10% auto; text-align:center; color:#9aa99b; }
     .dz-point-modal { position:fixed; inset:0; z-index:2000; display:grid; place-items:center; background:#050906bb; padding:1rem; }
     .dz-point-modal[hidden] { display:none; }
-    .dz-point-modal-card { position:relative; width:min(620px,100%); border:1px solid #668f32; border-radius:.8rem; background:#111a14; padding:1.4rem; box-shadow:0 20px 70px #000b; }
+    .dz-point-modal-card { position:relative; width:min(620px,100%); max-height:calc(100dvh - 2rem); overflow-y:auto; overscroll-behavior:contain; border:1px solid #668f32; border-radius:.8rem; background:#111a14; padding:1.4rem; box-shadow:0 20px 70px #000b; scrollbar-color:#668f32 #111a14; }
+    #dz-point-modal .dz-point-modal-card { width:min(1120px,calc(100vw - 2rem)); }
     .dz-point-modal-card h3 { color:#d8f57b; margin:0; font-size:1.2rem; }
     .dz-point-close { position:absolute; top:.7rem; right:.8rem; border:0; background:transparent; color:#c4d3bd; font-size:1.6rem; cursor:pointer; }
-    .dz-point-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.55rem; margin-top:1rem; }
+    .dz-point-options { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.55rem; margin-top:1rem; }
     .dz-point-options button { min-height:3rem; text-align:left; border:1px solid #3e5c28; border-radius:.5rem; background:#18251a; color:#e7f7d2; padding:.65rem; cursor:pointer; }
     .dz-point-options button:hover { border-color:#b8ed55; background:#263b20; color:#d8f57b; }
     .dz-point-options button.selected { border-color:#b8ed55; background:#b8ed55; color:#0d160d; box-shadow:0 0 0 2px rgba(184,237,85,.25); }
-    .dz-event-catalog { margin-top:1rem; display:grid; gap:.55rem; }
+    .dz-event-catalog { margin-top:1rem; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem .8rem; }
     .dz-event-catalog[hidden] { display:none; }
     .dz-event-catalog label { color:#d8f57b; font-weight:700; }
     .dz-event-catalog select, .dz-event-catalog input { width:100%; min-height:2.8rem; border:1px solid #496b31; border-radius:.45rem; background:#0b120d; color:#e7f7d2; padding:.65rem .75rem; color-scheme:dark; }
     .dz-event-catalog select:focus, .dz-event-catalog input:focus { outline:2px solid #b8ed55; outline-offset:1px; }
     .dz-event-catalog select option { background:#111a14; color:#e7f7d2; }
     .dz-event-catalog small { color:#aab6a4; line-height:1.35; }
-    .dz-point-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.75rem; }
+    .dz-event-catalog > label:first-child,
+    .dz-event-catalog > .dz-point-fields,
+    .dz-event-catalog > .dz-point-help,
+    .dz-event-catalog > .dz-event-settings,
+    .dz-event-catalog > .dz-related-files,
+    .dz-event-catalog > .dz-point-target-status,
+    .dz-event-catalog > .dz-map-feedback,
+    .dz-event-catalog > .dz-point-confirm { grid-column:1 / -1; }
+    .dz-point-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem; }
     .dz-point-fields:empty { display:none; }
     .dz-point-fields label { display:grid; gap:.35rem; min-width:0; }
     .dz-point-fields label small { font-weight:400; }
@@ -525,5 +534,5 @@
         .dz-event-children { grid-template-columns:1fr; }
     }
     @media (max-width: 980px) { .dz-map-toolbar { grid-template-columns:1fr 1fr; } .dz-map-toolbar > div:first-child { grid-column:1/-1; } .dz-map-layout { grid-template-columns:1fr; } .dz-map-legend { position:static; max-height:none; } }
-    @media (max-width: 760px) { .dz-map-toolbar { grid-template-columns:1fr; } .dz-map-toolbar > div:first-child { grid-column:auto; } .dz-map-canvas { min-height:420px; height:65vh; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } .dz-point-options { grid-template-columns:1fr 1fr; } .dz-point-fields, .dz-event-setting-grid { grid-template-columns:1fr; } .dz-edit-coordinate-grid { grid-template-columns:1fr; } .dz-edit-actions { flex-direction:column-reverse; } .dz-raw-heading { flex-direction:column; } .dz-copy-raw { width:100%; } .dz-setup-file { grid-template-columns:auto minmax(0,1fr); }.dz-file-action { grid-column:1/-1; justify-content:center; }.dz-setup-area-title small { display:none; }.dz-setup-area-footer { align-items:flex-start; flex-direction:column; }.dz-command-center { padding:1rem; }.dz-command-steps { gap:.4rem; }.dz-import-hero { align-items:flex-start; flex-direction:column; }.dz-form-section { grid-template-columns:1fr; }.dz-form-step { width:1.65rem; height:1.65rem; }.dz-editor-command-meta { display:grid; grid-template-columns:repeat(3,1fr); }.dz-editor-command-meta > span { min-width:0; }.dz-editor-toolbar-new { align-items:stretch; flex-direction:column; }.dz-editor-file-choice .dz-file-menu { width:100%; }.dz-editor-toolbar-new .dz-tabs { display:grid; grid-template-columns:1fr 1fr; }.dz-event-groups-intro { grid-template-columns:1fr; }.dz-event-group-name { grid-template-columns:1fr; }.dz-event-position-grid { grid-template-columns:1fr 1fr; }.dz-event-loot-grid { grid-template-columns:1fr; } }
+    @media (max-width: 760px) { .dz-map-toolbar { grid-template-columns:1fr; } .dz-map-toolbar > div:first-child { grid-column:auto; } .dz-map-canvas { min-height:420px; height:65vh; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } .dz-point-modal { padding:.4rem; align-items:start; } #dz-point-modal .dz-point-modal-card { width:calc(100vw - .8rem); max-height:calc(100dvh - .8rem); padding:1rem; } .dz-point-options { grid-template-columns:1fr 1fr; } .dz-event-catalog, .dz-point-fields, .dz-event-setting-grid { grid-template-columns:1fr; } .dz-event-catalog > * { grid-column:1 !important; } .dz-edit-coordinate-grid { grid-template-columns:1fr; } .dz-edit-actions { flex-direction:column-reverse; } .dz-raw-heading { flex-direction:column; } .dz-copy-raw { width:100%; } .dz-setup-file { grid-template-columns:auto minmax(0,1fr); }.dz-file-action { grid-column:1/-1; justify-content:center; }.dz-setup-area-title small { display:none; }.dz-setup-area-footer { align-items:flex-start; flex-direction:column; }.dz-command-center { padding:1rem; }.dz-command-steps { gap:.4rem; }.dz-import-hero { align-items:flex-start; flex-direction:column; }.dz-form-section { grid-template-columns:1fr; }.dz-form-step { width:1.65rem; height:1.65rem; }.dz-editor-command-meta { display:grid; grid-template-columns:repeat(3,1fr); }.dz-editor-command-meta > span { min-width:0; }.dz-editor-toolbar-new { align-items:stretch; flex-direction:column; }.dz-editor-file-choice .dz-file-menu { width:100%; }.dz-editor-toolbar-new .dz-tabs { display:grid; grid-template-columns:1fr 1fr; }.dz-event-groups-intro { grid-template-columns:1fr; }.dz-event-group-name { grid-template-columns:1fr; }.dz-event-position-grid { grid-template-columns:1fr 1fr; }.dz-event-loot-grid { grid-template-columns:1fr; } }
 </style>
