@@ -32,16 +32,10 @@
                     <label>Možnosti pro vybraný typ</label>
                     <select></select>
                     <input class="dz-point-name" placeholder="Vlastní název (volitelné)">
-                    <label class="dz-territory-zone-wrap" hidden>Druh zóny
-                        <select class="dz-territory-zone">
-                            <option value="HuntingGround">HuntingGround · hlavní oblast výskytu a lovu</option>
-                            <option value="Rest">Rest · klidová oblast</option>
-                            <option value="Graze">Graze · oblast pastvy</option>
-                            <option value="Water">Water · oblast u vody</option>
-                        </select>
-                    </label>
-                    <label class="dz-point-radius-wrap" hidden>Poloměr zóny (m)<input class="dz-point-radius" type="number" min="1" max="5000" value="150" placeholder="Např. 150"></label>
+                    <div class="dz-point-fields"></div>
                     <small class="dz-point-help"></small>
+                    <div class="dz-event-settings" hidden></div>
+                    <div class="dz-related-files" hidden></div>
                     <div class="dz-point-target-status"></div>
                     <p class="dz-map-feedback" hidden></p>
                     <button type="button" class="dz-point-confirm">Umístit bod a vytvořit revizi</button>
@@ -170,6 +164,58 @@
             };
             const pointTypeCatalog = @js($pointTypeCatalog);
             let selectedCatalogOption = null;
+            const renderPointFields = () => {
+                const catalogRoot = document.getElementById('dz-event-catalog');
+                const definition = pointTypeCatalog[pendingButton?.dataset.point] || {};
+                const root = catalogRoot.querySelector('.dz-point-fields');
+                root.replaceChildren();
+                (definition.fields || []).forEach((field) => {
+                    const label = document.createElement('label');
+                    label.textContent = field.label;
+                    let input;
+                    if (field.type === 'select') {
+                        input = document.createElement('select');
+                        (field.options || []).forEach((option) => input.add(new Option(option.label, option.value)));
+                    } else {
+                        input = document.createElement('input');
+                        input.type = field.type || 'text';
+                        ['min', 'max', 'step'].forEach((attribute) => {
+                            if (field[attribute] !== undefined) input.setAttribute(attribute, field[attribute]);
+                        });
+                    }
+                    input.dataset.parameter = field.name;
+                    input.value = field.default ?? '';
+                    label.appendChild(input);
+                    if (field.help) {
+                        const help = document.createElement('small');
+                        help.textContent = field.help;
+                        label.appendChild(help);
+                    }
+                    root.appendChild(label);
+                });
+            };
+            const renderRelatedSettings = () => {
+                const catalogRoot = document.getElementById('dz-event-catalog');
+                const definition = pointTypeCatalog[pendingButton?.dataset.point] || {};
+                const eventRoot = catalogRoot.querySelector('.dz-event-settings');
+                const relatedRoot = catalogRoot.querySelector('.dz-related-files');
+                const settings = selectedCatalogOption?.event_settings || {};
+                const children = selectedCatalogOption?.children || [];
+                eventRoot.hidden = Object.keys(settings).length === 0;
+                if (!eventRoot.hidden) {
+                    const labels = {nominal:'Cílový počet eventů',min:'Minimum současně',max:'Maximum současně',lifetime:'Životnost (s)',restock:'Doplnění (s)',saferadius:'Bezpečný poloměr (m)',distanceradius:'Vzdálenost od hráče (m)',cleanupradius:'Poloměr úklidu (m)',position:'Režim pozice',limit:'Způsob limitu',active:'Aktivní',deletable:'Lze odstranit',init_random:'Náhodný start',remove_damaged:'Odstranit poškozené'};
+                    eventRoot.innerHTML = '<strong>Související pravidla z events.xml</strong><p>Tato nastavení platí pro celý event, ne jen pro právě přidávaný bod.</p><div class="dz-event-setting-grid">'
+                        + Object.entries(settings).map(([key,value]) => '<span><small>'+(labels[key] || key)+'</small><b>'+value+'</b></span>').join('')
+                        + '</div>' + (children.length ? '<details><summary>Varianty / children ('+children.length+')</summary><ul>'+children.map((child)=>'<li><code>'+child.type+'</code> · min '+child.min+', max '+child.max+', loot '+child.lootmin+'–'+child.lootmax+'</li>').join('')+'</ul></details>' : '');
+                }
+                const related = definition.related || {};
+                relatedRoot.hidden = Object.keys(related).length === 0;
+                if (!relatedRoot.hidden) {
+                    relatedRoot.innerHTML = '<strong>Další nastavení nejsou vlastností bodu</strong><ul>'
+                        + Object.entries(related).map(([file,description]) => '<li><code>'+file+'</code> – '+description+'</li>').join('')
+                        + '</ul><small>Změňte je v editoru příslušného souboru. Editor je záměrně nezapisuje do cfgeventspawns.xml, protože by vznikla neplatná konfigurace.</small>';
+                }
+            };
             const syncPointTarget = () => {
                 const catalogRoot = document.getElementById('dz-event-catalog');
                 const definition = pointTypeCatalog[pendingButton?.dataset.point] || {};
@@ -194,6 +240,7 @@
                 const confirm = catalogRoot.querySelector('.dz-point-confirm');
                 confirm.disabled = !available || (!selectedCatalogOption && (definition.options || []).length > 0);
                 confirm.textContent = available ? 'Umístit bod a vytvořit revizi' : 'Nejprve nahrajte požadovaný soubor';
+                renderRelatedSettings();
                 return { target, available };
             };
             const placePoint = (button) => {
@@ -211,9 +258,7 @@
                     select.selectedIndex = entries.length === 1 ? 1 : 0;
                     selectedCatalogOption = entries.length === 1 ? entries[0] : null;
                     select.onchange = syncPointTarget;
-                    const radiusTypes = ['contaminated', 'infected', 'territory', 'custom', 'animal'];
-                    catalog.querySelector('.dz-point-radius-wrap').hidden = !radiusTypes.includes(button.dataset.point);
-                    catalog.querySelector('.dz-territory-zone-wrap').hidden = !['animal', 'territory'].includes(button.dataset.point);
+                    renderPointFields();
                     catalog.querySelector('.dz-point-help').textContent = definition.help || 'Vyberte existující možnost.';
                     catalog.querySelector('.dz-map-feedback').hidden = true;
                     syncPointTarget();
@@ -226,12 +271,12 @@
                 const chosen = ['contaminated', 'player'].includes(button.dataset.point)
                     ? (customName || selectedName || label)
                     : (selectedName || customName || label);
-                const radius = Number(document.querySelector('.dz-point-radius')?.value || 50);
-                const zoneType = document.querySelector('.dz-territory-zone')?.value || null;
+                const parameters = {};
+                document.querySelectorAll('#dz-event-catalog [data-parameter]').forEach((input) => parameters[input.dataset.parameter] = input.value);
                 const marker = L.marker([Number(modal.dataset.lat), Number(modal.dataset.lng)]).addTo(map);
                 const newX = Math.round(Number(modal.dataset.lng));
                 const newZ = Math.round(Number(modal.dataset.lat));
-                fetch('{{ route('map-editor.points.store') }}', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'}, body: JSON.stringify({project_id: @js($projectId), type: button.dataset.point, label: chosen || label, target_filename: targetState.target, zone_type: zoneType, x: newX, z: newZ, radius}) }).then(async (response) => { if (!response.ok) throw new Error((await response.json().catch(()=>({}))).message || 'Uložení bodu selhalo'); window.location.reload(); }).catch((error) => { map.removeLayer(marker); modal.hidden = false; showFeedback(modal, error.message); });
+                fetch('{{ route('map-editor.points.store') }}', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'}, body: JSON.stringify({project_id: @js($projectId), type: button.dataset.point, label: chosen || label, target_filename: targetState.target, x: newX, z: newZ, parameters}) }).then(async (response) => { if (!response.ok) throw new Error((await response.json().catch(()=>({}))).message || 'Uložení bodu selhalo'); window.location.reload(); }).catch((error) => { map.removeLayer(marker); modal.hidden = false; showFeedback(modal, error.message); });
                 const popup = () => '<strong>' + (chosen || label) + '</strong><br><small>Typ: ' + label + '<br>DayZ X/Z: ' + newX + ' / ' + newZ + '</small>';
                 marker.bindPopup(popup()).openPopup();
                 pendingButton = null;

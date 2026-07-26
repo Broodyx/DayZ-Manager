@@ -18,7 +18,25 @@ Route::post('/admin/map-editor/points', function (
     \App\Services\Revision\MapXmlEditor $eventEditor,
     \App\Services\Dayz\MapConfigurationEditor $mapEditor,
 ) {
-    $data = $request->validate(['project_id'=>'required|integer','type'=>'required|string|max:40','label'=>'required|string|max:120','target_filename'=>'required|string|max:160','zone_type'=>'nullable|in:HuntingGround,Rest,Graze,Water','x'=>'required|numeric|min:0|max:15360','z'=>'required|numeric|min:0|max:15360','radius'=>'nullable|numeric|min:1|max:5000']);
+    $data = $request->validate([
+        'project_id'=>'required|integer','type'=>'required|string|max:40','label'=>'required|string|max:120',
+        'target_filename'=>'required|string|max:160','x'=>'required|numeric|min:0|max:15360','z'=>'required|numeric|min:0|max:15360',
+        'parameters'=>'nullable|array',
+        'parameters.orientation'=>'nullable|numeric|min:-360|max:360',
+        'parameters.radius'=>'nullable|numeric|min:1|max:5000',
+        'parameters.zone_type'=>'nullable|in:HuntingGround,Rest,Graze,Water',
+        'parameters.smin'=>'nullable|integer|min:0|max:1000','parameters.smax'=>'nullable|integer|min:0|max:1000',
+        'parameters.dmin'=>'nullable|integer|min:0|max:1000','parameters.dmax'=>'nullable|integer|min:0|max:1000',
+        'parameters.spawn_mode'=>'nullable|in:fresh,hop,travel','parameters.group_name'=>'nullable|string|max:120',
+        'parameters.pos_y'=>'nullable|numeric|min:-1000|max:5000',
+        'parameters.pitch'=>'nullable|numeric|min:-360|max:360','parameters.yaw'=>'nullable|numeric|min:-360|max:360','parameters.roll'=>'nullable|numeric|min:-360|max:360',
+        'parameters.area_name'=>'nullable|string|max:120','parameters.pos_height'=>'nullable|numeric|min:0|max:5000',
+        'parameters.neg_height'=>'nullable|numeric|min:0|max:5000','parameters.inner_part_dist'=>'nullable|numeric|min:1|max:1000',
+        'parameters.outer_offset'=>'nullable|numeric|min:0|max:1000','parameters.particle_name'=>'nullable|string|max:255',
+        'parameters.around_particle'=>'nullable|string|max:255','parameters.tiny_particle'=>'nullable|string|max:255',
+        'parameters.ppe_type'=>'nullable|string|max:160',
+    ]);
+    $parameters = $data['parameters'] ?? [];
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $eventTypes = ['vehicle','dynamic','heli','convoy','aerial'];
     $filename = strtolower(basename($data['target_filename']));
@@ -68,11 +86,11 @@ Route::post('/admin/map-editor/points', function (
     try {
         $content = Storage::disk('dayz')->get($source->storage_path);
         $content = match (true) {
-            $filename === 'cfgeventspawns.xml' => $eventEditor->appendPosition($content, $data['label'], (float) $data['x'], (float) $data['z'])['xml'],
-            $filename === 'cfgplayerspawnpoints.xml' => $mapEditor->appendPlayerSpawnArea($content, $data['label'], (float) $data['x'], (float) $data['z']),
-            $filename === 'cfgeffectarea.json' => $mapEditor->appendContaminatedArea($content, $data['label'], (float) $data['x'], (float) $data['z'], (float) ($data['radius'] ?? 50)),
-            $filename === 'mapgrouppos.xml' => $mapEditor->appendMapGroup($content, $data['label'], (float) $data['x'], (float) $data['z']),
-            \Illuminate\Support\Str::is('*_territories.xml', $filename) => $mapEditor->appendTerritoryZone($content, $data['zone_type'] ?? 'HuntingGround', (float) $data['x'], (float) $data['z'], (float) ($data['radius'] ?? 150)),
+            $filename === 'cfgeventspawns.xml' => $eventEditor->appendPosition($content, $data['label'], (float) $data['x'], (float) $data['z'], (float) ($parameters['orientation'] ?? 0))['xml'],
+            $filename === 'cfgplayerspawnpoints.xml' => $mapEditor->appendPlayerSpawnArea($content, $parameters['group_name'] ?? $data['label'], (float) $data['x'], (float) $data['z'], $parameters['spawn_mode'] ?? 'fresh'),
+            $filename === 'cfgeffectarea.json' => $mapEditor->appendContaminatedArea($content, $parameters['area_name'] ?? $data['label'], (float) $data['x'], (float) $data['z'], $parameters),
+            $filename === 'mapgrouppos.xml' => $mapEditor->appendMapGroup($content, $data['label'], (float) $data['x'], (float) $data['z'], $parameters),
+            \Illuminate\Support\Str::is('*_territories.xml', $filename) => $mapEditor->appendTerritoryZone($content, $parameters['zone_type'] ?? 'HuntingGround', (float) $data['x'], (float) $data['z'], $parameters),
         };
     } catch (\RuntimeException $exception) {
         abort(422, $exception->getMessage());

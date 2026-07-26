@@ -114,4 +114,71 @@ class MapConfigurationReaderTest extends TestCase
         $this->assertSame([1200.0, 0.0, 3400.0], array_map('floatval', $data['Areas'][0]['Data']['Pos']));
         $this->assertSame(100.0, (float) $data['Areas'][0]['Data']['Radius']);
     }
+
+    public function test_editor_preserves_all_configured_territory_parameters(): void
+    {
+        $updated = (new MapConfigurationEditor())->appendTerritoryZone(
+            '<territory-type/>',
+            'Graze',
+            1200,
+            3400,
+            ['radius' => 225, 'smin' => 1, 'smax' => 3, 'dmin' => 2, 'dmax' => 5],
+        );
+
+        $this->assertStringContainsString('name="Graze"', $updated);
+        $this->assertStringContainsString('smin="1"', $updated);
+        $this->assertStringContainsString('smax="3"', $updated);
+        $this->assertStringContainsString('dmin="2"', $updated);
+        $this->assertStringContainsString('dmax="5"', $updated);
+        $this->assertStringContainsString('r="225"', $updated);
+    }
+
+    public function test_editor_writes_map_group_height_and_orientation(): void
+    {
+        $updated = (new MapConfigurationEditor())->appendMapGroup(
+            '<map/>',
+            'Land_Test',
+            1200,
+            3400,
+            ['pos_y' => 12.5, 'pitch' => 1, 'yaw' => 90, 'roll' => -2, 'orientation' => 90],
+        );
+
+        $this->assertStringContainsString('pos="1200 12.5 3400"', $updated);
+        $this->assertStringContainsString('rpy="1 90 -2"', $updated);
+        $this->assertStringContainsString('a="90"', $updated);
+    }
+
+    public function test_editor_can_add_player_spawn_to_selected_mode(): void
+    {
+        $xml = '<playerspawnpoints><fresh><generator_posbubbles/></fresh><hop><generator_posbubbles/></hop></playerspawnpoints>';
+        $updated = (new MapConfigurationEditor())->appendPlayerSpawnArea($xml, 'Hop group', 1200, 3400, 'hop');
+
+        $this->assertStringContainsString('<hop>', $updated);
+        $this->assertMatchesRegularExpression('/<hop>.*name="Hop group"/s', $updated);
+        $this->assertDoesNotMatchRegularExpression('/<fresh>.*name="Hop group".*<\/fresh>/s', $updated);
+    }
+
+    public function test_editor_writes_complete_contaminated_area_fields(): void
+    {
+        $updated = (new MapConfigurationEditor())->appendContaminatedArea(
+            '{"Areas":[]}',
+            'Deep zone',
+            1200,
+            3400,
+            [
+                'radius' => 150, 'pos_y' => 8, 'pos_height' => 40, 'neg_height' => 12,
+                'inner_part_dist' => 60, 'outer_offset' => 25, 'particle_name' => 'main',
+                'around_particle' => 'around', 'tiny_particle' => 'tiny', 'ppe_type' => 'ppe',
+            ],
+        );
+        $area = json_decode($updated, true, flags: JSON_THROW_ON_ERROR)['Areas'][0];
+
+        $this->assertSame([1200.0, 8.0, 3400.0], array_map('floatval', $area['Data']['Pos']));
+        $this->assertSame(40.0, (float) $area['Data']['PosHeight']);
+        $this->assertSame(12.0, (float) $area['Data']['NegHeight']);
+        $this->assertSame('main', $area['Data']['ParticleName']);
+        $this->assertSame('around', $area['PlayerData']['AroundPartName']);
+        $this->assertSame('tiny', $area['PlayerData']['TinyPartName']);
+        $this->assertSame('ppe', $area['PlayerData']['PPERequesterType']);
+    }
 }

@@ -106,9 +106,34 @@ class MapEditor extends Page
             foreach ($xml?->event ?? [] as $event) {
                 $children = [];
                 foreach ($event->children->child ?? [] as $child) {
-                    $children[] = (string) ($child['type'] ?? '');
+                    $children[] = [
+                        'type' => (string) ($child['type'] ?? ''),
+                        'min' => (int) ($child['min'] ?? 0),
+                        'max' => (int) ($child['max'] ?? 0),
+                        'lootmin' => (int) ($child['lootmin'] ?? 0),
+                        'lootmax' => (int) ($child['lootmax'] ?? 0),
+                    ];
                 }
-                $this->eventCatalog[] = ['name' => (string) $event['name'], 'children' => array_values(array_filter($children))];
+                $this->eventCatalog[] = [
+                    'name' => (string) $event['name'],
+                    'children' => array_values(array_filter($children, fn ($child) => $child['type'] !== '')),
+                    'settings' => [
+                        'nominal' => (int) ($event->nominal ?? 0),
+                        'min' => (int) ($event->min ?? 0),
+                        'max' => (int) ($event->max ?? 0),
+                        'lifetime' => (int) ($event->lifetime ?? 0),
+                        'restock' => (int) ($event->restock ?? 0),
+                        'saferadius' => (int) ($event->saferadius ?? 0),
+                        'distanceradius' => (int) ($event->distanceradius ?? 0),
+                        'cleanupradius' => (int) ($event->cleanupradius ?? 0),
+                        'position' => (string) ($event->position ?? ''),
+                        'limit' => (string) ($event->limit ?? ''),
+                        'active' => (int) ($event->active ?? 0),
+                        'deletable' => (int) ($event->flags['deletable'] ?? 0),
+                        'init_random' => (int) ($event->flags['init_random'] ?? 0),
+                        'remove_damaged' => (int) ($event->flags['remove_damaged'] ?? 0),
+                    ],
+                ];
             }
         }
 
@@ -129,7 +154,12 @@ class MapEditor extends Page
                 if ($name === '') continue;
                 $index = collect($this->eventCatalog)->search(fn ($item) => $item['name'] === $name);
                 if ($index !== false) {
-                    $this->eventCatalog[$index]['children'] = array_values(array_unique(array_merge($this->eventCatalog[$index]['children'], $children)));
+                    $known = collect($this->eventCatalog[$index]['children'])->pluck('type')->all();
+                    foreach ($children as $type) {
+                        if (! in_array($type, $known, true)) {
+                            $this->eventCatalog[$index]['children'][] = ['type' => $type, 'min' => 0, 'max' => 0, 'lootmin' => 0, 'lootmax' => 0];
+                        }
+                    }
                 }
             }
         }
@@ -145,7 +175,6 @@ class MapEditor extends Page
                 'revision_number' => $revision->revision_number,
             ],
         ])->all();
-        $eventNames = collect($this->eventCatalog)->pluck('name')->filter()->unique()->sort()->values();
         $uploadUrl = fn (string $filename) => url('/admin/configuration-import?area=map&project='.$this->projectId.'&expected='.urlencode($filename));
         $exact = function (string $filename, array $options, string $help, array $recommended = []) use ($uploaded, $uploadUrl): array {
             $missing = array_values(array_filter([$filename, ...$recommended], fn ($name) => ! isset($uploaded[$name])));
@@ -160,11 +189,16 @@ class MapEditor extends Page
                 'help' => $help,
             ];
         };
-        $options = fn ($names, string $target) => collect($names)->map(fn ($name) => [
-            'value' => $name,
-            'label' => $name,
+        $eventOptions = fn ($events, string $target) => collect($events)->map(fn ($event) => [
+            'value' => $event['name'],
+            'label' => $event['name'],
             'target' => $target,
             'available' => isset($uploaded[$target]),
+            'event_settings' => $event['settings'] ?? [],
+            'children' => $event['children'] ?? [],
+        ])->values()->all();
+        $options = fn ($names, string $target) => collect($names)->map(fn ($name) => [
+            'value' => $name, 'label' => $name, 'target' => $target, 'available' => isset($uploaded[$target]),
         ])->values()->all();
         $animalTargets = [
             ['AnimalBear', 'Medvěd', 'bear_territories.xml'],
@@ -203,24 +237,70 @@ class MapEditor extends Page
             }
         }
 
+        $eventsBy = fn ($callback) => collect($this->eventCatalog)->filter($callback)->values();
+        $eventFields = [
+            ['name' => 'orientation', 'label' => 'Natočení objektu (°)', 'type' => 'number', 'min' => 0, 'max' => 359.999, 'step' => 0.001, 'default' => 0, 'help' => 'Atribut a v cfgeventspawns.xml. 0° míří na sever, hodnota určuje natočení kandidátní pozice.'],
+        ];
+        $territoryFields = [
+            ['name' => 'zone_type', 'label' => 'Úloha zóny', 'type' => 'select', 'default' => 'HuntingGround', 'options' => [
+                ['value' => 'HuntingGround', 'label' => 'HuntingGround · hlavní oblast výskytu'],
+                ['value' => 'Rest', 'label' => 'Rest · klidová oblast'],
+                ['value' => 'Graze', 'label' => 'Graze · pastva'],
+                ['value' => 'Water', 'label' => 'Water · zdroj vody'],
+            ]],
+            ['name' => 'radius', 'label' => 'Poloměr (m)', 'type' => 'number', 'min' => 1, 'max' => 5000, 'step' => 0.5, 'default' => 150, 'help' => 'Atribut r: dosah zóny od středu v metrech.'],
+            ['name' => 'smin', 'label' => 'Statický spawn minimum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut smin. Minimální počet statických výskytů pro zónu.'],
+            ['name' => 'smax', 'label' => 'Statický spawn maximum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut smax. Maximální počet statických výskytů pro zónu.'],
+            ['name' => 'dmin', 'label' => 'Dynamický spawn minimum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut dmin. Minimální počet dynamických výskytů.'],
+            ['name' => 'dmax', 'label' => 'Dynamický spawn maximum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut dmax. Maximální počet dynamických výskytů.'],
+        ];
+
         $this->pointTypeCatalog = [
-            'vehicle' => $exact('cfgeventspawns.xml', $options($eventNames->filter(fn ($name) => Str::startsWith($name, 'Vehicle')), 'cfgeventspawns.xml'), 'Pozice vozidla se zapíše do cfgeventspawns.xml. Parametry eventu zůstávají v events.xml.', ['events.xml']),
-            'heli' => $exact('cfgeventspawns.xml', $options($eventNames->filter(fn ($name) => Str::contains(Str::lower($name), 'heli')), 'cfgeventspawns.xml'), 'Kandidátní pozice heli eventu patří do cfgeventspawns.xml; pravidla eventu jsou v events.xml.', ['events.xml']),
-            'convoy' => $exact('cfgeventspawns.xml', $options($eventNames->filter(fn ($name) => Str::contains(Str::lower($name), ['convoy', 'train'])), 'cfgeventspawns.xml'), 'Konvoj nebo vlak se umístí do cfgeventspawns.xml; jeho složení definuje cfgeventgroups.xml.', ['events.xml', 'cfgeventgroups.xml']),
-            'dynamic' => $exact('cfgeventspawns.xml', $options($eventNames, 'cfgeventspawns.xml'), 'Vybranému eventu z events.xml se přidá kandidátní pozice do cfgeventspawns.xml.', ['events.xml']),
-            'aerial' => $exact('cfgeventspawns.xml', $options($eventNames->filter(fn ($name) => Str::contains(Str::lower($name), ['air', 'heli', 'plane'])), 'cfgeventspawns.xml'), 'Letecký event používá pravidla z events.xml a pozice z cfgeventspawns.xml.', ['events.xml']),
-            'player' => $exact('cfgplayerspawnpoints.xml', [['value' => 'Nová spawn oblast', 'label' => 'Nová spawn oblast hráče', 'target' => 'cfgplayerspawnpoints.xml', 'available' => isset($uploaded['cfgplayerspawnpoints.xml'])]], 'Přidá bod do generátoru oblastí v cfgplayerspawnpoints.xml. Server následně hledá bezpečný povrch v okolí.'),
-            'contaminated' => $exact('cfgeffectarea.json', [['value' => 'ContaminatedArea_Static', 'label' => 'Statická kontaminovaná zóna', 'target' => 'cfgeffectarea.json', 'available' => isset($uploaded['cfgeffectarea.json'])]], 'Zóna včetně poloměru se zapíše do pole Areas v cfgeffectarea.json.'),
-            'loot' => $exact('mapgrouppos.xml', $options($lootNames, 'mapgrouppos.xml'), 'Světová pozice existujícího prototypu skupiny se zapíše do mapgrouppos.xml.', ['mapgroupproto.xml']),
+            'vehicle' => array_merge($exact('cfgeventspawns.xml', $eventOptions($eventsBy(fn ($event) => Str::startsWith($event['name'], 'Vehicle')), 'cfgeventspawns.xml'), 'Tento formulář ukládá kandidátní pozici a natočení. Počet vozidel a jejich životnost řídí events.xml; attachmenty a náklad cfgspawnabletypes.xml.', ['events.xml']), ['fields' => $eventFields, 'related' => ['events.xml' => 'počet, limity, životnost a aktivace', 'cfgspawnabletypes.xml' => 'attachmenty, cargo a poškození']]),
+            'heli' => array_merge($exact('cfgeventspawns.xml', $eventOptions($eventsBy(fn ($event) => Str::contains(Str::lower($event['name']), 'heli')), 'cfgeventspawns.xml'), 'Kandidátní pozice a natočení heli eventu. Jeho pravidla zůstávají v events.xml.', ['events.xml']), ['fields' => $eventFields, 'related' => ['events.xml' => 'počet, životnost, vzdálenosti a varianty']]),
+            'convoy' => array_merge($exact('cfgeventspawns.xml', $eventOptions($eventsBy(fn ($event) => Str::contains(Str::lower($event['name']), ['convoy', 'train'])), 'cfgeventspawns.xml'), 'Pozice a natočení konvoje nebo vlaku. Složení objektů řídí cfgeventgroups.xml.', ['events.xml', 'cfgeventgroups.xml']), ['fields' => $eventFields, 'related' => ['events.xml' => 'chování eventu', 'cfgeventgroups.xml' => 'objekty, relativní pozice, loot a natočení']]),
+            'dynamic' => array_merge($exact('cfgeventspawns.xml', $eventOptions($eventsBy(fn () => true), 'cfgeventspawns.xml'), 'Kandidátní pozice a natočení vybraného eventu.', ['events.xml']), ['fields' => $eventFields, 'related' => ['events.xml' => 'všechny parametry chování eventu']]),
+            'aerial' => array_merge($exact('cfgeventspawns.xml', $eventOptions($eventsBy(fn ($event) => Str::contains(Str::lower($event['name']), ['air', 'heli', 'plane'])), 'cfgeventspawns.xml'), 'Pozice a natočení leteckého eventu.', ['events.xml']), ['fields' => $eventFields, 'related' => ['events.xml' => 'počet, životnost, limity a varianty']]),
+            'player' => array_merge($exact('cfgplayerspawnpoints.xml', [['value' => 'Nová spawn oblast', 'label' => 'Nová oblast generátoru hráče', 'target' => 'cfgplayerspawnpoints.xml', 'available' => isset($uploaded['cfgplayerspawnpoints.xml'])]], 'Přidává centrum oblasti generátoru, nikoli garantovaný přesný spawn. Bezpečné vzdálenosti a rozměry mřížky jsou společné pro zvolený režim.'), ['fields' => [
+                ['name' => 'spawn_mode', 'label' => 'Režim spawnu', 'type' => 'select', 'default' => 'fresh', 'options' => [
+                    ['value' => 'fresh', 'label' => 'fresh · nová postava'],
+                    ['value' => 'hop', 'label' => 'hop · změna serveru'],
+                    ['value' => 'travel', 'label' => 'travel · cestovní přesun'],
+                ], 'help' => 'Určuje sekci cfgplayerspawnpoints.xml, do které se oblast přidá.'],
+                ['name' => 'group_name', 'label' => 'Název skupiny oblastí', 'type' => 'text', 'default' => 'Vlastni oblast', 'help' => 'Více bodů se stejným názvem tvoří jednu skupinu generátoru.'],
+            ], 'related' => ['cfgplayerspawnpoints.xml' => 'min/max vzdálenosti od hráčů a nakažených, velikost mřížky, sklon, lifetime a counter']]),
+            'contaminated' => array_merge($exact('cfgeffectarea.json', [['value' => 'ContaminatedArea_Static', 'label' => 'Statická kontaminovaná zóna', 'target' => 'cfgeffectarea.json', 'available' => isset($uploaded['cfgeffectarea.json'])]], 'Zóna se uloží do pole Areas v cfgeffectarea.json včetně vertikálního rozsahu a částic.'), ['fields' => [
+                ['name' => 'area_name', 'label' => 'Jedinečný název oblasti', 'type' => 'text', 'default' => 'Vlastni kontaminovana zona'],
+                ['name' => 'radius', 'label' => 'Poloměr (m)', 'type' => 'number', 'min' => 1, 'max' => 5000, 'default' => 100],
+                ['name' => 'pos_y', 'label' => 'Výška středu Y (m)', 'type' => 'number', 'min' => -1000, 'max' => 5000, 'step' => 0.1, 'default' => 0],
+                ['name' => 'pos_height', 'label' => 'Dosah nad střed (m)', 'type' => 'number', 'min' => 0, 'max' => 5000, 'default' => 20],
+                ['name' => 'neg_height', 'label' => 'Dosah pod střed (m)', 'type' => 'number', 'min' => 0, 'max' => 5000, 'default' => 3],
+                ['name' => 'inner_part_dist', 'label' => 'Rozestup částic uvnitř (m)', 'type' => 'number', 'min' => 1, 'max' => 1000, 'default' => 80],
+                ['name' => 'outer_offset', 'label' => 'Přesah vnějšího prstence (m)', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 30],
+                ['name' => 'particle_name', 'label' => 'Hlavní částice', 'type' => 'text', 'default' => 'graphics/particles/contaminated_area_gas_bigass'],
+                ['name' => 'around_particle', 'label' => 'Částice kolem hráče', 'type' => 'text', 'default' => 'graphics/particles/contaminated_area_gas_around'],
+                ['name' => 'tiny_particle', 'label' => 'Jemná částice kolem hráče', 'type' => 'text', 'default' => 'graphics/particles/contaminated_area_gas_around_tiny'],
+                ['name' => 'ppe_type', 'label' => 'PPE vizuální efekt', 'type' => 'text', 'default' => 'PPERequester_ContaminatedAreaTint'],
+            ]]),
+            'loot' => array_merge($exact('mapgrouppos.xml', $options($lootNames, 'mapgrouppos.xml'), 'Světová pozice existujícího prototypu skupiny se zapíše do mapgrouppos.xml.', ['mapgroupproto.xml']), ['fields' => [
+                ['name' => 'pos_y', 'label' => 'Výška Y (m)', 'type' => 'number', 'min' => -1000, 'max' => 5000, 'step' => 0.001, 'default' => 0],
+                ['name' => 'pitch', 'label' => 'Náklon pitch (°)', 'type' => 'number', 'min' => -360, 'max' => 360, 'step' => 0.001, 'default' => 0],
+                ['name' => 'yaw', 'label' => 'Natočení yaw (°)', 'type' => 'number', 'min' => -360, 'max' => 360, 'step' => 0.001, 'default' => 0],
+                ['name' => 'roll', 'label' => 'Náklon roll (°)', 'type' => 'number', 'min' => -360, 'max' => 360, 'step' => 0.001, 'default' => 0],
+                ['name' => 'orientation', 'label' => 'Atribut a (°)', 'type' => 'number', 'min' => 0, 'max' => 359.999, 'step' => 0.001, 'default' => 0],
+            ]]),
             'animal' => [
                 'target' => null, 'target_label' => 'odpovídající *_territories.xml', 'available' => true,
                 'missing' => [], 'upload_url' => $uploadUrl('wolf_territories.xml'), 'options' => $animalOptions,
                 'help' => 'Vyberte druh. Nová zóna se uloží pouze do jeho vlastního *_territories.xml; events.xml se tím nemění.',
+                'fields' => $territoryFields,
+                'related' => ['events.xml' => 'počet stád, velikost stáda, lifetime a restock'],
             ],
             'territory' => [
                 'target' => null, 'target_label' => '*_territories.xml', 'available' => count($territoryOptions) > 0,
                 'missing' => count($territoryOptions) ? [] : ['*_territories.xml'], 'upload_url' => $uploadUrl('*_territories.xml'),
                 'options' => $territoryOptions, 'help' => 'Obecná oblast se zapíše do konkrétního nahraného souboru teritorií.',
+                'fields' => $territoryFields,
             ],
             'infected' => [
                 'target' => null, 'target_label' => '*infected*_territories.xml', 'available' => false,

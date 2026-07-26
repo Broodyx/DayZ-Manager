@@ -44,17 +44,20 @@ final class MapConfigurationEditor
         return $this->save($document);
     }
 
-    public function appendPlayerSpawnArea(string $content, string $groupName, float $x, float $z): string
+    public function appendPlayerSpawnArea(string $content, string $groupName, float $x, float $z, string $mode = 'fresh'): string
     {
         $this->validateCoordinates($x, $z);
+        if (! in_array($mode, ['fresh', 'hop', 'travel'], true)) {
+            throw new RuntimeException('Režim spawnu musí být fresh, hop nebo travel.');
+        }
         $document = $this->document($content);
         $xpath = new DOMXPath($document);
-        $container = $xpath->query('/playerspawnpoints/fresh/generator_posbubbles')->item(0);
+        $container = $xpath->query('/playerspawnpoints/'.$mode.'/generator_posbubbles')->item(0);
         if (! $container instanceof DOMElement) {
-            throw new RuntimeException('V cfgplayerspawnpoints.xml chybí fresh/generator_posbubbles.');
+            throw new RuntimeException("V cfgplayerspawnpoints.xml chybí {$mode}/generator_posbubbles.");
         }
         $group = null;
-        foreach ($xpath->query('/playerspawnpoints/fresh/generator_posbubbles/group') ?: [] as $candidate) {
+        foreach ($xpath->query('/playerspawnpoints/'.$mode.'/generator_posbubbles/group') ?: [] as $candidate) {
             if ($candidate instanceof DOMElement && $candidate->getAttribute('name') === $groupName) {
                 $group = $candidate;
                 break;
@@ -73,9 +76,12 @@ final class MapConfigurationEditor
         return $this->save($document);
     }
 
-    public function appendTerritoryZone(string $content, string $zoneName, float $x, float $z, float $radius): string
+    /** @param array<string, mixed>|float|int $parameters */
+    public function appendTerritoryZone(string $content, string $zoneName, float $x, float $z, array|float|int $parameters = []): string
     {
         $this->validateCoordinates($x, $z);
+        $parameters = is_array($parameters) ? $parameters : ['radius' => $parameters];
+        $radius = (float) ($parameters['radius'] ?? 150);
         if ($radius < 1 || $radius > 5000) {
             throw new RuntimeException('Poloměr teritoria musí být v rozsahu 1–5000 metrů.');
         }
@@ -87,7 +93,13 @@ final class MapConfigurationEditor
         $territory = $document->createElement('territory');
         $territory->setAttribute('color', '4291611852');
         $zone = $document->createElement('zone');
-        foreach (['name' => $zoneName ?: 'HuntingGround', 'smin' => '0', 'smax' => '0', 'dmin' => '0', 'dmax' => '0'] as $name => $value) {
+        foreach ([
+            'name' => $zoneName ?: 'HuntingGround',
+            'smin' => (string) ($parameters['smin'] ?? 0),
+            'smax' => (string) ($parameters['smax'] ?? 0),
+            'dmin' => (string) ($parameters['dmin'] ?? 0),
+            'dmax' => (string) ($parameters['dmax'] ?? 0),
+        ] as $name => $value) {
             $zone->setAttribute($name, $value);
         }
         $zone->setAttribute('x', $this->number($x));
@@ -99,7 +111,8 @@ final class MapConfigurationEditor
         return $this->save($document);
     }
 
-    public function appendMapGroup(string $content, string $groupName, float $x, float $z): string
+    /** @param array<string, mixed> $parameters */
+    public function appendMapGroup(string $content, string $groupName, float $x, float $z, array $parameters = []): string
     {
         $this->validateCoordinates($x, $z);
         $document = $this->document($content);
@@ -109,17 +122,22 @@ final class MapConfigurationEditor
         }
         $group = $document->createElement('group');
         $group->setAttribute('name', $groupName);
-        $group->setAttribute('pos', $this->number($x).' 0 '.$this->number($z));
-        $group->setAttribute('rpy', '0 0 0');
-        $group->setAttribute('a', '0');
+        $group->setAttribute('pos', $this->number($x).' '.$this->number((float) ($parameters['pos_y'] ?? 0)).' '.$this->number($z));
+        $group->setAttribute('rpy', implode(' ', array_map(fn ($value) => $this->number((float) $value), [
+            $parameters['pitch'] ?? 0, $parameters['yaw'] ?? 0, $parameters['roll'] ?? 0,
+        ])));
+        $group->setAttribute('a', $this->number((float) ($parameters['orientation'] ?? 0)));
         $root->appendChild($group);
 
         return $this->save($document);
     }
 
-    public function appendContaminatedArea(string $content, string $areaName, float $x, float $z, float $radius): string
+    /** @param array<string, mixed>|float|int $parameters */
+    public function appendContaminatedArea(string $content, string $areaName, float $x, float $z, array|float|int $parameters = []): string
     {
         $this->validateCoordinates($x, $z);
+        $parameters = is_array($parameters) ? $parameters : ['radius' => $parameters];
+        $radius = (float) ($parameters['radius'] ?? 100);
         if ($radius < 1 || $radius > 5000) {
             throw new RuntimeException('Poloměr zóny musí být v rozsahu 1–5000 metrů.');
         }
@@ -136,14 +154,18 @@ final class MapConfigurationEditor
             'Type' => 'ContaminatedArea_Static',
             'TriggerType' => 'ContaminatedTrigger',
             'Data' => [
-                'Pos' => [$x, 0, $z], 'Radius' => $radius, 'PosHeight' => 20, 'NegHeight' => 3,
-                'InnerPartDist' => max(1, $radius * .8), 'OuterOffset' => 30,
-                'ParticleName' => 'graphics/particles/contaminated_area_gas_bigass',
+                'Pos' => [$x, (float) ($parameters['pos_y'] ?? 0), $z],
+                'Radius' => $radius,
+                'PosHeight' => (float) ($parameters['pos_height'] ?? 20),
+                'NegHeight' => (float) ($parameters['neg_height'] ?? 3),
+                'InnerPartDist' => (float) ($parameters['inner_part_dist'] ?? 80),
+                'OuterOffset' => (float) ($parameters['outer_offset'] ?? 30),
+                'ParticleName' => (string) ($parameters['particle_name'] ?? 'graphics/particles/contaminated_area_gas_bigass'),
             ],
             'PlayerData' => [
-                'AroundPartName' => 'graphics/particles/contaminated_area_gas_around',
-                'TinyPartName' => 'graphics/particles/contaminated_area_gas_around_tiny',
-                'PPERequesterType' => 'PPERequester_ContaminatedAreaTint',
+                'AroundPartName' => (string) ($parameters['around_particle'] ?? 'graphics/particles/contaminated_area_gas_around'),
+                'TinyPartName' => (string) ($parameters['tiny_particle'] ?? 'graphics/particles/contaminated_area_gas_around_tiny'),
+                'PPERequesterType' => (string) ($parameters['ppe_type'] ?? 'PPERequester_ContaminatedAreaTint'),
             ],
         ];
 
