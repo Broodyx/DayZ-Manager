@@ -136,11 +136,11 @@
             if (!el || el.dataset.ready) return;
             el.dataset.ready = '1';
             const worldSize = 15360;
-            const map = L.map(el, { crs: L.CRS.Simple, minZoom: -5, maxZoom: 1, zoomSnap: 0.25, maxBoundsViscosity: .8, preferCanvas:true });
+            const map = L.map(el, { crs: L.CRS.Simple, minZoom: -5, maxZoom: 1, zoomSnap: 0.25, maxBoundsViscosity: 1, preferCanvas:true });
             const bounds = [[0, 0], [worldSize, worldSize]];
             L.imageOverlay('/maps/chernarus_big_hq.jpg', bounds).addTo(map);
             L.rectangle(bounds, { color: '#b8ed55', weight: 1, fill: false, opacity: .35 }).addTo(map);
-            map.setMaxBounds([[-800, -800], [worldSize + 800, worldSize + 800]]);
+            map.setMaxBounds(bounds);
             map.fitBounds(bounds);
             L.control.scale({ imperial: false }).addTo(map);
             const coordinateControl = L.control({ position: 'bottomleft' });
