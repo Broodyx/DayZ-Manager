@@ -27,12 +27,14 @@ class MapEditor extends Page
     public array $markers = [];
 
     public array $eventCatalog = [];
+    public array $mapSources = [];
 
     public function mount(): void
     {
         $this->projects = Project::query()->where('user_id', auth()->id())->orderBy('name')->pluck('name', 'id')->all();
         $this->projectId = request()->integer('project') ?: array_key_first($this->projects);
         $this->loadMarkers();
+        $this->loadMapSources();
         $this->loadEventCatalog();
     }
 
@@ -40,6 +42,45 @@ class MapEditor extends Page
     {
         $this->loadMarkers();
         $this->loadEventCatalog();
+        $this->loadMapSources();
+    }
+
+    public function loadMapSources(): void
+    {
+        $definitions = [
+            'cfgeventspawns.xml' => 'Pevné pozice eventů a jejich orientace.',
+            'events.xml' => 'Dynamické eventy, vozidla a heli crash.',
+            'cfgeventgroups.xml' => 'Skupiny a varianty eventů.',
+            'cfgplayerspawnpoints.xml' => 'Spawnovací body hráčů.',
+            'mapgrouppos.xml' => 'Pozice loot skupin a budov.',
+            'mapgroupcluster.xml' => 'Clustery budov – hlavní část.',
+            'mapgroupcluster01.xml' => 'Clustery budov – část 1.',
+            'mapgroupcluster02.xml' => 'Clustery budov – část 2.',
+            'mapgroupcluster03.xml' => 'Clustery budov – část 3.',
+            'mapgroupcluster04.xml' => 'Clustery budov – část 4.',
+            'mapgroupproto.xml' => 'Prototypy skupin budov.',
+            'mapclusterproto.xml' => 'Prototypy mapových clusterů.',
+            'mapgroupdirt.xml' => 'Doplňková data mapových skupin.',
+            'cfgeffectarea.json' => 'Efektové a kontaminované oblasti.',
+            'cfgundergroundtriggers.json' => 'Spouštěče podzemních oblastí.',
+            '*_territories.xml' => 'Teritoria zvířat podle druhu.',
+        ];
+        $project = $this->projectId ? Project::query()->where('user_id', auth()->id())->find($this->projectId) : null;
+        $revisions = $project?->revisions()->with('configurationImport')->latest('revision_number')->get() ?? collect();
+        $this->mapSources = [];
+        foreach ($definitions as $filename => $description) {
+            $revision = $revisions->first(function ($item) use ($filename) {
+                $name = strtolower($item->configurationImport?->original_filename ?? basename($item->storage_path));
+                return $filename === '*_territories.xml' ? str_ends_with($name, '_territories.xml') : $name === $filename;
+            });
+            $this->mapSources[] = [
+                'filename' => $filename,
+                'description' => $description,
+                'uploaded' => $revision !== null,
+                'revision_id' => $revision?->id,
+                'revision_number' => $revision?->revision_number,
+            ];
+        }
     }
 
     public function loadEventCatalog(): void
@@ -111,6 +152,7 @@ class MapEditor extends Page
         $importer->import($project, $this->mapFile, auth()->user());
         $this->reset('mapFile');
         $this->loadMarkers();
+        $this->loadMapSources();
     }
 
     public function getTitle(): string

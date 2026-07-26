@@ -50,7 +50,9 @@ class ConfigurationImport extends Page implements HasForms
             ])->required(),
             Select::make('project_id')->label('Server')->options(fn (): array => Project::where('user_id', auth()->id())->orderBy('name')->pluck('name', 'id')->all())->searchable()->required(),
             Select::make('platform')->label('Platforma')->options(['playstation' => 'PlayStation', 'xbox' => 'Xbox', 'steam' => 'PC / Steam'])->required(),
-            FileUpload::make('file')->label('Soubor konfigurace')->storeFiles(false)->required(),
+            FileUpload::make('file')->label('Soubor konfigurace')
+                ->helperText(request()->query('expected') ? 'Očekávaný soubor: '.request()->query('expected') : 'Nahrajte XML, JSON, CFG nebo TXT konfiguraci.')
+                ->storeFiles(false)->required(),
             TextInput::make('summary')->label('Poznámka k revizi')->maxLength(255),
         ];
     }

@@ -321,7 +321,17 @@
     .dz-map-source-list strong { color:#d8f57b; font-size:.85rem; }
     .dz-map-source-list code { color:#dce8d5; }
     .dz-map-source-list small { margin-top:.35rem; color:#879987; }
+    .dz-map-source { display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; padding:.45rem .5rem; border:1px solid rgba(190,209,175,.14); border-radius:.35rem; color:#cbd5c0; text-decoration:none; }
+    .dz-map-source:hover { border-color:#b8ed55; background:rgba(182,233,79,.08); }
+    .dz-map-source span { min-width:0; display:grid; gap:.15rem; }
+    .dz-map-source small { color:#879987; }
+    .dz-map-source b { flex:0 0 auto; color:#b8ed55; font-size:.68rem; }
+    .dz-map-source.missing { border-color:rgba(217,119,56,.35); }
+    .dz-map-source.missing b { color:#ffc08f; }
     .dz-map-legend input { accent-color:#b8ed55; margin-right:.5rem; }
+    .dz-map-layers label { display:flex; align-items:center; gap:.35rem; padding:.35rem 0; color:#c5d2bf; font-size:.75rem; }
+    .dz-layer-dot { width:.65rem; height:.65rem; border-radius:50%; display:inline-block; }
+    .layer-0 { background:#b8ed55; } .layer-1 { background:#80b8ff; } .layer-2 { background:#f1b44c; } .layer-3 { background:#e96a5f; } .layer-4 { background:#d58cff; } .layer-5 { background:#55e0c1; } .layer-6 { background:#ff82b2; } .layer-7 { background:#f6d365; }
     @media (max-width: 760px) { .dz-map-toolbar { align-items:stretch; flex-direction:column; } .dz-map-layout { grid-template-columns:1fr; } .dz-map-canvas { min-height:420px; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } .dz-point-options { grid-template-columns:1fr 1fr; } }
 </style>
 <script>

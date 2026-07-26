@@ -45,21 +45,23 @@
             </section>
             <aside class="dz-map-legend">
                 <h3>Vrstvy mapy</h3>
-                <label><input type="checkbox" checked> Loot skupiny</label>
-                <label><input type="checkbox" checked> Heli crash</label>
-                <label><input type="checkbox" checked> Konvoje</label>
-                <label><input type="checkbox" checked> Event spawny</label>
+                <div class="dz-map-layers">
+                    @foreach ($mapSources as $source)
+                        @if ($source['uploaded'])
+                            <label><input class="map-layer-toggle" type="checkbox" checked data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot layer-{{ $loop->index % 8 }}"></i>{{ $source['filename'] }}</label>
+                        @endif
+                    @endforeach
+                </div>
                 <hr>
                 <div class="dz-map-source-list">
                     <strong>Mapové konfigurační soubory</strong>
-                    <span><code>cfgeventspawns.xml</code> – pevné pozice eventů a jejich orientace.</span>
-                    <span><code>events.xml</code> – dynamické eventy, vozidla a heli crash.</span>
-                    <span><code>cfgeventgroups.xml</code> – skupiny a varianty eventů.</span>
-                    <span><code>cfgplayerspawnpoints.xml</code> – spawnovací body hráčů.</span>
-                    <span><code>mapgrouppos.xml</code> – pozice loot skupin a budov.</span>
-                    <span><code>mapgroupcluster*.xml</code> – velké mapové clustery budov.</span>
-                    <span><code>mapgroupproto.xml</code> / <code>mapclusterproto.xml</code> – prototypy budov a clusterů.</span>
-                    <span><code>*_territories.xml</code> – teritoria zvířat podle druhu.</span>
+                    @foreach ($mapSources as $source)
+                        @if ($source['uploaded'])
+                            <a class="dz-map-source {{ $source['uploaded'] ? 'uploaded' : 'missing' }}" href="{{ url('/admin/projects/'.$projectId.'/configuration?revision='.$source['revision_id']) }}"><span><code>{{ $source['filename'] }}</code><small>{{ $source['description'] }}</small></span><b>Upravit · revize #{{ $source['revision_number'] }}</b></a>
+                        @else
+                            <a class="dz-map-source missing" href="{{ url('/admin/configuration-import?area=map&project='.$projectId.'&expected='.urlencode($source['filename'])) }}"><span><code>{{ $source['filename'] }}</code><small>{{ $source['description'] }}</small></span><b>Nahrát soubor</b></a>
+                        @endif
+                    @endforeach
                     <small>Body se načítají ze souřadnic X/Z a změny se ukládají jako nové revize konfigurace.</small>
                 </div>
             </aside>
@@ -125,13 +127,21 @@
             modal.querySelectorAll('[data-point]').forEach((button) => button.onclick = () => placePoint(button));
             modal.querySelector('.dz-point-confirm').onclick = () => { if (pendingButton) placePoint(pendingButton); };
             const markers = @js($markers);
+            const layerGroups = {};
+            const layerColors = ['#b8ed55','#80b8ff','#f1b44c','#e96a5f','#d58cff','#55e0c1','#ff82b2','#f6d365'];
+            const colorFor = (filename) => { let hash = 0; for (const char of filename) hash = (hash + char.charCodeAt(0)) % layerColors.length; return layerColors[hash]; };
             markers.forEach((marker) => {
                 const px = (marker.worldX ?? (marker.x * 15360 / 100)) / 15360 * 3000;
                 const py = 2900 - ((marker.worldZ ?? ((100 - marker.y) * 15360 / 100)) / 15360 * 2900);
-                const imported = L.circleMarker([py, px], { radius: 6, color: '#b8ed55', fillColor: '#b8ed55', fillOpacity: .9 }).addTo(map);
+                const color = colorFor(marker.filename || marker.type || 'map');
+                const imported = L.circleMarker([py, px], { radius: 6, color, fillColor: color, fillOpacity: .9 }).addTo(map);
+                (layerGroups[marker.filename] ||= []).push(imported);
                 imported.bindPopup('<strong>' + marker.label + '</strong><br><small>Importovaný bod z XML</small><br><button class="dz-map-delete" type="button">Smazat bod a vytvořit revizi</button>');
                 imported.on('popupopen', (event) => event.popup.getElement().querySelector('.dz-map-delete')?.addEventListener('click', () => { if (!window.confirm('Odstranit bod z XML a vytvořit novou revizi?')) return; fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),filename:marker.filename,x:marker.worldX,z:marker.worldZ})}).then((r) => { if (!r.ok) throw new Error(); map.removeLayer(imported); }).catch(() => window.alert('Bod se nepodařilo odstranit.')); }));
             });
+            document.querySelectorAll('.map-layer-toggle').forEach((toggle) => toggle.addEventListener('change', () => {
+                (layerGroups[toggle.dataset.layer] || []).forEach((layer) => toggle.checked ? layer.addTo(map) : map.removeLayer(layer));
+            }));
         });
     </script>
 </x-filament-panels::page>
