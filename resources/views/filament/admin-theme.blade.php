@@ -383,13 +383,15 @@
     .dz-map-source-list code { color:#dce8d5; }
     .dz-map-source-list small { margin-top:.35rem; color:#879987; }
     .dz-map-source { display:flex; align-items:flex-start; justify-content:space-between; gap:.6rem; padding:.55rem; border:1px solid rgba(190,209,175,.14); border-radius:.4rem; color:#cbd5c0; text-decoration:none; }
+    .dz-map-source.uploaded { display:grid; grid-template-columns:minmax(0,1fr); }
     .dz-map-source:hover { border-color:#b8ed55; background:rgba(182,233,79,.08); }
     .dz-map-source span { min-width:0; display:grid; gap:.15rem; }
     .dz-map-source small { color:#879987; }
     .dz-map-source em { color:#68786b; font-size:.6rem; font-style:normal; }
     .dz-map-source b { flex:0 0 auto; max-width:7rem; color:#b8ed55; font-size:.68rem; text-align:right; overflow-wrap:anywhere; }
-    .dz-map-source-actions { display:grid; grid-template-columns:repeat(3,auto); gap:.3rem; flex:0 0 auto; }
+    .dz-map-source-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.3rem; width:100%; margin-top:.35rem; padding-top:.45rem; border-top:1px solid rgba(190,209,175,.12); }
     .dz-map-source-actions a,.dz-map-source-actions button { min-height:2rem; padding:.38rem .48rem; border:1px solid #42583a; border-radius:.35rem; color:#cddac8; background:#111914; font-size:.58rem; font-weight:800; line-height:1.1; text-decoration:none; cursor:pointer; white-space:nowrap; }
+    .dz-map-source-actions a,.dz-map-source-actions button { display:grid; place-items:center; text-align:center; }
     .dz-map-source-actions a:hover,.dz-map-source-actions button:hover { border-color:var(--dz-lime); color:#11180e; background:var(--dz-lime); }
     .dz-map-source.missing { border-color:rgba(217,119,56,.35); }
     .dz-map-source.missing b { color:#ffc08f; }
