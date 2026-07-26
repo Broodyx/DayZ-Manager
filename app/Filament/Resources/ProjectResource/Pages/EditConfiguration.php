@@ -8,6 +8,7 @@ use App\Services\Import\ConfigurationImporter;
 use App\Services\PlatformDetection\PlatformCompatibility;
 use App\Services\PlatformDetection\PlatformDetector;
 use App\Services\Revision\ConfigurationRevisionEditor;
+use App\Services\Revision\EventGroupsXmlEditor;
 use App\Services\Revision\JsonConfigurationEditor;
 use App\Services\Revision\ServerConfigEditor;
 use App\Services\Revision\TypesXmlEditor;
@@ -81,6 +82,10 @@ class EditConfiguration extends Page
     public array $xmlFields = [];
 
     public array $xmlValues = [];
+
+    public array $eventGroups = [];
+
+    public array $newEventChildTypes = [];
 
     public bool $showAddForm = false;
 
@@ -798,6 +803,106 @@ class EditConfiguration extends Page
         Notification::make()->success()->title("Konfigurace uložena v revizi #{$revision->revision_number}")->send();
     }
 
+    public function saveEventGroups(
+        XmlConfigurationEditor $xmlEditor,
+        ConfigurationRevisionEditor $revisionEditor,
+        PlatformCompatibility $compatibility,
+    ): void {
+        foreach ($this->eventGroups as $groupIndex => $group) {
+            $name = trim((string) ($this->xmlValues[$group['name_path']] ?? ''));
+            if ($name === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $name)) {
+                throw ValidationException::withMessages([
+                    'xmlValues' => 'Název skupiny #'.($groupIndex + 1).' smí obsahovat písmena, čísla, tečku, pomlčku a podtržítko.',
+                ]);
+            }
+
+            foreach ($group['children'] as $childIndex => $child) {
+                $prefix = 'Skupina '.$name.', objekt #'.($childIndex + 1);
+                $type = trim((string) ($this->xmlValues[$child['type']['path']] ?? ''));
+                if ($type === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $type)) {
+                    throw ValidationException::withMessages(['xmlValues' => "{$prefix}: neplatný nebo prázdný název třídy."]);
+                }
+
+                foreach (['x', 'z', 'y'] as $axis) {
+                    $value = $this->xmlValues[$child[$axis]['path']] ?? null;
+                    if (! is_numeric($value) || (float) $value < -10000 || (float) $value > 10000) {
+                        throw ValidationException::withMessages(['xmlValues' => "{$prefix}: {$axis} musí být relativní souřadnice od -10 000 do 10 000."]);
+                    }
+                }
+
+                $angle = $this->xmlValues[$child['a']['path']] ?? null;
+                if (! is_numeric($angle) || (float) $angle < 0 || (float) $angle > 360) {
+                    throw ValidationException::withMessages(['xmlValues' => "{$prefix}: natočení musí být 0–360°."]);
+                }
+
+                $deloot = $this->xmlValues[$child['deloot']['path']] ?? null;
+                if (! in_array((string) $deloot, ['0', '1'], true)) {
+                    throw ValidationException::withMessages(['xmlValues' => "{$prefix}: DE loot musí být 0 nebo 1."]);
+                }
+
+                $lootMin = $this->xmlValues[$child['lootmin']['path']] ?? null;
+                $lootMax = $this->xmlValues[$child['lootmax']['path']] ?? null;
+                if (! ctype_digit((string) $lootMin) || ! ctype_digit((string) $lootMax)
+                    || (int) $lootMin > 1000 || (int) $lootMax > 1000 || (int) $lootMin > (int) $lootMax) {
+                    throw ValidationException::withMessages([
+                        'xmlValues' => "{$prefix}: lootmin a lootmax musí být celá čísla 0–1000 a minimum nesmí převýšit maximum.",
+                    ]);
+                }
+            }
+        }
+
+        $this->saveXml($xmlEditor, $revisionEditor, $compatibility);
+    }
+
+    public function addEventGroupChild(
+        int $groupIndex,
+        XmlConfigurationEditor $xmlEditor,
+        EventGroupsXmlEditor $eventGroupsEditor,
+        ConfigurationRevisionEditor $revisionEditor,
+        PlatformCompatibility $compatibility,
+    ): void {
+        $type = trim((string) ($this->newEventChildTypes[$groupIndex] ?? ''));
+        if ($type === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $type)) {
+            throw ValidationException::withMessages([
+                'newEventChildTypes.'.$groupIndex => 'Zadejte platný DayZ classname nového objektu.',
+            ]);
+        }
+        $content = $xmlEditor->update($this->rawContent, $this->xmlValues);
+        $content = $eventGroupsEditor->addChild($content, $groupIndex, $type);
+        $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
+        $revision = $revisionEditor->save(
+            $this->getRecord(),
+            $this->sourceRevision(),
+            $content,
+            'Přidán objekt '.$type.' do skupiny '.($groupIndex + 1),
+            auth()->user(),
+        );
+        $this->loadRevision($revision);
+        Notification::make()->success()->title("Objekt přidán v revizi #{$revision->revision_number}")->send();
+    }
+
+    public function removeEventGroupChild(
+        int $groupIndex,
+        int $childIndex,
+        XmlConfigurationEditor $xmlEditor,
+        EventGroupsXmlEditor $eventGroupsEditor,
+        ConfigurationRevisionEditor $revisionEditor,
+        PlatformCompatibility $compatibility,
+    ): void {
+        $content = $xmlEditor->update($this->rawContent, $this->xmlValues);
+        $content = $eventGroupsEditor->removeChild($content, $groupIndex, $childIndex);
+        $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
+        $revision = $revisionEditor->save(
+            $this->getRecord(),
+            $this->sourceRevision(),
+            $content,
+            'Odebrán objekt #'.($childIndex + 1).' ze skupiny '.($groupIndex + 1),
+            auth()->user(),
+        );
+        $this->loadRevision($revision);
+        Notification::make()->success()->title("Objekt odebrán v revizi #{$revision->revision_number}")->send();
+    }
+
     private function loadLatestRevision(): void
     {
         $revision = $this->getRecord()->revisions()
@@ -822,6 +927,7 @@ class EditConfiguration extends Page
         $weatherEditor = app(WeatherXmlEditor::class);
         $jsonEditor = app(JsonConfigurationEditor::class);
         $xmlEditor = app(XmlConfigurationEditor::class);
+        $eventGroupsEditor = app(EventGroupsXmlEditor::class);
         $this->visualKind = match (true) {
             strtolower(basename($filename)) === 'serverdz.cfg' => 'server',
             strtolower(basename($filename)) === 'whitelist.txt' => 'whitelist',
@@ -831,6 +937,7 @@ class EditConfiguration extends Page
             $typesEditor->supports($filename, $this->rawContent) => 'types',
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
             $jsonEditor->supports($this->rawContent) => 'json',
+            $eventGroupsEditor->supports($filename, $this->rawContent) => 'event-groups',
             $xmlEditor->supports($this->rawContent) => 'xml',
             default => null,
         };
@@ -852,8 +959,12 @@ class EditConfiguration extends Page
         foreach ($this->jsonFields as $field) {
             data_set($this->jsonValues, $field['path'], $field['value']);
         }
-        $this->xmlFields = $this->visualKind === 'xml' ? $xmlEditor->fields($this->rawContent) : [];
+        $this->xmlFields = in_array($this->visualKind, ['xml', 'event-groups'], true) ? $xmlEditor->fields($this->rawContent) : [];
         $this->xmlValues = collect($this->xmlFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
+        $this->eventGroups = $this->visualKind === 'event-groups'
+            ? $eventGroupsEditor->groups($this->rawContent)
+            : [];
+        $this->newEventChildTypes = [];
         $this->messagesEntries = $this->visualKind === 'messages' ? $this->parseMessages($this->rawContent) : [];
         $this->mode = $this->visualSupported ? 'visual' : 'raw';
 

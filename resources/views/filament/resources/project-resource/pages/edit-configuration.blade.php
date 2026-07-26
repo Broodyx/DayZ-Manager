@@ -636,6 +636,90 @@
                 </div>
                 <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny messages.xml"><button type="button" wire:click="saveMessages" wire:loading.attr="disabled" class="dz-action">Validovat a uložit messages.xml</button></div>
             </section>
+        @elseif ($visualKind === 'event-groups')
+            <section class="dz-panel dz-event-groups-editor">
+                <div class="dz-panel-head">
+                    <strong>Skupinové eventy · cfgeventgroups.xml</strong>
+                    <p class="dz-muted text-sm mt-1">Soubor určuje, <b>z jakých objektů se skládá jeden vlak, konvoj nebo jiný složený event</b>. Jeho světovou pozici neurčuje tento soubor, ale odpovídající bod v <code>cfgeventspawns.xml</code>.</p>
+                </div>
+                <div class="dz-event-groups-intro">
+                    <article><b>GROUP</b><span>Pojmenovaná šablona celé sestavy. Stejné jméno používá event/spawn, který ji vyvolá.</span></article>
+                    <article><b>CHILD</b><span>Jeden objekt sestavy — lokomotiva, vagón, vozidlo nebo dekorace.</span></article>
+                    <article><b>X / Z / Y</b><span>Relativní posun objektu vůči kotvě skupiny, nikoli světové souřadnice mapy. Hodnoty jsou v metrech.</span></article>
+                    <article><b>A</b><span>Relativní natočení objektu ve stupních 0–360.</span></article>
+                    <article><b>LOOTMIN / LOOTMAX</b><span>Minimální a maximální počet loot pozic, které CE v tomto objektu použije. Minimum nesmí být vyšší než maximum.</span></article>
+                    <article><b>DELOOT</b><span><code>1</code> = objekt může používat Dynamic Event Loot, <code>0</code> = běžný režim bez DE loot flagu.</span></article>
+                </div>
+                <div class="dz-event-groups-list">
+                    @forelse ($eventGroups as $groupIndex => $group)
+                        <details class="dz-event-group" @if ($loop->first) open @endif>
+                            <summary>
+                                <span>
+                                    <small>SKUPINA {{ $groupIndex + 1 }}</small>
+                                    <strong>{{ $xmlValues[$group['name_path']] ?? $group['name'] }}</strong>
+                                </span>
+                                <span class="dz-badge dz-server-badge">{{ count($group['children']) }} objektů</span>
+                            </summary>
+                            <div class="dz-event-group-body">
+                                <label class="dz-event-group-name">
+                                    <span><strong>Název skupiny</strong><small>Identifikátor používaný eventem. Změňte jej pouze tehdy, když upravíte i všechny odkazy v souvisejících souborech.</small></span>
+                                    <input type="text" wire:model.blur="xmlValues.{{ $group['name_path'] }}">
+                                    <code>Raw: &lt;group name="…"&gt;</code>
+                                </label>
+                                <div class="dz-event-add-child">
+                                    <span><strong>Přidat objekt do této skupiny</strong><small>Zadejte přesný DayZ classname. Nový objekt se vloží s nulovým posunem, natočením a loot limity; potom jej můžete upravit níže.</small></span>
+                                    <input type="text" wire:model="newEventChildTypes.{{ $groupIndex }}" placeholder="Např. Land_Train_Wagon_Box_DE">
+                                    <button type="button" wire:click="addEventGroupChild({{ $groupIndex }})" wire:loading.attr="disabled">+ Přidat a vytvořit revizi</button>
+                                    @error('newEventChildTypes.'.$groupIndex) <small class="dz-error">{{ $message }}</small> @enderror
+                                </div>
+                                <div class="dz-event-children">
+                                    @foreach ($group['children'] as $childIndex => $child)
+                                        <article class="dz-event-child">
+                                            <header>
+                                                <span><small>OBJEKT {{ $childIndex + 1 }}</small><strong>{{ $xmlValues[$child['type']['path']] ?? $child['type']['value'] }}</strong></span>
+                                                <span class="dz-event-child-actions"><code>&lt;child … /&gt;</code><button type="button" wire:click="removeEventGroupChild({{ $groupIndex }}, {{ $childIndex }})" wire:confirm="Opravdu odebrat tento objekt ze skupiny? Vytvoří se nová revize.">Odebrat</button></span>
+                                            </header>
+                                            <label class="wide">
+                                                <span><strong>Třída objektu</strong><small>Přesný DayZ classname objektu. Neexistující třída způsobí, že se daná část eventu nevytvoří.</small></span>
+                                                <input type="text" wire:model.blur="xmlValues.{{ $child['type']['path'] }}">
+                                            </label>
+                                            <div class="dz-event-position-grid">
+                                                @foreach ([['x','X (m)','Posun v ose X od kotvy skupiny.'],['z','Z (m)','Posun v ose Z od kotvy skupiny.'],['y','Y (m)','Výškový posun od kotvy skupiny.'],['a','Natočení A (°)','Relativní natočení 0–360 stupňů.']] as [$key, $label, $help])
+                                                    <label>
+                                                        <span><strong>{{ $label }}</strong><small>{{ $help }}</small></span>
+                                                        <input type="number" step="0.001" @if ($key === 'a') min="0" max="360" @else min="-10000" max="10000" @endif wire:model.blur="xmlValues.{{ $child[$key]['path'] }}">
+                                                    </label>
+                                                @endforeach
+                                            </div>
+                                            <div class="dz-event-loot-grid">
+                                                <label>
+                                                    <span><strong>Loot minimum</strong><small>Nejnižší počet aktivních loot pozic tohoto objektu, 0–1000.</small></span>
+                                                    <input type="number" min="0" max="1000" step="1" wire:model.blur="xmlValues.{{ $child['lootmin']['path'] }}">
+                                                </label>
+                                                <label>
+                                                    <span><strong>Loot maximum</strong><small>Nejvyšší počet aktivních loot pozic; musí být alespoň jako minimum.</small></span>
+                                                    <input type="number" min="0" max="1000" step="1" wire:model.blur="xmlValues.{{ $child['lootmax']['path'] }}">
+                                                </label>
+                                                <label>
+                                                    <span><strong>Dynamic Event Loot</strong><small>Zapněte jen pro objekty, které mají používat DE loot ekonomiku.</small></span>
+                                                    <select wire:model="xmlValues.{{ $child['deloot']['path'] }}">
+                                                        <option value="0">Vypnuto · deloot="0"</option>
+                                                        <option value="1">Zapnuto · deloot="1"</option>
+                                                    </select>
+                                                </label>
+                                            </div>
+                                        </article>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </details>
+                    @empty
+                        <div class="dz-empty-state"><strong>V souboru nebyla nalezena žádná skupina.</strong><span>Ověřte, že jde o platný cfgeventgroups.xml s elementy &lt;group&gt; a &lt;child&gt;.</span></div>
+                    @endforelse
+                </div>
+                @error('xmlValues') <div class="dz-error">{{ $message }}</div> @enderror
+                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Např. upraveno pořadí a natočení vagónů"><button type="button" wire:click="saveEventGroups" wire:loading.attr="disabled" class="dz-action">Validovat a uložit novou revizi</button></div>
+            </section>
         @elseif ($visualKind === 'xml')
             <section class="dz-panel dz-server-settings">
                 <div class="dz-panel-head"><strong>{{ $currentFilename }} · vizuální editor</strong><p class="dz-muted text-sm mt-1">Parametry XML jsou rozdělené podle sekcí a u každého pole je uveden raw XPath zápis.</p></div>

@@ -241,6 +241,43 @@ class ConfigurationImporterTest extends TestCase
             ->assertSet('rawContent', $xml);
     }
 
+    public function test_event_groups_xml_has_a_structured_editor_and_saves_relative_object_settings(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Event groups test',
+            'platform' => 'playstation',
+            'map' => 'chernarusplus',
+        ]);
+        $xml = '<?xml version="1.0"?><eventgroupdef><group name="Train_Test"><child type="StaticObj_Wreck_Train_742_Red_DE" deloot="0" lootmax="3" lootmin="1" x="0" z="0" a="78.123" y="1.9"/></group></eventgroupdef>';
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('cfgeventgroups.xml', $xml),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->assertSet('visualKind', 'event-groups')
+            ->assertSet('eventGroups.0.name', 'Train_Test')
+            ->assertSee('Skupinové eventy')
+            ->assertSee('Relativní posun objektu')
+            ->set('xmlValues./eventgroupdef[1]/group[1]/child[1]@lootmax', 4)
+            ->call('saveEventGroups')
+            ->assertHasNoErrors()
+            ->set('newEventChildTypes.0', 'Land_Train_Wagon_Box_DE')
+            ->call('addEventGroupChild', 0)
+            ->assertHasNoErrors();
+
+        $latest = $project->revisions()->latest('revision_number')->firstOrFail();
+        $this->assertSame(3, $latest->revision_number);
+        $saved = Storage::disk('dayz')->get($latest->storage_path);
+        $this->assertStringContainsString('lootmax="4"', $saved);
+        $this->assertStringContainsString('type="Land_Train_Wagon_Box_DE"', $saved);
+    }
+
     public function test_editor_save_creates_a_new_revision_without_overwriting_the_source(): void
     {
         Storage::fake('dayz');
