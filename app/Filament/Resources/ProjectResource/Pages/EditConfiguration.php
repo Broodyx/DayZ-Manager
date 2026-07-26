@@ -14,6 +14,7 @@ use App\Services\Revision\ServerConfigEditor;
 use App\Services\Revision\TypesXmlEditor;
 use App\Services\Revision\WeatherXmlEditor;
 use App\Services\Revision\XmlConfigurationEditor;
+use App\Services\Dayz\ConfigurationFieldMetadata;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -174,41 +175,17 @@ class EditConfiguration extends Page
 
     public function xmlFieldDescription(array $field): string
     {
-        $path = strtolower((string) ($field['path'] ?? ''));
-        $name = strtolower((string) ($field['label'] ?? ''));
-        $descriptions = [
-            'min dist infected' => 'Minimální vzdálenost od infikovaných v metrech; bližší bod je neplatný.',
-            'max dist infected' => 'Vzdálenost od infikovaných v metrech, nad kterou už bod nezískává lepší hodnocení.',
-            'min dist player' => 'Minimální vzdálenost od jiného hráče v metrech.',
-            'max dist player' => 'Horní vzdálenost od hráčů používaná při hodnocení spawn bodu.',
-            'min dist static' => 'Minimální vzdálenost od budovy nebo statického objektu v metrech.',
-            'max dist static' => 'Horní vzdálenost od statických objektů používaná při hodnocení bodu.',
-            'grid density' => 'Hustota vzorkovací mřížky generátoru spawnů; kladné celé číslo.',
-            'grid width' => 'Celková šířka generované spawn oblasti v metrech.',
-            'grid height' => 'Celková výška generované spawn oblasti v metrech.',
-            'min steepness' => 'Minimální povolený sklon terénu ve stupních; obvykle -45.',
-            'max steepness' => 'Maximální povolený sklon terénu ve stupních; obvykle 45.',
-            'enablegroups' => 'true = používat skupiny spawnů, false = číst body jako běžný seznam.',
-            'groups as regular' => 'true = body skupin lze použít jako běžné body, pokud jsou skupiny vypnuté.',
-            'lifetime' => 'Životnost entity nebo skupiny; jednotka závisí na souboru, u spawn skupin jde o časovač skupiny.',
-            'counter' => 'Počet spawnů obnovujících životnost skupiny; -1 = omezení vypnuto.',
-            'backup period' => 'Interval vytváření persistence záloh v minutách; oficiální minimum 15.',
-            'backup count' => 'Počet uchovávaných persistence záloh; kladné celé číslo.',
-            'backup startup' => 'true = vytvořit zálohu po startu a dokončení inicializace CE.',
-            'world segments' => 'Počet segmentů světa pro ukládání CE; výchozí hodnota Chernarus je 12.',
-            'dyn radius' => 'Výchozí poloměr dynamické infected zóny v metrech.',
-            'report memory lod' => 'yes/no: zapíná hlášení chybějícího Memory LOD pro root class.',
-            'act' => 'Role root class v CE: none/neuvedeno = loot, character = postava, car = vozidlo.',
-        ];
-        foreach ($descriptions as $needle => $description) {
-            if (str_contains($name, $needle) || str_contains($path, str_replace(' ', '_', $needle))) return $description;
-        }
-        if (str_ends_with($path, '@x') || str_ends_with($path, '/x[1]/text()')) return 'Souřadnice X v herním světě; pro Chernarus obvykle 0–15360.';
-        if (str_ends_with($path, '@z') || str_ends_with($path, '/z[1]/text()')) return 'Souřadnice Z v herním světě; pro Chernarus obvykle 0–15360.';
-        if (str_ends_with($path, '@a')) return 'Orientace objektu/eventu ve stupních 0–360.';
-        return ($field['type'] ?? '') === 'number'
-            ? 'Číselná hodnota. Před uložením se ověří syntaxe XML; bezpečný rozsah závisí na konkrétním DayZ souboru.'
-            : 'Textová hodnota používaná příslušnou částí DayZ konfigurace.';
+        return app(ConfigurationFieldMetadata::class)->xml($this->currentFilename, $field);
+    }
+
+    public function serverFieldDescription(string $key): string
+    {
+        return app(ConfigurationFieldMetadata::class)->server($key);
+    }
+
+    public function jsonFieldDescription(array $field): string
+    {
+        return app(ConfigurationFieldMetadata::class)->json($field);
     }
 
     public function descriptionForFilename(string $filename): string

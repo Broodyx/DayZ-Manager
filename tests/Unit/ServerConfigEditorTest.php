@@ -26,4 +26,24 @@ class ServerConfigEditorTest extends TestCase
         $this->expectException(\RuntimeException::class);
         app(ServerConfigEditor::class)->validate(['serverTimeAcceleration' => 100]);
     }
+
+    public function test_it_distinguishes_boolean_and_numeric_switches(): void
+    {
+        $editor = app(ServerConfigEditor::class);
+        $editor->validate([
+            'storeHouseStateDisabled' => 'false',
+            'enableWhitelist' => '1',
+            'verifySignatures' => '2',
+            'guaranteedUpdates' => '1',
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $editor->validate(['storeHouseStateDisabled' => '0']);
+    }
+
+    public function test_it_rejects_unsupported_signature_modes(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        app(ServerConfigEditor::class)->validate(['verifySignatures' => '1']);
+    }
 }

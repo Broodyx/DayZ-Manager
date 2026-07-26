@@ -59,17 +59,28 @@ final class ServerConfigEditor
         }
         foreach (['enableWhitelist', 'forceSameBuild', 'disableVoN', 'disable3rdPerson', 'disableCrosshair',
             'disablePersonalLight', 'serverTimePersistent', 'storageAutoFix', 'disableBaseDamage',
-            'disableContainerDamage', 'disableRespawnDialog', 'enableCfgGameplayFile', 'shotValidation'] as $key) {
-            if (isset($values[$key]) && ! in_array((string) $values[$key], ['0', '1', 'true', 'false'], true)) {
-                throw new RuntimeException($key.' musí být 0/1 nebo true/false.');
+            'disableContainerDamage', 'disableRespawnDialog', 'disableRespawnInUnconsciousness',
+            'enableCfgGameplayFile', 'shotValidation', 'adminLogPlayerHitsOnly', 'adminLogPlacement',
+            'adminLogBuildActions', 'adminLogPlayerList', 'enableDebugMonitor', 'allowFilePatching',
+            'multithreadedReplication'] as $key) {
+            if (isset($values[$key]) && ! in_array((string) $values[$key], ['0', '1'], true)) {
+                throw new RuntimeException($key.' musí být 0 nebo 1.');
             }
         }
 
-        // DayZ uses three signature-verification modes: 0 (off), 1 (verify
-        // signatures) and 2 (strict/required signatures). Some server
-        // templates also expose the boolean spellings, so accept both forms.
-        if (isset($values['verifySignatures']) && ! in_array((string) $values['verifySignatures'], ['0', '1', '2', 'true', 'false'], true)) {
-            throw new RuntimeException('verifySignatures musí být 0, 1, 2 nebo true/false.');
+        foreach (['storeHouseStateDisabled', 'disableBanlist', 'disablePrioritylist', 'disableMultiAccountMitigation'] as $key) {
+            if (isset($values[$key]) && ! in_array(strtolower((string) $values[$key]), ['true', 'false'], true)) {
+                throw new RuntimeException($key.' musí být true nebo false.');
+            }
+        }
+        if (isset($values['verifySignatures']) && (string) $values['verifySignatures'] !== '2') {
+            throw new RuntimeException('verifySignatures podporuje pouze hodnotu 2.');
+        }
+        if (isset($values['guaranteedUpdates']) && (string) $values['guaranteedUpdates'] !== '1') {
+            throw new RuntimeException('guaranteedUpdates podporuje pouze hodnotu 1.');
+        }
+        if (isset($values['lightingConfig']) && ! in_array((string) $values['lightingConfig'], ['0', '1', '2'], true)) {
+            throw new RuntimeException('lightingConfig musí být 0, 1 nebo 2.');
         }
         foreach (['serverTimeAcceleration', 'serverNightTimeAcceleration'] as $key) {
             if (isset($values[$key]) && (! is_numeric($values[$key]) || (float) $values[$key] < 0.1 || (float) $values[$key] > 64)) {
@@ -83,6 +94,16 @@ final class ServerConfigEditor
         }
         if (isset($values['vonCodecQuality']) && ((int) $values['vonCodecQuality'] < 0 || (int) $values['vonCodecQuality'] > 20)) {
             throw new RuntimeException('vonCodecQuality musí být v rozsahu 0–20.');
+        }
+        if (isset($values['serverFpsWarning']) && (! is_numeric($values['serverFpsWarning']) || (int) $values['serverFpsWarning'] < 11)) {
+            throw new RuntimeException('serverFpsWarning musí být alespoň 11.');
+        }
+        foreach (['respawnTime', 'motdInterval', 'loginQueueConcurrentPlayers', 'loginQueueMaxPlayers',
+            'instanceId', 'simulatedPlayersBatch', 'defaultVisibility', 'defaultObjectViewDistance',
+            'pingWarning', 'pingCritical', 'MaxPing', 'networkObjectBatchSend', 'networkObjectBatchCompute'] as $key) {
+            if (isset($values[$key]) && (! is_numeric($values[$key]) || (float) $values[$key] < 0)) {
+                throw new RuntimeException($key.' musí být nezáporné číslo.');
+            }
         }
     }
 }

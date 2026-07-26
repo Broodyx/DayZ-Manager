@@ -291,13 +291,13 @@
                         </div>
                         <div class="dz-fields">
                             @foreach ([
-                                'nominal' => ['Cílové množství', 1000, 'Počet kusů, který ekonomika udržuje; rozsah 0–1000. 0 = předmět se nespawnuje.'],
-                                'min' => ['Minimální množství', 1000, 'Hranice doplnění; rozsah 0–1000. Pod touto hodnotou začne ekonomika doplňovat.'],
-                                'lifetime' => ['Životnost (sekundy)', 3888000, 'Jak dlouho předmět zůstane ve světě; rozsah 0–3 888 000 s.'],
-                                'restock' => ['Doba doplnění (sekundy)', 86400, 'Prodleva mezi doplněními; rozsah 0–86 400 s.'],
+                                'nominal' => ['Cílové množství', 1000, 'Počet kusů, který ekonomika udržuje. Editor povoluje 0–1000; 0 = CE předmět běžně nedoplňuje. DayZ pevné maximum nepublikuje.'],
+                                'min' => ['Minimální množství', 1000, 'Hranice doplnění. Editor povoluje 0–1000; hodnota má být nejvýše nominal. DayZ pevné maximum nepublikuje.'],
+                                'lifetime' => ['Životnost (sekundy)', 3888000, 'Jak dlouho předmět zůstane ve světě. Editor povoluje 0–3 888 000 s; DayZ pevné maximum nepublikuje.'],
+                                'restock' => ['Doba doplnění (sekundy)', 86400, 'Prodleva mezi doplněními. Editor povoluje 0–86 400 s; DayZ pevné maximum nepublikuje.'],
                                 'quantmin' => ['Minimální naplnění (%)', 100, 'Rozsah −1 až 100 %. −1 = výchozí chování hry.'],
                                 'quantmax' => ['Maximální naplnění (%)', 100, 'Rozsah −1 až 100 %. −1 = výchozí chování hry.'],
-                                'cost' => ['Priorita ekonomiky', 1000, 'Relativní váha v ekonomice; rozsah 0–1000, vyšší = přednostní loot.'],
+                                'cost' => ['Priorita ekonomiky', 1000, 'Relativní váha v ekonomice. Editor povoluje 0–1000; DayZ pevné maximum nepublikuje.'],
                             ] as $field => [$label, $max, $help])
                                 <label class="dz-field" title="Raw: &lt;{{ $field }}&gt;{{ $typeForm[$field] ?? '' }}&lt;/{{ $field }}&gt;">
                                     <span class="dz-field-top">
@@ -324,95 +324,15 @@
                 </section>
             </div>
             @elseif ($visualKind === 'server')
-                @php
-                $cfgDescriptions = [
-                    'hostname'=>'Název serveru v seznamu; libovolný text (doporučeno 3–64 znaků).',
-                    'maxPlayers'=>'Maximální počet hráčů; celé číslo 1–128.',
-                    'password'=>'Heslo pro připojení; prázdné = server bez hesla.',
-                    'passwordAdmin'=>'Heslo pro administrátorské příkazy; libovolný neprázdný text.',
-                    'enableWhitelist'=>'Whitelist: 0 = vypnuto, 1 = zapnuto. Při 1 se kontroluje whitelist.txt.',
-                    'verifySignatures'=>'Podpisy modů: 0 = vypnuto, 1 = ověřovat, 2 = vyžadovat platné podpisy.',
-                    'forceSameBuild'=>'Stejná verze hry: 0 = dovolí jiné buildy, 1 = vyžaduje shodný build.',
-                    'disableVoN'=>'Hlasová komunikace: 0 = povolena, 1 = zakázána.',
-                    'vonCodecQuality'=>'Kvalita hlasu; celé číslo 0–30, vyšší = kvalitnější a náročnější zvuk.',
-                    'disable3rdPerson'=>'Pohled třetí osoby: 0 = povolen, 1 = zakázán.',
-                    'disableCrosshair'=>'Zaměřovací kříž: 0 = povolen, 1 = zakázán.',
-                    'disablePersonalLight'=>'Osobní světlo: 0 = povoleno, 1 = zakázáno.',
-                    'lightingConfig'=>'Profil osvětlení: 0 = standardní, 1 = alternativní profil (hodnoty závisí na mapě).',
-                    'serverTime'=>'Počáteční čas; HH:MM nebo SystemTime (čas stroje).',
-                    'serverTimeAcceleration'=>'Zrychlení dne; kladné celé číslo, 1 = reálný čas, 12 = den 12× rychleji.',
-                    'serverNightTimeAcceleration'=>'Zrychlení noci; kladné číslo, násobí denní akceleraci.',
-                    'serverTimePersistent'=>'Uložení času: 0 = po restartu použije serverTime, 1 = načte čas z persistence.',
-                    'guaranteedUpdates'=>'Garantované síťové aktualizace: 0 = vypnuto, 1 = zapnuto.',
-                    'loginQueueConcurrentPlayers'=>'Současná zpracování fronty; celé číslo 1–20.',
-                    'loginQueueMaxPlayers'=>'Maximální počet čekajících; celé číslo 1–500.',
-                    'instanceId'=>'ID persistence instance; celé číslo 0–9999, odděluje uložené světy.',
-                    'storeHouseStateDisabled'=>'Ukládání domů: 0 = ukládat, 1 = vypnout ukládání.',
-                    'storageAutoFix'=>'Oprava persistence: 0 = vypnuto, 1 = automaticky opravit poškozený soubor.',
-                    'template'=>'Mission template mapy, např. dayzOffline.chernarusplus.',
-                    'steamport'=>'UDP port serveru; 1024–65535, musí být volný.',
-                    'steamqueryport'=>'Steam query port; 1024–65535, obvykle jiný než steamport.',
-                    'adminLogPlayerHitsOnly'=>'Admin log zásahů: 0 = všechny zásahy, 1 = pouze zásahy hráčů.',
-                    'adminLogPlacement'=>'Logování umisťování: 0 = vypnuto, 1 = zapnuto.',
-                    'adminLogBuildActions'=>'Logování stavění: 0 = vypnuto, 1 = zapnuto.',
-                    'adminLogPlayerList'=>'Logování seznamu hráčů: 0 = vypnuto, 1 = zapnuto.',
-                    'disableBaseDamage'=>'Poškození základen: 0 = povoleno, 1 = zakázáno.',
-                    'disableContainerDamage'=>'Poškození kontejnerů: 0 = povoleno, 1 = zakázáno.',
-                    'disableRespawnDialog'=>'Dialog respawnu: 0 = zobrazit, 1 = skrýt.',
-                    'disableRespawnInUnconsciousness'=>'Respawn v bezvědomí: 0 = povolen, 1 = zakázán.',
-                    'enableCfgGameplayFile'=>'Načtení cfggameplay.json: 0 = vypnuto, 1 = zapnuto.',
-                    'networkObjectBatchSend'=>'Objekty v síťové dávce; celé číslo 1–1000.',
-                    'networkObjectBatchCompute'=>'Objekty zpracované v dávce; celé číslo 1–1000.',
-                    'description'=>'Popis serveru v prohlížeči; libovolný text (doporučeno do 255 znaků).',
-                    'disableBanlist'=>'Banlist: false/0 = ban.txt se používá, true/1 = kontrola ban.txt je vypnutá.',
-                    'disablePrioritylist'=>'Prioritní fronta: false/0 = priority.txt se používá, true/1 = je vypnutý.',
-                    'respawnTime'=>'Čekání před vytvořením nové postavy po smrti, v sekundách; minimum 0.',
-                    'motd'=>'Zpráva dne. Pro více řádků se v CFG používá pole motd[].',
-                    'motdInterval'=>'Interval mezi řádky MOTD v sekundách; minimum 1.',
-                    'timeStampFormat'=>'Formát času v RPT logu: Short nebo Full.',
-                    'logAverageFps'=>'Interval zápisu průměrného FPS do logu v sekundách; vyžaduje -doLogs.',
-                    'logMemory'=>'Interval zápisu využití paměti do logu v sekundách; vyžaduje -doLogs.',
-                    'logPlayers'=>'Interval zápisu počtu hráčů do logu v sekundách; vyžaduje -doLogs.',
-                    'logFile'=>'Název souboru konzolového logu v profiles složce.',
-                    'disableMultiAccountMitigation'=>'Console multi-account ochrana: false = aktivní, true = vypnutá.',
-                    'enableDebugMonitor'=>'Debug monitor: 0 = skrytý, 1 = zobrazený.',
-                    'allowFilePatching'=>'File patching klientů: 0 = zakázán, 1 = povolen; používat pouze pro vývoj PC serveru.',
-                    'simulatedPlayersBatch'=>'Počet simulovaných hráčů zpracovaných za snímek; kladné celé číslo.',
-                    'multithreadedReplication'=>'Vícevláknová replikace: 0 = vypnuta, 1 = zapnuta; souvisí s dayzsettings.xml.',
-                    'defaultVisibility'=>'Maximální dohled terénu v metrech; kladné číslo.',
-                    'defaultObjectViewDistance'=>'Maximální dohled objektů v metrech; kladné číslo.',
-                    'pingWarning'=>'Žluté upozornění na ping v milisekundách.',
-                    'pingCritical'=>'Červené upozornění na ping v milisekundách; má být vyšší než pingWarning.',
-                    'MaxPing'=>'Ping v milisekundách, po jehož překročení je hráč odpojen.',
-                    'serverFpsWarning'=>'Upozornění při poklesu server FPS; oficiální minimum je 11.',
-                    'shotValidation'=>'Validace střelby: 0 = vypnuta, 1 = zapnuta.',
-                    'clientPort'=>'UDP port pro klientská připojení; rozsah 1024–65535.',
-                ];
-                @endphp
                 <section class="dz-editor-card"><h3>Serverová nastavení · serverDZ.cfg</h3><p class="dz-muted">Upravujte hodnoty serveru bez ručního psaní CFG syntaxe. Hesla jsou skrytá; prázdné pole zachová původní hodnotu.</p><div class="dz-fields-grid">
                     @foreach ($serverConfig as $key => $value)
                         @php
                             $secret = in_array(strtolower($key), ['password', 'passwordadmin'], true);
                         @endphp
-                        <label class="dz-field"><span>{{ $key }}</span><span class="dz-secret-control"><input id="cfg-{{ $key }}" type="{{ $secret ? 'password' : 'text' }}" autocomplete="{{ $secret ? 'new-password' : 'off' }}" placeholder="{{ $secret ? 'Ponechte prázdné pro zachování' : '' }}" wire:model.defer="serverConfig.{{ $key }}">@if($secret)<button type="button" class="dz-reveal" onclick="const i=document.getElementById('cfg-{{ $key }}'); i.type=i.type==='password'?'text':'password'; this.textContent=i.type==='password'?'Zobrazit':'Skrýt';">Zobrazit</button>@endif</span><small>{{ $cfgDescriptions[$key] ?? 'Popis této volby není v aktuální dokumentaci DayZ dostupný; podrobnosti ověřte v komentáři raw konfigurace.' }}</small><small>Raw: {{ $key }} = {{ $secret ? '•••••••• (skryto)' : $value }};</small></label>
+                        <label class="dz-field"><span>{{ $key }}</span><span class="dz-secret-control"><input id="cfg-{{ $key }}" type="{{ $secret ? 'password' : 'text' }}" autocomplete="{{ $secret ? 'new-password' : 'off' }}" placeholder="{{ $secret ? 'Ponechte prázdné pro zachování' : '' }}" wire:model.defer="serverConfig.{{ $key }}">@if($secret)<button type="button" class="dz-reveal" onclick="const i=document.getElementById('cfg-{{ $key }}'); i.type=i.type==='password'?'text':'password'; this.textContent=i.type==='password'?'Zobrazit':'Skrýt';">Zobrazit</button>@endif</span><small>{{ $this->serverFieldDescription($key) }}</small><small>Raw: {{ $key }} = {{ $secret ? '•••••••• (skryto)' : $value }};</small></label>
                     @endforeach
                 </div><button type="button" wire:click="saveServerConfig" class="dz-save-button">Uložit serverDZ.cfg jako novou revizi</button></section>
             @elseif ($visualKind === 'whitelist')
-                @php
-                $cfgDescriptions = [
-                    'hostname' => 'Název serveru zobrazovaný v seznamu serverů.',
-                    'maxPlayers' => 'Maximální počet současně připojených hráčů.',
-                    'password' => 'Heslo pro připojení na server; prázdné znamená bez hesla.',
-                    'passwordAdmin' => 'Heslo pro administrátorské příkazy ve hře.',
-                    'enableWhitelist' => 'Zapíná nebo vypíná kontrolu whitelistu.',
-                    'verifySignatures' => 'Režim kontroly podpisů: 0 vypnuto, 1 ověřovat, 2 vyžadovat platné podpisy.',
-                    'forceSameBuild' => 'Vyžaduje stejnou verzi hry jako server.',
-                    'serverTime' => 'Výchozí čas serveru při startu.',
-                    'serverTimeAcceleration' => 'Zrychlení průběhu dne.',
-                    'serverNightTimeAcceleration' => 'Zrychlení průběhu noci.',
-                    'template' => 'Název mapového template/economy profilu.',
-                ];
-                @endphp
                 <section class="dz-editor-card"><h3>Whitelist hráčů · whitelist.txt</h3><p class="dz-muted">Jeden řádek = jedno UID hráče. Používejte přesné UID z platformy (Steam/Xbox/PlayStation), bez mezer a bez komentářů. Duplicitní, prázdné a neplatné hodnoty se nepřidají. Editor ověřuje délku 3–64 znaků; zapnutí vyžaduje <code>enableWhitelist = 1</code> v serverDZ.cfg.</p>
                     <div class="dz-whitelist-add"><input wire:model.defer="newWhitelistUid" placeholder="UID hráče" autocomplete="off"><button type="button" wire:click="addWhitelistEntry" class="dz-save-button">Přidat hráče</button></div>
                     <div class="dz-whitelist-list">@forelse($whitelistEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removeWhitelistEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Whitelist je zatím prázdný.</p>@endforelse</div>
@@ -465,12 +385,12 @@
                                 <div class="dz-fields">
                                     @foreach ([
                                         'current_actual' => ['Aktuální intenzita', $rangeMin, $rangeMax, $step, "Aktuální síla {$label}; rozsah {$rangeMin}–{$rangeMax}. 0 = vypnuto, maximum = {$rangeMax}."],
-                                        'current_time' => ['Čas přechodu (min)', 0, 1440, 1, 'Čas v minutách do další změny; rozsah 0–1 440 min (0–86 400 s v XML).'],
-                                        'current_duration' => ['Doba trvání (min)', 1, 1440, 1, 'Jak dlouho stav trvá; rozsah 1–1 440 min (60–86 400 s v XML).'],
+                                        'current_time' => ['Čas přechodu (min)', 0, 1440, 1, 'Čas do dosažení cílové hodnoty. Editor povoluje 0–1 440 min a do XML ukládá sekundy; DayZ pevné maximum nepublikuje.'],
+                                        'current_duration' => ['Doba trvání (min)', 0, 1440, 1, 'Jak dlouho cílový stav zůstane. Editor povoluje 0–1 440 min a do XML ukládá sekundy; DayZ pevné maximum nepublikuje.'],
                                         'limits_min' => ['Minimální intenzita', $rangeMin, $rangeMax, $step, "Nejnižší náhodná hodnota; rozsah {$rangeMin}–{$rangeMax}."],
                                         'limits_max' => ['Maximální intenzita', $rangeMin, $rangeMax, $step, "Nejvyšší náhodná hodnota; rozsah {$rangeMin}–{$rangeMax}."],
-                                        'timelimits_min' => ['Min. čas změny (min)', 0, 1440, 1, 'Nejkratší prodleva; rozsah 0–1 440 min, do XML se zapisují sekundy.'],
-                                        'timelimits_max' => ['Max. čas změny (min)', 1, 1440, 1, 'Nejdelší prodleva; rozsah 1–1 440 min, do XML se zapisují sekundy.'],
+                                        'timelimits_min' => ['Min. čas změny (min)', 0, 1440, 1, 'Nejkratší náhodná doba změny. Editor povoluje 0–1 440 min a do XML ukládá sekundy; musí být ≤ maximu.'],
+                                        'timelimits_max' => ['Max. čas změny (min)', 0, 1440, 1, 'Nejdelší náhodná doba změny. Editor povoluje 0–1 440 min a do XML ukládá sekundy; DayZ pevné maximum nepublikuje.'],
                                         'changelimits_min' => ['Minimální změna', $rangeMin, $rangeMax, $step, "Nejmenší náhodná změna; rozsah {$rangeMin}–{$rangeMax}."],
                                         'changelimits_max' => ['Maximální změna', $rangeMin, $rangeMax, $step, "Největší náhodná změna; rozsah {$rangeMin}–{$rangeMax}."],
                                     ] as $suffix => [$fieldLabel, $min, $max, $fieldStep, $help])
@@ -491,7 +411,7 @@
                                         @foreach ([
                                             'thresholds_min' => ['Min. oblačnost pro srážky', 0, 1, 0.01, 'Rozsah 0–1; pod touto oblačností se déšť nebo sníh nespustí.'],
                                             'thresholds_max' => ['Max. oblačnost pro srážky', 0, 1, 0.01, 'Rozsah 0–1; nad touto oblačností se srážky mohou objevit.'],
-                                            'thresholds_end' => ['Čas ukončení srážek (min)', 0, 1440, 1, 'Doznívání po poklesu podmínky; rozsah 0–1 440 min (sekundy v XML).'],
+                                            'thresholds_end' => ['Čas ukončení srážek (min)', 0, 1440, 1, 'Doba zastavení srážek po opuštění rozsahu oblačnosti. Editor povoluje 0–1 440 min a do XML ukládá sekundy.'],
                                         ] as $suffix => [$fieldLabel, $min, $max, $fieldStep, $help])
                                             @php
                                                 $weatherKey = $section . '_' . $suffix;
@@ -515,7 +435,7 @@
                                 @foreach ([
                                     'storm_density' => ['Hustota blesků', 0, 1, 0.01, 'Pravděpodobnost/hustota blesků; rozsah 0–1. 0 = žádné blesky.'],
                                     'storm_threshold' => ['Práh oblačnosti', 0, 1, 0.01, 'Minimální oblačnost pro bouřku; rozsah 0–1.'],
-                                    'storm_timeout' => ['Prodleva mezi blesky (min)', 1, 60, 1, 'Minimální čas mezi blesky; rozsah 1–60 min (60–3 600 s v XML).'],
+                                    'storm_timeout' => ['Prodleva mezi blesky (min)', 0, 60, 0.1, 'Čas mezi údery blesku. Editor povoluje 0–60 min a do XML ukládá sekundy; DayZ pevné maximum nepublikuje.'],
                                 ] as $weatherKey => [$fieldLabel, $min, $max, $fieldStep, $help])
                                     <label class="dz-field" data-tooltip="Raw: {{ $weatherKey }} = {{ $weatherForm[$weatherKey] ?? '' }}">
                                         <span class="dz-field-top">
@@ -598,7 +518,7 @@
                                 <div class="dz-fields">
                                     @foreach ($fields as $field)
                                         <label class="dz-field" data-tooltip="Raw JSON: {{ $field['path'] }}">
-                                            <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $jsonDescriptions[str($field['path'])->afterLast('.')->toString()] ?? ($field['path'].' · '.($field['type'] === 'boolean' ? 'true = zapnuto, false = vypnuto' : ($field['type'] === 'number' ? 'číselná hodnota; rozsah dle DayZ parametru' : 'textová hodnota'))) }}</small></span>
+                                            <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $this->jsonFieldDescription($field) }}</small></span>
                                                 @if ($field['type'] === 'boolean')
                                                     <label class="dz-switch-control" x-data="{ enabled: @js((bool) data_get($jsonValues, $field['path'], false)) }"><input type="checkbox" wire:model.live="jsonValues.{{ $field['path'] }}" x-model="enabled"><span class="dz-toggle-button" :class="enabled ? 'on' : 'off'" x-text="enabled ? 'Zapnuto' : 'Vypnuto'"></span></label>
                                                 @elseif ($field['type'] === 'number')
@@ -729,7 +649,13 @@
                             <div class="dz-fields">
                                 @foreach ($fields as $field)
                                     <label class="dz-field" data-tooltip="Raw XML: {{ $field['raw'] }}">
-                                        <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $this->xmlFieldDescription($field) }}</small><small class="dz-muted">Raw: {{ $field['raw'] }}</small></span><input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}" wire:model="xmlValues.{{ $field['path'] }}"></span>
+                                        <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $this->xmlFieldDescription($field) }}</small><small class="dz-muted">Raw: {{ $field['raw'] }}</small></span>
+                                            @if ($field['type'] === 'boolean')
+                                                <select wire:model="xmlValues.{{ $field['path'] }}"><option value="false">false · vypnuto</option><option value="true">true · zapnuto</option></select>
+                                            @else
+                                                <input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}" wire:model="xmlValues.{{ $field['path'] }}">
+                                            @endif
+                                        </span>
                                     </label>
                                 @endforeach
                             </div>

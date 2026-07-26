@@ -76,7 +76,7 @@ final readonly class XmlConfigurationEditor
     {
         $current = $path === '' ? '/'.$element->tagName.'[1]' : $path;
         foreach ($element->attributes as $attribute) {
-            $fields[] = ['path' => $current.'@'.$attribute->name, 'section' => $element->tagName, 'label' => str($attribute->name)->headline()->toString(), 'type' => is_numeric($attribute->value) ? 'number' : 'text', 'value' => is_numeric($attribute->value) ? (float) $attribute->value : $attribute->value, 'raw' => $current.'@'.$attribute->name];
+            $fields[] = ['path' => $current.'@'.$attribute->name, 'section' => $element->tagName, 'label' => str($attribute->name)->headline()->toString(), 'type' => $this->valueType($attribute->value), 'value' => is_numeric($attribute->value) ? (float) $attribute->value : $attribute->value, 'raw' => $current.'@'.$attribute->name];
         }
         $hasElementChild = false;
         foreach ($element->childNodes as $child) {
@@ -87,7 +87,7 @@ final readonly class XmlConfigurationEditor
         }
         if (! $hasElementChild && trim($element->textContent) !== '') {
             $value = trim($element->textContent);
-            $fields[] = ['path' => $current.'/text()', 'section' => $element->tagName, 'label' => str($element->tagName)->headline()->toString(), 'type' => is_numeric($value) ? 'number' : 'text', 'value' => is_numeric($value) ? (float) $value : $value, 'raw' => '<'.$element->tagName.'>'.$value.'</'.$element->tagName.'>'];
+            $fields[] = ['path' => $current.'/text()', 'section' => $element->tagName, 'label' => str($element->tagName)->headline()->toString(), 'type' => $this->valueType($value), 'value' => is_numeric($value) ? (float) $value : $value, 'raw' => '<'.$element->tagName.'>'.$value.'</'.$element->tagName.'>'];
         }
         $counts = [];
         foreach ($element->childNodes as $child) {
@@ -97,5 +97,14 @@ final readonly class XmlConfigurationEditor
             $counts[$child->tagName] = ($counts[$child->tagName] ?? 0) + 1;
             $this->walk($child, $current.'/'.$child->tagName.'['.$counts[$child->tagName].']', $fields);
         }
+    }
+
+    private function valueType(string $value): string
+    {
+        if (in_array(strtolower(trim($value)), ['true', 'false'], true)) {
+            return 'boolean';
+        }
+
+        return is_numeric($value) ? 'number' : 'text';
     }
 }
