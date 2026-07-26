@@ -26,8 +26,29 @@ Route::post('/admin/map-editor/points', function (Request $request, \App\Service
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number]);
 })->middleware('auth')->name('map-editor.points.store');
 
+Route::post('/admin/map-editor/points/update', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor) {
+    $data = $request->validate(['project_id'=>'required|integer','filename'=>'required|string','x'=>'required|numeric','z'=>'required|numeric','new_x'=>'required|numeric|min:0|max:15360','new_z'=>'required|numeric|min:0|max:15360']);
+    $project = Project::where('user_id', auth()->id())->findOrFail($data['project_id']);
+    $source = $project->revisions()->with('configurationImport')->get()->first(fn ($r) => strtolower($r->configurationImport?->original_filename ?? '') === strtolower($data['filename']));
+    abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422);
+    $xml = simplexml_load_string(Storage::disk('dayz')->get($source->storage_path), \SimpleXMLElement::class, LIBXML_NONET);
+    $updated = false;
+    foreach ($xml?->xpath('//*[@x and (@z or @y)]') ?: [] as $node) {
+        $axis = isset($node['z']) ? 'z' : 'y';
+        if (abs((float) $node['x'] - (float) $data['x']) < 2 && abs((float) $node[$axis] - (float) $data['z']) < 2) {
+            $node['x'] = (string) $data['new_x'];
+            $node[$axis] = (string) $data['new_z'];
+            $updated = true;
+            break;
+        }
+    }
+    abort_unless($updated, 404, 'Bod nebyl v XML nalezen.');
+    $saved = $editor->save($project, $source, $xml->asXML(), 'Upraven bod v mapovém editoru', auth()->user());
+    return response()->json(['ok'=>true,'revision'=>$saved->revision_number]);
+})->middleware('auth')->name('map-editor.points.update');
+
 Route::post('/admin/map-editor/points/delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor) {
-    $data = $request->validate(['project_id'=>'required|integer','filename'=>'required|in:events.xml,cfgeventspawns.xml,mapgrouppos.xml','x'=>'required|numeric','z'=>'required|numeric']);
+    $data = $request->validate(['project_id'=>'required|integer','filename'=>'required|string','x'=>'required|numeric','z'=>'required|numeric']);
     $project = Project::where('user_id', auth()->id())->findOrFail($data['project_id']);
     $source = $project->revisions()->with('configurationImport')->get()->first(fn ($r) => strtolower($r->configurationImport?->original_filename ?? '') === $data['filename']);
     abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422);

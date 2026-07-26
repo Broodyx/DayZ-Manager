@@ -136,8 +136,17 @@
                 const color = colorFor(marker.filename || marker.type || 'map');
                 const imported = L.circleMarker([py, px], { radius: 6, color, fillColor: color, fillOpacity: .9 }).addTo(map);
                 (layerGroups[marker.filename] ||= []).push(imported);
-                imported.bindPopup('<strong>' + marker.label + '</strong><br><small>Importovaný bod z XML</small><br><button class="dz-map-delete" type="button">Smazat bod a vytvořit revizi</button>');
-                imported.on('popupopen', (event) => event.popup.getElement().querySelector('.dz-map-delete')?.addEventListener('click', () => { if (!window.confirm('Odstranit bod z XML a vytvořit novou revizi?')) return; fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),filename:marker.filename,x:marker.worldX,z:marker.worldZ})}).then((r) => { if (!r.ok) throw new Error(); map.removeLayer(imported); }).catch(() => window.alert('Bod se nepodařilo odstranit.')); }));
+                imported.bindPopup('<strong>' + marker.label + '</strong><br><small>Importovaný bod z XML<br>X/Z: ' + Math.round(marker.worldX) + ' / ' + Math.round(marker.worldZ) + '</small><br><button class="dz-map-edit" type="button">Upravit souřadnice</button> <button class="dz-map-delete" type="button">Smazat bod a vytvořit revizi</button>');
+                imported.on('popupopen', (event) => {
+                    const root = event.popup.getElement();
+                    root.querySelector('.dz-map-edit')?.addEventListener('click', () => {
+                        const nextX = window.prompt('Nová souřadnice X (0–15360):', Math.round(marker.worldX));
+                        const nextZ = window.prompt('Nová souřadnice Z (0–15360):', Math.round(marker.worldZ));
+                        if (nextX === null || nextZ === null) return;
+                        fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),filename:marker.filename,x:marker.worldX,z:marker.worldZ,new_x:Number(nextX),new_z:Number(nextZ)})}).then((r) => { if (!r.ok) throw new Error(); window.location.reload(); }).catch(() => window.alert('Bod se nepodařilo upravit.'));
+                    });
+                    root.querySelector('.dz-map-delete')?.addEventListener('click', () => { if (!window.confirm('Odstranit bod z XML a vytvořit novou revizi?')) return; fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),filename:marker.filename,x:marker.worldX,z:marker.worldZ})}).then((r) => { if (!r.ok) throw new Error(); map.removeLayer(imported); }).catch(() => window.alert('Bod se nepodařilo odstranit.')); });
+                });
             });
             document.querySelectorAll('.map-layer-toggle').forEach((toggle) => toggle.addEventListener('change', () => {
                 (layerGroups[toggle.dataset.layer] || []).forEach((layer) => toggle.checked ? layer.addTo(map) : map.removeLayer(layer));
