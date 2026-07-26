@@ -556,6 +556,49 @@
                 </div>
                 <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny messages.xml"><button type="button" wire:click="saveMessages" wire:loading.attr="disabled" class="dz-action">Validovat a uložit messages.xml</button></div>
             </section>
+        @elseif ($visualKind === 'event-spawns')
+            <section class="dz-panel dz-event-spawns-editor">
+                <div class="dz-panel-head">
+                    <strong>Umístění eventů · cfgeventspawns.xml</strong>
+                    <p class="dz-muted text-sm mt-1">Každá sekce představuje jeden event a obsahuje jeho kandidátní světové pozice. <b>Název propojuje soubor s events.xml</b>; X/Z jsou souřadnice Chernarus a A je natočení.</p>
+                </div>
+                <div class="dz-event-spawn-guide">
+                    <article><b>NÁZEV EVENTU</b><span>Identifikátor, například <code>StaticSantaCrash</code>. Měňte jej jen společně s odpovídajícím názvem v <code>events.xml</code>.</span></article>
+                    <article><b>X / Z</b><span>Světové souřadnice kandidátní pozice v rozsahu 0–15 360 metrů. Event si při aktivaci vybírá jednu z těchto pozic.</span></article>
+                    <article><b>NATOČENÍ A</b><span>Orientace objektu na místě: 0° = sever, 90° = východ, 180° = jih, 270° = západ.</span></article>
+                    <article><b>CO ZDE NENÍ</b><span>Počet, lifetime, restock a vzdálenosti řídí <code>events.xml</code>; složení konvojů a vlaků řídí <code>cfgeventgroups.xml</code>.</span></article>
+                </div>
+                <div class="dz-event-spawn-list">
+                    @forelse ($eventSpawns as $eventIndex => $event)
+                        <details class="dz-event-spawn" @if ($loop->first) open @endif>
+                            <summary>
+                                <span><small>EVENT {{ $eventIndex + 1 }}</small><strong>{{ $xmlValues[$event['name_path']] ?? $event['name'] }}</strong></span>
+                                <span class="dz-badge dz-server-badge">{{ count($event['positions']) }} pozic</span>
+                            </summary>
+                            <div class="dz-event-spawn-body">
+                                <label class="dz-event-name-field">
+                                    <span><strong>Název eventu</strong><small>Musí přesně odpovídat eventu v events.xml. Povolená jsou písmena, čísla, tečka, pomlčka a podtržítko.</small></span>
+                                    <input type="text" wire:model.blur="xmlValues.{{ $event['name_path'] }}">
+                                </label>
+                                <div class="dz-event-spawn-positions">
+                                    @foreach ($event['positions'] as $positionIndex => $position)
+                                        <article>
+                                            <header><strong>Pozice {{ $positionIndex + 1 }}</strong><code>&lt;pos x="…" z="…" a="…"/&gt;</code></header>
+                                            <label><span>X <small>0–15 360 m</small></span><input type="number" min="0" max="15360" step="0.001" wire:model.blur="xmlValues.{{ $position['x_path'] }}"></label>
+                                            <label><span>Z <small>0–15 360 m</small></span><input type="number" min="0" max="15360" step="0.001" wire:model.blur="xmlValues.{{ $position['z_path'] }}"></label>
+                                            <label><span>Natočení A <small>0 až &lt;360°</small></span><input type="number" min="0" max="359.999" step="0.001" wire:model.blur="xmlValues.{{ $position['a_path'] }}"></label>
+                                        </article>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </details>
+                    @empty
+                        <div class="dz-empty-state"><strong>Nebyly nalezeny žádné eventy ani pozice.</strong><span>Ověřte kořenový element eventposdef a strukturu event/pos.</span></div>
+                    @endforelse
+                </div>
+                @error('xmlValues') <div class="dz-error">{{ $message }}</div> @enderror
+                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Např. přesunuty pozice heli crashů"><button type="button" wire:click="saveEventSpawns" wire:loading.attr="disabled" class="dz-action">Validovat a uložit novou revizi</button></div>
+            </section>
         @elseif ($visualKind === 'event-groups')
             <section class="dz-panel dz-event-groups-editor">
                 <div class="dz-panel-head">

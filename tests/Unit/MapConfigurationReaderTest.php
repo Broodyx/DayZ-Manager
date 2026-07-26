@@ -158,6 +158,46 @@ class MapConfigurationReaderTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/<fresh>.*name="Hop group".*<\/fresh>/s', $updated);
     }
 
+    public function test_player_spawn_area_writes_all_mode_and_group_parameters(): void
+    {
+        $xml = '<playerspawnpoints><fresh><spawn_params/><generator_params/><group_params/><generator_posbubbles/></fresh></playerspawnpoints>';
+        $updated = (new MapConfigurationEditor())->appendPlayerSpawnArea($xml, 'DEV Spawn', 12943, 8566, 'fresh', [
+            'group_lifetime_override' => 180, 'group_counter_override' => 3,
+            'min_dist_infected' => 30, 'max_dist_infected' => 70,
+            'min_dist_player' => 65, 'max_dist_player' => 150,
+            'min_dist_static' => 0, 'max_dist_static' => 2,
+            'grid_density' => 4, 'grid_width' => 200, 'grid_height' => 200,
+            'generator_min_dist_static' => 0, 'generator_max_dist_static' => 2,
+            'min_steepness' => -45, 'max_steepness' => 45,
+            'enablegroups' => 'true', 'groups_as_regular' => 'true',
+            'lifetime' => 120, 'counter' => 2,
+        ]);
+
+        $this->assertStringContainsString('<group name="DEV Spawn" lifetime="180" counter="3">', $updated);
+        $this->assertStringContainsString('<min_dist_player>65</min_dist_player>', $updated);
+        $this->assertStringContainsString('<grid_width>200</grid_width>', $updated);
+        $this->assertStringContainsString('<enablegroups>true</enablegroups>', $updated);
+        $this->assertStringContainsString('<counter>2</counter>', $updated);
+    }
+
+    public function test_player_spawn_area_edit_updates_coordinates_group_and_mode_parameters(): void
+    {
+        $xml = '<playerspawnpoints><fresh><spawn_params><min_dist_player>25</min_dist_player><max_dist_player>70</max_dist_player></spawn_params><generator_params><grid_width>150</grid_width><grid_height>150</grid_height></generator_params><group_params><enablegroups>false</enablegroups><groups_as_regular>true</groups_as_regular><lifetime>360</lifetime><counter>-1</counter></group_params><generator_posbubbles><group name="Old"><pos x="1" z="2"/></group></generator_posbubbles></fresh></playerspawnpoints>';
+        $updated = (new MapConfigurationEditor())->updateCoordinates('cfgplayerspawnpoints.xml', $xml, '/playerspawnpoints/fresh/generator_posbubbles/group[1]/pos[1]', 100, 200, [
+            'group_name' => 'New', 'min_dist_player' => 50, 'max_dist_player' => 100,
+            'grid_width' => 250, 'grid_height' => 300,
+            'enablegroups' => 'true', 'groups_as_regular' => 'false',
+            'lifetime' => 600, 'counter' => 5,
+        ]);
+
+        $this->assertStringContainsString('<group name="New">', $updated);
+        $this->assertStringContainsString('<pos x="100" z="200"/>', $updated);
+        $this->assertStringContainsString('<min_dist_player>50</min_dist_player>', $updated);
+        $this->assertStringContainsString('<grid_width>250</grid_width>', $updated);
+        $this->assertStringContainsString('<enablegroups>true</enablegroups>', $updated);
+        $this->assertStringContainsString('<groups_as_regular>false</groups_as_regular>', $updated);
+    }
+
     public function test_editor_writes_complete_contaminated_area_fields(): void
     {
         $updated = (new MapConfigurationEditor())->appendContaminatedArea(

@@ -28,6 +28,16 @@ Route::post('/admin/map-editor/points', function (
         'parameters.smin'=>'nullable|integer|min:0|max:1000','parameters.smax'=>'nullable|integer|min:0|max:1000',
         'parameters.dmin'=>'nullable|integer|min:0|max:1000','parameters.dmax'=>'nullable|integer|min:0|max:1000',
         'parameters.spawn_mode'=>'nullable|in:fresh,hop,travel','parameters.group_name'=>'nullable|string|max:120',
+        'parameters.group_lifetime_override'=>'nullable|integer|min:-1','parameters.group_counter_override'=>'nullable|integer|min:-1',
+        'parameters.min_dist_infected'=>'nullable|numeric|min:0|max:15360','parameters.max_dist_infected'=>'nullable|numeric|min:0|max:15360',
+        'parameters.min_dist_player'=>'nullable|numeric|min:0|max:15360','parameters.max_dist_player'=>'nullable|numeric|min:0|max:15360',
+        'parameters.min_dist_static'=>'nullable|numeric|min:0|max:15360','parameters.max_dist_static'=>'nullable|numeric|min:0|max:15360',
+        'parameters.grid_density'=>'nullable|integer|min:1|max:1000',
+        'parameters.grid_width'=>'nullable|numeric|min:1|max:15360','parameters.grid_height'=>'nullable|numeric|min:1|max:15360',
+        'parameters.generator_min_dist_static'=>'nullable|numeric|min:0|max:15360','parameters.generator_max_dist_static'=>'nullable|numeric|min:0|max:15360',
+        'parameters.min_steepness'=>'nullable|numeric|min:-90|max:90','parameters.max_steepness'=>'nullable|numeric|min:-90|max:90',
+        'parameters.enablegroups'=>'nullable|in:true,false','parameters.groups_as_regular'=>'nullable|in:true,false',
+        'parameters.lifetime'=>'nullable|integer|min:-1','parameters.counter'=>'nullable|integer|min:-1',
         'parameters.pos_y'=>'nullable|numeric|min:-1000|max:5000',
         'parameters.pitch'=>'nullable|numeric|min:-360|max:360','parameters.yaw'=>'nullable|numeric|min:-360|max:360','parameters.roll'=>'nullable|numeric|min:-360|max:360',
         'parameters.area_name'=>'nullable|string|max:120','parameters.pos_height'=>'nullable|numeric|min:0|max:5000',
@@ -87,7 +97,7 @@ Route::post('/admin/map-editor/points', function (
         $content = Storage::disk('dayz')->get($source->storage_path);
         $content = match (true) {
             $filename === 'cfgeventspawns.xml' => $eventEditor->appendPosition($content, $data['label'], (float) $data['x'], (float) $data['z'], (float) ($parameters['orientation'] ?? 0))['xml'],
-            $filename === 'cfgplayerspawnpoints.xml' => $mapEditor->appendPlayerSpawnArea($content, $parameters['group_name'] ?? $data['label'], (float) $data['x'], (float) $data['z'], $parameters['spawn_mode'] ?? 'fresh'),
+            $filename === 'cfgplayerspawnpoints.xml' => $mapEditor->appendPlayerSpawnArea($content, $parameters['group_name'] ?? $data['label'], (float) $data['x'], (float) $data['z'], $parameters['spawn_mode'] ?? 'fresh', $parameters),
             $filename === 'cfgeffectarea.json' => $mapEditor->appendContaminatedArea($content, $parameters['area_name'] ?? $data['label'], (float) $data['x'], (float) $data['z'], $parameters),
             $filename === 'mapgrouppos.xml' => $mapEditor->appendMapGroup($content, $data['label'], (float) $data['x'], (float) $data['z'], $parameters),
             \Illuminate\Support\Str::is('*_territories.xml', $filename) => $mapEditor->appendTerritoryZone($content, $parameters['zone_type'] ?? 'HuntingGround', (float) $data['x'], (float) $data['z'], $parameters),
@@ -100,13 +110,33 @@ Route::post('/admin/map-editor/points', function (
 })->middleware('auth')->name('map-editor.points.store');
 
 Route::post('/admin/map-editor/points/update', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor) {
-    $data = $request->validate(['project_id'=>'required|integer','revision_id'=>'required|integer','filename'=>'required|string','path'=>'required|string|max:1000','x'=>'required|numeric','z'=>'required|numeric','new_x'=>'required|numeric|min:0|max:15360','new_z'=>'required|numeric|min:0|max:15360']);
+    $data = $request->validate([
+        'project_id'=>'required|integer','revision_id'=>'required|integer','filename'=>'required|string','path'=>'required|string|max:1000',
+        'x'=>'required|numeric','z'=>'required|numeric','new_x'=>'required|numeric|min:0|max:15360','new_z'=>'required|numeric|min:0|max:15360',
+        'parameters'=>'nullable|array','parameters.group_name'=>'nullable|string|max:120',
+        'parameters.group_lifetime_override'=>'nullable|integer|min:-1','parameters.group_counter_override'=>'nullable|integer|min:-1',
+        'parameters.min_dist_infected'=>'nullable|numeric|min:0|max:15360','parameters.max_dist_infected'=>'nullable|numeric|min:0|max:15360',
+        'parameters.min_dist_player'=>'nullable|numeric|min:0|max:15360','parameters.max_dist_player'=>'nullable|numeric|min:0|max:15360',
+        'parameters.min_dist_static'=>'nullable|numeric|min:0|max:15360','parameters.max_dist_static'=>'nullable|numeric|min:0|max:15360',
+        'parameters.grid_density'=>'nullable|integer|min:1|max:1000',
+        'parameters.grid_width'=>'nullable|numeric|min:1|max:15360','parameters.grid_height'=>'nullable|numeric|min:1|max:15360',
+        'parameters.generator_min_dist_static'=>'nullable|numeric|min:0|max:15360','parameters.generator_max_dist_static'=>'nullable|numeric|min:0|max:15360',
+        'parameters.min_steepness'=>'nullable|numeric|min:-90|max:90','parameters.max_steepness'=>'nullable|numeric|min:-90|max:90',
+        'parameters.enablegroups'=>'nullable|in:true,false','parameters.groups_as_regular'=>'nullable|in:true,false',
+        'parameters.lifetime'=>'nullable|integer|min:-1','parameters.counter'=>'nullable|integer|min:-1',
+        'parameters.orientation'=>'nullable|numeric|min:0|max:359.999',
+        'parameters.pos_y'=>'nullable|numeric|min:-1000|max:5000',
+        'parameters.pitch'=>'nullable|numeric|min:-360|max:360','parameters.yaw'=>'nullable|numeric|min:-360|max:360','parameters.roll'=>'nullable|numeric|min:-360|max:360',
+        'parameters.zone_type'=>'nullable|in:HuntingGround,Rest,Graze,Water','parameters.radius'=>'nullable|numeric|min:1|max:5000',
+        'parameters.smin'=>'nullable|integer|min:0|max:1000','parameters.smax'=>'nullable|integer|min:0|max:1000',
+        'parameters.dmin'=>'nullable|integer|min:0|max:1000','parameters.dmax'=>'nullable|integer|min:0|max:1000',
+    ]);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
     abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422);
     abort_if(str_ends_with(strtolower($data['filename']), '.json'), 422, 'JSON mapové body upravte ve vizuálním JSON editoru.');
     try {
-        $content = $mapEditor->updateCoordinates($data['filename'], Storage::disk('dayz')->get($source->storage_path), $data['path'], (float) $data['new_x'], (float) $data['new_z']);
+        $content = $mapEditor->updateCoordinates($data['filename'], Storage::disk('dayz')->get($source->storage_path), $data['path'], (float) $data['new_x'], (float) $data['new_z'], $data['parameters'] ?? []);
     } catch (\RuntimeException $exception) {
         abort(422, $exception->getMessage());
     }

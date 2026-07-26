@@ -85,6 +85,7 @@ class EditConfiguration extends Page
     public array $xmlValues = [];
 
     public array $eventGroups = [];
+    public array $eventSpawns = [];
 
     public array $newEventChildTypes = [];
 
@@ -780,6 +781,29 @@ class EditConfiguration extends Page
         Notification::make()->success()->title("Konfigurace uložena v revizi #{$revision->revision_number}")->send();
     }
 
+    public function saveEventSpawns(XmlConfigurationEditor $xmlEditor, ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
+    {
+        foreach ($this->eventSpawns as $eventIndex => $event) {
+            $name = trim((string) ($this->xmlValues[$event['name_path']] ?? ''));
+            if ($name === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $name)) {
+                throw ValidationException::withMessages(['xmlValues' => 'Event #'.($eventIndex + 1).' má neplatný název.']);
+            }
+            foreach ($event['positions'] as $positionIndex => $position) {
+                foreach (['x', 'z'] as $axis) {
+                    $value = $this->xmlValues[$position[$axis.'_path']] ?? null;
+                    if (! is_numeric($value) || (float) $value < 0 || (float) $value > 15360) {
+                        throw ValidationException::withMessages(['xmlValues' => "{$name}, pozice #".($positionIndex + 1).": {$axis} musí být 0–15 360."]);
+                    }
+                }
+                $angle = $this->xmlValues[$position['a_path']] ?? 0;
+                if (! is_numeric($angle) || (float) $angle < 0 || (float) $angle >= 360) {
+                    throw ValidationException::withMessages(['xmlValues' => "{$name}, pozice #".($positionIndex + 1).': natočení musí být 0 až méně než 360°.']);
+                }
+            }
+        }
+        $this->saveXml($xmlEditor, $revisionEditor, $compatibility);
+    }
+
     public function saveEventGroups(
         XmlConfigurationEditor $xmlEditor,
         ConfigurationRevisionEditor $revisionEditor,
@@ -911,6 +935,7 @@ class EditConfiguration extends Page
             strtolower(basename($filename)) === 'ban.txt' => 'ban',
             strtolower(basename($filename)) === 'priority.txt' => 'priority',
             strtolower(basename($filename)) === 'messages.xml' => 'messages',
+            strtolower(basename($filename)) === 'cfgeventspawns.xml' => 'event-spawns',
             $typesEditor->supports($filename, $this->rawContent) => 'types',
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
             $jsonEditor->supports($this->rawContent) => 'json',
@@ -936,11 +961,12 @@ class EditConfiguration extends Page
         foreach ($this->jsonFields as $field) {
             data_set($this->jsonValues, $field['path'], $field['value']);
         }
-        $this->xmlFields = in_array($this->visualKind, ['xml', 'event-groups'], true) ? $xmlEditor->fields($this->rawContent) : [];
+        $this->xmlFields = in_array($this->visualKind, ['xml', 'event-groups', 'event-spawns'], true) ? $xmlEditor->fields($this->rawContent) : [];
         $this->xmlValues = collect($this->xmlFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
         $this->eventGroups = $this->visualKind === 'event-groups'
             ? $eventGroupsEditor->groups($this->rawContent)
             : [];
+        $this->eventSpawns = $this->visualKind === 'event-spawns' ? $this->parseEventSpawns($this->rawContent) : [];
         $this->newEventChildTypes = [];
         $this->messagesEntries = $this->visualKind === 'messages' ? $this->parseMessages($this->rawContent) : [];
         $this->mode = $this->visualSupported ? 'visual' : 'raw';
@@ -950,6 +976,40 @@ class EditConfiguration extends Page
         $this->platformReasons = $detection->platform === 'steam' ? $detection->reasons : [];
         $this->platformWarnings = $detection->warnings;
         $this->dependencyWarnings = $this->detectDependencyWarnings($filename);
+    }
+
+    /** @return list<array{name:string,name_path:string,positions:list<array{x_path:string,z_path:string,a_path:string}>}> */
+    private function parseEventSpawns(string $content): array
+    {
+        $document = new \DOMDocument();
+        if (! @$document->loadXML($content, LIBXML_NONET | LIBXML_COMPACT) || $document->documentElement?->tagName !== 'eventposdef') {
+            return [];
+        }
+        $result = [];
+        $eventIndex = 0;
+        foreach ($document->documentElement->childNodes as $event) {
+            if (! $event instanceof \DOMElement || $event->tagName !== 'event') {
+                continue;
+            }
+            $eventIndex++;
+            $positions = [];
+            $positionIndex = 0;
+            foreach ($event->childNodes as $position) {
+                if (! $position instanceof \DOMElement || $position->tagName !== 'pos') {
+                    continue;
+                }
+                $positionIndex++;
+                $base = "/eventposdef[1]/event[{$eventIndex}]/pos[{$positionIndex}]";
+                $positions[] = ['x_path' => $base.'@x', 'z_path' => $base.'@z', 'a_path' => $base.'@a'];
+            }
+            $result[] = [
+                'name' => $event->getAttribute('name'),
+                'name_path' => "/eventposdef[1]/event[{$eventIndex}]@name",
+                'positions' => $positions,
+            ];
+        }
+
+        return $result;
     }
 
     /** @return list<string> */

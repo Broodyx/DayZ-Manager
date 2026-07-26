@@ -321,6 +321,7 @@
     .dz-point-modal[hidden] { display:none; }
     .dz-point-modal-card { position:relative; width:min(620px,100%); max-height:calc(100dvh - 2rem); overflow-y:auto; overscroll-behavior:contain; border:1px solid #668f32; border-radius:.8rem; background:#111a14; padding:1.4rem; box-shadow:0 20px 70px #000b; scrollbar-color:#668f32 #111a14; }
     #dz-point-modal .dz-point-modal-card { width:min(1120px,calc(100vw - 2rem)); }
+    #dz-edit-point-modal .dz-point-modal-card { width:min(1120px,calc(100vw - 2rem)); }
     .dz-point-modal-card h3 { color:#d8f57b; margin:0; font-size:1.2rem; }
     .dz-system-dialog-card { width:min(520px,100%); overflow:hidden; }
     .dz-system-dialog-message { margin:.7rem 0 1.1rem; color:#bac7b6; line-height:1.55; }
@@ -356,6 +357,15 @@
     .dz-point-fields:empty { display:none; }
     .dz-point-fields label { display:grid; gap:.35rem; min-width:0; }
     .dz-point-fields label small { font-weight:400; }
+    .dz-point-field-section { grid-column:1/-1; min-width:0; margin:0; padding:.9rem; border:1px solid #385326; border-radius:.6rem; background:#0e1710; }
+    .dz-point-field-section legend { padding:0 .45rem; color:#b8ed55; font-size:.82rem; font-weight:900; letter-spacing:.035em; text-transform:uppercase; }
+    .dz-point-field-section-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem; }
+    .dz-edit-point-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem; margin:1rem 0; }
+    .dz-edit-point-fields:empty { display:none; }
+    .dz-edit-point-fields label { display:grid; gap:.35rem; min-width:0; color:#d8f57b; font-weight:700; }
+    .dz-edit-point-fields label small { color:#aab6a4; font-weight:400; line-height:1.4; }
+    .dz-edit-point-fields input, .dz-edit-point-fields select { width:100%; min-height:2.8rem; border:1px solid #496b31; border-radius:.45rem; background:#0b120d; color:#e7f7d2; padding:.65rem .75rem; color-scheme:dark; }
+    .dz-edit-point-fields :disabled { opacity:.7; cursor:not-allowed; }
     .dz-event-settings, .dz-related-files { border:1px solid #385326; border-radius:.55rem; background:#111a13; padding:.9rem; }
     .dz-event-settings > p, .dz-related-files > small { display:block; margin:.35rem 0 .75rem; color:#aab6a4; }
     .dz-event-setting-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.45rem; }
@@ -364,6 +374,26 @@
     .dz-event-settings details { margin-top:.75rem; }
     .dz-event-settings ul, .dz-related-files ul { margin:.55rem 0 0; padding-left:1.25rem; }
     .dz-related-files li + li { margin-top:.3rem; }
+    .dz-event-spawn-guide { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.65rem; padding:1rem; border-bottom:1px solid rgba(133,218,222,.2); background:rgba(6,45,49,.25); }
+    .dz-event-spawn-guide article { display:grid; gap:.35rem; padding:.8rem; border:1px solid rgba(133,218,222,.18); border-radius:.5rem; background:#0d1712; }
+    .dz-event-spawn-guide b { color:#b8ed55; font-size:.74rem; letter-spacing:.05em; }
+    .dz-event-spawn-guide span { color:#aab6a4; font-size:.78rem; line-height:1.45; }
+    .dz-event-spawn-list { display:grid; gap:.65rem; padding:1rem; }
+    .dz-event-spawn { overflow:hidden; border:1px solid #304d2d; border-radius:.6rem; background:#0c1510; }
+    .dz-event-spawn > summary { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.85rem 1rem; cursor:pointer; list-style:none; }
+    .dz-event-spawn > summary span:first-child { display:grid; gap:.15rem; }
+    .dz-event-spawn > summary small { color:#708073; font-size:.66rem; letter-spacing:.08em; }
+    .dz-event-spawn > summary strong { color:#edf7e5; }
+    .dz-event-spawn-body { display:grid; gap:.8rem; padding:0 1rem 1rem; border-top:1px solid rgba(190,209,175,.1); }
+    .dz-event-name-field { display:grid; grid-template-columns:minmax(240px,1fr) minmax(260px,.7fr); gap:1rem; align-items:center; padding:.8rem; border:1px solid #263b20; border-radius:.5rem; margin-top:.8rem; }
+    .dz-event-name-field span { display:grid; gap:.2rem; }.dz-event-name-field small { color:#95a493; line-height:1.4; }
+    .dz-event-name-field input, .dz-event-spawn-positions input { width:100%; min-height:2.7rem; border:1px solid #496b31; border-radius:.4rem; background:#09100b; color:#e7f7d2; padding:.6rem .7rem; }
+    .dz-event-spawn-positions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.55rem; }
+    .dz-event-spawn-positions article { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.55rem; padding:.7rem; border:1px solid #263b20; border-radius:.5rem; background:#101a12; }
+    .dz-event-spawn-positions header { grid-column:1/-1; display:flex; justify-content:space-between; gap:.5rem; color:#d8f57b; }
+    .dz-event-spawn-positions header code { color:#748477; font-size:.68rem; }
+    .dz-event-spawn-positions label { display:grid; gap:.25rem; color:#dce8d5; font-size:.78rem; font-weight:700; }
+    .dz-event-spawn-positions label small { display:block; color:#819080; font-weight:400; }
     .dz-point-target-status { display:grid; gap:.25rem; padding:.8rem .9rem; border:1px solid; border-radius:.5rem; font-size:.88rem; }
     .dz-point-target-status strong, .dz-point-target-status span, .dz-point-target-status a { display:block; }
     .dz-point-target-status.ready { color:#dfffb1; border-color:#4f762d; background:#172512; }
@@ -574,5 +604,6 @@
     }
     @media (max-width: 980px) { .dz-map-toolbar { grid-template-columns:1fr 1fr; } .dz-map-toolbar > div:first-child { grid-column:1/-1; } .dz-map-layout { grid-template-columns:1fr; } .dz-map-legend { position:static; max-height:none; } }
     @media (max-width: 620px) { .dz-map-source { flex-direction:column; }.dz-map-source-actions { width:100%; grid-template-columns:repeat(3,1fr); }.dz-map-source-actions a,.dz-map-source-actions button { display:grid; place-items:center; }.dz-map-raw-card { width:calc(100vw - .8rem); height:calc(100dvh - .8rem); padding:1rem; }.dz-map-raw-heading { flex-direction:column; padding-right:1.8rem; }.dz-map-raw-copy { width:100%; } }
-    @media (max-width: 760px) { .dz-map-toolbar { grid-template-columns:1fr; } .dz-map-toolbar > div:first-child { grid-column:auto; } .dz-map-canvas { min-height:420px; height:65vh; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } .dz-point-modal { padding:.4rem; align-items:start; } #dz-point-modal .dz-point-modal-card { width:calc(100vw - .8rem); max-height:calc(100dvh - .8rem); padding:1rem; } .dz-point-options { grid-template-columns:1fr 1fr; } .dz-event-catalog, .dz-point-fields, .dz-event-setting-grid { grid-template-columns:1fr; } .dz-event-catalog > * { grid-column:1 !important; } .dz-edit-coordinate-grid { grid-template-columns:1fr; } .dz-edit-actions { flex-direction:column-reverse; } .dz-raw-heading { flex-direction:column; } .dz-copy-raw { width:100%; } .dz-setup-file { grid-template-columns:auto minmax(0,1fr); }.dz-file-action { grid-column:1/-1; justify-content:center; }.dz-setup-area-title small { display:none; }.dz-setup-area-footer { align-items:flex-start; flex-direction:column; }.dz-command-center { padding:1rem; }.dz-command-steps { gap:.4rem; }.dz-import-hero { align-items:flex-start; flex-direction:column; }.dz-form-section { grid-template-columns:1fr; }.dz-form-step { width:1.65rem; height:1.65rem; }.dz-editor-command-meta { display:grid; grid-template-columns:repeat(3,1fr); }.dz-editor-command-meta > span { min-width:0; }.dz-editor-toolbar-new { align-items:stretch; flex-direction:column; }.dz-editor-file-choice .dz-file-menu { width:100%; }.dz-editor-toolbar-new .dz-tabs { display:grid; grid-template-columns:1fr 1fr; }.dz-event-groups-intro { grid-template-columns:1fr; }.dz-event-group-name { grid-template-columns:1fr; }.dz-event-position-grid { grid-template-columns:1fr 1fr; }.dz-event-loot-grid { grid-template-columns:1fr; } }
+    @media (max-width: 760px) { .dz-map-toolbar { grid-template-columns:1fr; } .dz-map-toolbar > div:first-child { grid-column:auto; } .dz-map-canvas { min-height:420px; height:65vh; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } .dz-point-modal { padding:.4rem; align-items:start; } #dz-point-modal .dz-point-modal-card, #dz-edit-point-modal .dz-point-modal-card { width:calc(100vw - .8rem); max-height:calc(100dvh - .8rem); padding:1rem; } .dz-point-options { grid-template-columns:1fr 1fr; } .dz-event-catalog, .dz-point-fields, .dz-event-setting-grid, .dz-edit-point-fields, .dz-point-field-section-grid { grid-template-columns:1fr; } .dz-event-catalog > * { grid-column:1 !important; } .dz-edit-coordinate-grid { grid-template-columns:1fr; } .dz-edit-actions { flex-direction:column-reverse; } .dz-raw-heading { flex-direction:column; } .dz-copy-raw { width:100%; } .dz-setup-file { grid-template-columns:auto minmax(0,1fr); }.dz-file-action { grid-column:1/-1; justify-content:center; }.dz-setup-area-title small { display:none; }.dz-setup-area-footer { align-items:flex-start; flex-direction:column; }.dz-command-center { padding:1rem; }.dz-command-steps { gap:.4rem; }.dz-import-hero { align-items:flex-start; flex-direction:column; }.dz-form-section { grid-template-columns:1fr; }.dz-form-step { width:1.65rem; height:1.65rem; }.dz-editor-command-meta { display:grid; grid-template-columns:repeat(3,1fr); }.dz-editor-command-meta > span { min-width:0; }.dz-editor-toolbar-new { align-items:stretch; flex-direction:column; }.dz-editor-file-choice .dz-file-menu { width:100%; }.dz-editor-toolbar-new .dz-tabs { display:grid; grid-template-columns:1fr 1fr; }.dz-event-groups-intro { grid-template-columns:1fr; }.dz-event-group-name { grid-template-columns:1fr; }.dz-event-position-grid { grid-template-columns:1fr 1fr; }.dz-event-loot-grid { grid-template-columns:1fr; } }
+    @media (max-width: 900px) { .dz-event-spawn-guide, .dz-event-spawn-positions { grid-template-columns:1fr; }.dz-event-name-field { grid-template-columns:1fr; }.dz-event-spawn-positions article { grid-template-columns:1fr; }.dz-event-spawn-positions header { grid-column:auto; } }
 </style>

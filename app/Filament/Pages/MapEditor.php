@@ -242,6 +242,69 @@ class MapEditor extends Page
         $eventFields = [
             ['name' => 'orientation', 'label' => 'Natočení objektu (°)', 'type' => 'number', 'min' => 0, 'max' => 359.999, 'step' => 0.001, 'default' => 0, 'help' => 'Atribut a v cfgeventspawns.xml. 0° míří na sever, hodnota určuje natočení kandidátní pozice.'],
         ];
+        $playerFields = [
+            ['name' => 'spawn_mode', 'section' => 'Bod a skupina', 'label' => 'Režim spawnu', 'type' => 'select', 'default' => 'fresh', 'options' => [
+                ['value' => 'fresh', 'label' => 'fresh · nová postava'],
+                ['value' => 'hop', 'label' => 'hop · změna serveru'],
+                ['value' => 'travel', 'label' => 'travel · cestovní přesun'],
+            ], 'help' => 'Sekce XML. Parametry režimu níže platí pro všechny jeho skupiny a body.'],
+            ['name' => 'group_name', 'section' => 'Bod a skupina', 'label' => 'Název skupiny oblastí', 'type' => 'text', 'default' => 'Vlastni oblast', 'help' => 'Více pozic se stejným názvem tvoří jednu skupinu generátoru.'],
+            ['name' => 'group_lifetime_override', 'section' => 'Bod a skupina', 'label' => 'Lifetime skupiny – přepis (s)', 'type' => 'number', 'min' => -1, 'max' => 2147483647, 'step' => 1, 'default' => '', 'help' => 'Volitelný atribut skupiny. Prázdné = použít hodnotu režimu; -1 = bez časového vypršení.'],
+            ['name' => 'group_counter_override', 'section' => 'Bod a skupina', 'label' => 'Counter skupiny – přepis', 'type' => 'number', 'min' => -1, 'max' => 2147483647, 'step' => 1, 'default' => '', 'help' => 'Volitelný limit použití skupiny. Prázdné = hodnota režimu; -1 = bez limitu.'],
+            ['name' => 'min_dist_infected', 'section' => 'Bezpečné vzdálenosti · spawn_params', 'label' => 'Min. vzdálenost od nakažených (m)', 'type' => 'number', 'min' => 0, 'max' => 15360, 'step' => 0.1, 'default' => 30, 'help' => 'Pod touto vzdáleností je kandidát neplatný. Musí být ≤ maximu.'],
+            ['name' => 'max_dist_infected', 'section' => 'Bezpečné vzdálenosti · spawn_params', 'label' => 'Max. vzdálenost od nakažených (m)', 'type' => 'number', 'min' => 0, 'max' => 15360, 'step' => 0.1, 'default' => 70, 'help' => 'Od minima do maxima získává kandidát lepší hodnocení; nad maximem už bez další výhody.'],
+            ['name' => 'min_dist_player', 'section' => 'Bezpečné vzdálenosti · spawn_params', 'label' => 'Min. vzdálenost od hráčů (m)', 'type' => 'number', 'min' => 0, 'max' => 15360, 'step' => 0.1, 'default' => 25, 'help' => 'Pod touto vzdáleností od jiného hráče se kandidát nepoužije.'],
+            ['name' => 'max_dist_player', 'section' => 'Bezpečné vzdálenosti · spawn_params', 'label' => 'Max. vzdálenost od hráčů (m)', 'type' => 'number', 'min' => 0, 'max' => 15360, 'step' => 0.1, 'default' => 70, 'help' => 'Horní mez hodnocení bezpečné vzdálenosti od ostatních hráčů.'],
+            ['name' => 'min_dist_static', 'section' => 'Bezpečné vzdálenosti · spawn_params', 'label' => 'Min. vzdálenost od statických objektů (m)', 'type' => 'number', 'min' => 0, 'max' => 15360, 'step' => 0.1, 'default' => 0, 'help' => 'Minimální odstup kandidáta od statické geometrie při vyhodnocení spawnu.'],
+            ['name' => 'max_dist_static', 'section' => 'Bezpečné vzdálenosti · spawn_params', 'label' => 'Max. vzdálenost od statických objektů (m)', 'type' => 'number', 'min' => 0, 'max' => 15360, 'step' => 0.1, 'default' => 2, 'help' => 'Horní mez hodnocení odstupu od statické geometrie.'],
+            ['name' => 'grid_density', 'section' => 'Generátor kandidátů · generator_params', 'label' => 'Hustota mřížky', 'type' => 'number', 'min' => 1, 'max' => 1000, 'step' => 1, 'default' => 4, 'help' => 'Počet testovaných kandidátů v mřížce. Vyšší hodnota zpřesňuje hledání, ale zvyšuje práci serveru.'],
+            ['name' => 'grid_width', 'section' => 'Generátor kandidátů · generator_params', 'label' => 'Šířka oblasti (m)', 'type' => 'number', 'min' => 1, 'max' => 15360, 'step' => 1, 'default' => 200, 'help' => 'Celková šířka prohledávané oblasti kolem každého bodu; není to poloměr.'],
+            ['name' => 'grid_height', 'section' => 'Generátor kandidátů · generator_params', 'label' => 'Výška oblasti (m)', 'type' => 'number', 'min' => 1, 'max' => 15360, 'step' => 1, 'default' => 200, 'help' => 'Celková výška prohledávané oblasti kolem každého bodu; nejde o nadmořskou výšku.'],
+            ['name' => 'generator_min_dist_static', 'section' => 'Generátor kandidátů · generator_params', 'label' => 'Generátor: min. odstup od objektů (m)', 'type' => 'number', 'min' => 0, 'max' => 15360, 'step' => 0.1, 'default' => 0, 'help' => 'Kandidátní buňky blíže statické geometrii jsou odmítnuty.'],
+            ['name' => 'generator_max_dist_static', 'section' => 'Generátor kandidátů · generator_params', 'label' => 'Generátor: max. odstup od objektů (m)', 'type' => 'number', 'min' => 0, 'max' => 15360, 'step' => 0.1, 'default' => 2, 'help' => 'Horní mez hodnocení odstupu kandidátní buňky od statické geometrie.'],
+            ['name' => 'min_steepness', 'section' => 'Generátor kandidátů · generator_params', 'label' => 'Minimální sklon (°)', 'type' => 'number', 'min' => -90, 'max' => 90, 'step' => 0.1, 'default' => -45, 'help' => 'Dolní povolená mez sklonu povrchu v rozsahu -90 až 90°.'],
+            ['name' => 'max_steepness', 'section' => 'Generátor kandidátů · generator_params', 'label' => 'Maximální sklon (°)', 'type' => 'number', 'min' => -90, 'max' => 90, 'step' => 0.1, 'default' => 45, 'help' => 'Horní povolená mez sklonu; musí být ≥ minimálnímu sklonu.'],
+            ['name' => 'enablegroups', 'section' => 'Chování skupin · group_params', 'label' => 'Používat skupiny', 'type' => 'select', 'default' => 'true', 'options' => [
+                ['value' => 'true', 'label' => 'true · skupiny zapnuté'],
+                ['value' => 'false', 'label' => 'false · skupiny vypnuté'],
+            ], 'help' => 'Určuje, zda generátor používá pojmenované skupiny z generator_posbubbles.'],
+            ['name' => 'groups_as_regular', 'section' => 'Chování skupin · group_params', 'label' => 'Skupiny jako běžné oblasti', 'type' => 'select', 'default' => 'true', 'options' => [
+                ['value' => 'true', 'label' => 'true · použít jako běžné oblasti'],
+                ['value' => 'false', 'label' => 'false · zvláštní skupinové chování'],
+            ], 'help' => 'Řídí, zda se skupinové oblasti vyhodnocují stejným způsobem jako pravidelné kandidátní oblasti.'],
+            ['name' => 'lifetime', 'section' => 'Chování skupin · group_params', 'label' => 'Lifetime režimu (s)', 'type' => 'number', 'min' => -1, 'max' => 2147483647, 'step' => 1, 'default' => 120, 'help' => 'Jak dlouho zůstává volba skupiny aktivní. -1 vypíná časové vypršení.'],
+            ['name' => 'counter', 'section' => 'Chování skupin · group_params', 'label' => 'Counter režimu', 'type' => 'number', 'min' => -1, 'max' => 2147483647, 'step' => 1, 'default' => 2, 'help' => 'Kolikrát lze skupinu použít před dalším výběrem. -1 vypíná limit počtu.'],
+        ];
+        $playerModeDefaults = [];
+        $playerRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfgplayerspawnpoints.xml');
+        if ($playerRevision && Storage::disk('dayz')->exists($playerRevision->storage_path)) {
+            $playerXml = @simplexml_load_string(Storage::disk('dayz')->get($playerRevision->storage_path));
+            foreach (['fresh', 'hop', 'travel'] as $mode) {
+                $modeNode = $playerXml?->{$mode};
+                if (! $modeNode) {
+                    continue;
+                }
+                $playerModeDefaults[$mode] = [
+                    'min_dist_infected' => (string) ($modeNode->spawn_params->min_dist_infected ?? ''),
+                    'max_dist_infected' => (string) ($modeNode->spawn_params->max_dist_infected ?? ''),
+                    'min_dist_player' => (string) ($modeNode->spawn_params->min_dist_player ?? ''),
+                    'max_dist_player' => (string) ($modeNode->spawn_params->max_dist_player ?? ''),
+                    'min_dist_static' => (string) ($modeNode->spawn_params->min_dist_static ?? ''),
+                    'max_dist_static' => (string) ($modeNode->spawn_params->max_dist_static ?? ''),
+                    'grid_density' => (string) ($modeNode->generator_params->grid_density ?? ''),
+                    'grid_width' => (string) ($modeNode->generator_params->grid_width ?? ''),
+                    'grid_height' => (string) ($modeNode->generator_params->grid_height ?? ''),
+                    'generator_min_dist_static' => (string) ($modeNode->generator_params->min_dist_static ?? ''),
+                    'generator_max_dist_static' => (string) ($modeNode->generator_params->max_dist_static ?? ''),
+                    'min_steepness' => (string) ($modeNode->generator_params->min_steepness ?? ''),
+                    'max_steepness' => (string) ($modeNode->generator_params->max_steepness ?? ''),
+                    'enablegroups' => (string) ($modeNode->group_params->enablegroups ?? ''),
+                    'groups_as_regular' => (string) ($modeNode->group_params->groups_as_regular ?? ''),
+                    'lifetime' => (string) ($modeNode->group_params->lifetime ?? ''),
+                    'counter' => (string) ($modeNode->group_params->counter ?? ''),
+                ];
+            }
+        }
         $territoryFields = [
             ['name' => 'zone_type', 'label' => 'Úloha zóny', 'type' => 'select', 'default' => 'HuntingGround', 'options' => [
                 ['value' => 'HuntingGround', 'label' => 'HuntingGround · hlavní oblast výskytu'],
@@ -262,14 +325,7 @@ class MapEditor extends Page
             'convoy' => array_merge($exact('cfgeventspawns.xml', $eventOptions($eventsBy(fn ($event) => Str::contains(Str::lower($event['name']), ['convoy', 'train'])), 'cfgeventspawns.xml'), 'Pozice a natočení konvoje nebo vlaku. Složení objektů řídí cfgeventgroups.xml.', ['events.xml', 'cfgeventgroups.xml']), ['fields' => $eventFields, 'related' => ['events.xml' => 'chování eventu', 'cfgeventgroups.xml' => 'objekty, relativní pozice, loot a natočení']]),
             'dynamic' => array_merge($exact('cfgeventspawns.xml', $eventOptions($eventsBy(fn () => true), 'cfgeventspawns.xml'), 'Kandidátní pozice a natočení vybraného eventu.', ['events.xml']), ['fields' => $eventFields, 'related' => ['events.xml' => 'všechny parametry chování eventu']]),
             'aerial' => array_merge($exact('cfgeventspawns.xml', $eventOptions($eventsBy(fn ($event) => Str::contains(Str::lower($event['name']), ['air', 'heli', 'plane'])), 'cfgeventspawns.xml'), 'Pozice a natočení leteckého eventu.', ['events.xml']), ['fields' => $eventFields, 'related' => ['events.xml' => 'počet, životnost, limity a varianty']]),
-            'player' => array_merge($exact('cfgplayerspawnpoints.xml', [['value' => 'Nová spawn oblast', 'label' => 'Nová oblast generátoru hráče', 'target' => 'cfgplayerspawnpoints.xml', 'available' => isset($uploaded['cfgplayerspawnpoints.xml'])]], 'Přidává centrum oblasti generátoru, nikoli garantovaný přesný spawn. Bezpečné vzdálenosti a rozměry mřížky jsou společné pro zvolený režim.'), ['fields' => [
-                ['name' => 'spawn_mode', 'label' => 'Režim spawnu', 'type' => 'select', 'default' => 'fresh', 'options' => [
-                    ['value' => 'fresh', 'label' => 'fresh · nová postava'],
-                    ['value' => 'hop', 'label' => 'hop · změna serveru'],
-                    ['value' => 'travel', 'label' => 'travel · cestovní přesun'],
-                ], 'help' => 'Určuje sekci cfgplayerspawnpoints.xml, do které se oblast přidá.'],
-                ['name' => 'group_name', 'label' => 'Název skupiny oblastí', 'type' => 'text', 'default' => 'Vlastni oblast', 'help' => 'Více bodů se stejným názvem tvoří jednu skupinu generátoru.'],
-            ], 'related' => ['cfgplayerspawnpoints.xml' => 'min/max vzdálenosti od hráčů a nakažených, velikost mřížky, sklon, lifetime a counter']]),
+            'player' => array_merge($exact('cfgplayerspawnpoints.xml', [['value' => 'Nová spawn oblast', 'label' => 'Nová oblast generátoru hráče', 'target' => 'cfgplayerspawnpoints.xml', 'available' => isset($uploaded['cfgplayerspawnpoints.xml'])]], 'Přidává centrum oblasti generátoru, nikoli garantovaný přesný spawn. Formulář obsahuje všechny parametry spawn_params, generator_params i group_params pro zvolený režim.'), ['fields' => $playerFields, 'mode_defaults' => $playerModeDefaults, 'related' => ['cfgplayerspawnpoints.xml' => 'bod, skupina i kompletní nastavení zvoleného režimu fresh/hop/travel']]),
             'contaminated' => array_merge($exact('cfgeffectarea.json', [['value' => 'ContaminatedArea_Static', 'label' => 'Statická kontaminovaná zóna', 'target' => 'cfgeffectarea.json', 'available' => isset($uploaded['cfgeffectarea.json'])]], 'Zóna se uloží do pole Areas v cfgeffectarea.json včetně vertikálního rozsahu a částic.'), ['fields' => [
                 ['name' => 'area_name', 'label' => 'Jedinečný název oblasti', 'type' => 'text', 'default' => 'Vlastni kontaminovana zona'],
                 ['name' => 'radius', 'label' => 'Poloměr (m)', 'type' => 'number', 'min' => 1, 'max' => 5000, 'default' => 100],

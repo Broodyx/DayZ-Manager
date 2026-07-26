@@ -61,7 +61,8 @@ final class MapConfigurationEditor
         return ['content' => $this->save($document), 'deleted' => $deleted];
     }
 
-    public function updateCoordinates(string $filename, string $content, string $path, float $x, float $z): string
+    /** @param array<string, mixed> $parameters */
+    public function updateCoordinates(string $filename, string $content, string $path, float $x, float $z, array $parameters = []): string
     {
         $this->validateCoordinates($x, $z);
         [$document, $node] = $this->node($content, $path);
@@ -69,6 +70,30 @@ final class MapConfigurationEditor
         if ($node->hasAttribute('x') && $node->hasAttribute('z')) {
             $node->setAttribute('x', $this->number($x));
             $node->setAttribute('z', $this->number($z));
+            $normalizedFilename = strtolower(basename($filename));
+            if ($normalizedFilename === 'cfgplayerspawnpoints.xml') {
+                $this->updatePlayerSpawnConfiguration($document, $node, $parameters);
+            } elseif ($normalizedFilename === 'cfgeventspawns.xml' && array_key_exists('orientation', $parameters)) {
+                $orientation = (float) $parameters['orientation'];
+                if ($orientation < 0 || $orientation >= 360) {
+                    throw new RuntimeException('Natočení musí být v rozsahu 0 až méně než 360°.');
+                }
+                $node->setAttribute('a', $this->number($orientation));
+            } elseif (str_ends_with($normalizedFilename, '_territories.xml')) {
+                $radius = (float) ($parameters['radius'] ?? $node->getAttribute('r'));
+                if ($radius < 1 || $radius > 5000) {
+                    throw new RuntimeException('Poloměr teritoria musí být v rozsahu 1–5000 metrů.');
+                }
+                foreach (['smin', 'smax', 'dmin', 'dmax'] as $attribute) {
+                    if (array_key_exists($attribute, $parameters)) {
+                        $node->setAttribute($attribute, (string) max(0, (int) $parameters[$attribute]));
+                    }
+                }
+                if (($parameters['zone_type'] ?? '') !== '') {
+                    $node->setAttribute('name', (string) $parameters['zone_type']);
+                }
+                $node->setAttribute('r', $this->number($radius));
+            }
         } elseif (strtolower(basename($filename)) === 'mapgrouppos.xml' && $node->hasAttribute('pos')) {
             $parts = preg_split('/\s+/', trim($node->getAttribute('pos'))) ?: [];
             if (count($parts) < 3) {
@@ -77,6 +102,18 @@ final class MapConfigurationEditor
             $parts[0] = $this->number($x);
             $parts[2] = $this->number($z);
             $node->setAttribute('pos', implode(' ', $parts));
+            if (array_key_exists('pos_y', $parameters)) {
+                $parts[1] = $this->number((float) $parameters['pos_y']);
+                $node->setAttribute('pos', implode(' ', $parts));
+            }
+            if (array_intersect(['pitch', 'yaw', 'roll'], array_keys($parameters))) {
+                $node->setAttribute('rpy', implode(' ', array_map(fn ($value) => $this->number((float) $value), [
+                    $parameters['pitch'] ?? 0, $parameters['yaw'] ?? 0, $parameters['roll'] ?? 0,
+                ])));
+            }
+            if (array_key_exists('orientation', $parameters)) {
+                $node->setAttribute('a', $this->number((float) $parameters['orientation']));
+            }
         } else {
             throw new RuntimeException('Tento bod nemá editovatelné světové souřadnice X/Z.');
         }
@@ -95,7 +132,8 @@ final class MapConfigurationEditor
         return $this->save($document);
     }
 
-    public function appendPlayerSpawnArea(string $content, string $groupName, float $x, float $z, string $mode = 'fresh'): string
+    /** @param array<string, mixed> $parameters */
+    public function appendPlayerSpawnArea(string $content, string $groupName, float $x, float $z, string $mode = 'fresh', array $parameters = []): string
     {
         $this->validateCoordinates($x, $z);
         if (! in_array($mode, ['fresh', 'hop', 'travel'], true)) {
@@ -119,12 +157,155 @@ final class MapConfigurationEditor
             $group->setAttribute('name', $groupName);
             $container->appendChild($group);
         }
+        $this->setOptionalIntegerAttribute($group, 'lifetime', $parameters['group_lifetime_override'] ?? null);
+        $this->setOptionalIntegerAttribute($group, 'counter', $parameters['group_counter_override'] ?? null);
         $position = $document->createElement('pos');
         $position->setAttribute('x', $this->number($x));
         $position->setAttribute('z', $this->number($z));
         $group->appendChild($position);
+        $this->updatePlayerModeConfiguration($document, $mode, $parameters);
 
         return $this->save($document);
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function updatePlayerSpawnConfiguration(DOMDocument $document, DOMElement $position, array $parameters): void
+    {
+        $group = $position->parentNode;
+        $container = $group?->parentNode;
+        $mode = $container?->parentNode;
+        if (! $group instanceof DOMElement || ! $mode instanceof DOMElement || ! in_array($mode->tagName, ['fresh', 'hop', 'travel'], true)) {
+            throw new RuntimeException('Bod neleží v podporované sekci fresh, hop nebo travel.');
+        }
+
+        $groupName = trim((string) ($parameters['group_name'] ?? ''));
+        if ($groupName !== '') {
+            $group->setAttribute('name', $groupName);
+        }
+        $this->setOptionalIntegerAttribute($group, 'lifetime', $parameters['group_lifetime_override'] ?? null);
+        $this->setOptionalIntegerAttribute($group, 'counter', $parameters['group_counter_override'] ?? null);
+        $this->updatePlayerModeConfiguration($document, $mode->tagName, $parameters);
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function updatePlayerModeConfiguration(DOMDocument $document, string $mode, array $parameters): void
+    {
+        $xpath = new DOMXPath($document);
+        $definitions = [
+            'spawn_params' => [
+                'min_dist_infected', 'max_dist_infected', 'min_dist_player',
+                'max_dist_player', 'min_dist_static', 'max_dist_static',
+            ],
+            'generator_params' => [
+                'grid_density', 'grid_width', 'grid_height', 'generator_min_dist_static',
+                'generator_max_dist_static', 'min_steepness', 'max_steepness',
+            ],
+            'group_params' => ['enablegroups', 'groups_as_regular', 'lifetime', 'counter'],
+        ];
+        $xmlNames = [
+            'generator_min_dist_static' => 'min_dist_static',
+            'generator_max_dist_static' => 'max_dist_static',
+            'enablegroups' => 'enablegroups',
+            'groups_as_regular' => 'groups_as_regular',
+            'lifetime' => 'lifetime',
+            'counter' => 'counter',
+        ];
+
+        foreach ($definitions as $section => $keys) {
+            $sectionNode = $xpath->query('/playerspawnpoints/'.$mode.'/'.$section)->item(0);
+            if (! $sectionNode instanceof DOMElement) {
+                $modeNode = $xpath->query('/playerspawnpoints/'.$mode)->item(0);
+                if (! $modeNode instanceof DOMElement) {
+                    throw new RuntimeException("V cfgplayerspawnpoints.xml chybí sekce {$mode}.");
+                }
+                $sectionNode = $document->createElement($section);
+                $modeNode->insertBefore($sectionNode, $modeNode->firstChild);
+            }
+            foreach ($keys as $key) {
+                if (! array_key_exists($key, $parameters) || $parameters[$key] === '') {
+                    continue;
+                }
+                $xmlName = $xmlNames[$key] ?? $key;
+                $value = $parameters[$key];
+                if (in_array($key, ['enablegroups', 'groups_as_regular'], true)) {
+                    $value = $this->boolean($value);
+                } else {
+                    $value = $this->validatedPlayerNumber($key, $value);
+                }
+                $node = $xpath->query('./'.$xmlName, $sectionNode)->item(0);
+                if (! $node instanceof DOMElement) {
+                    $node = $document->createElement($xmlName);
+                    $sectionNode->appendChild($node);
+                }
+                $node->nodeValue = (string) $value;
+            }
+        }
+
+        $this->validatePlayerPairs($parameters);
+    }
+
+    private function validatedPlayerNumber(string $key, mixed $value): string
+    {
+        if (! is_numeric($value)) {
+            throw new RuntimeException("Parametr {$key} musí být číslo.");
+        }
+        $number = (float) $value;
+        if (in_array($key, ['lifetime', 'counter'], true) && ($number < -1 || floor($number) !== $number)) {
+            throw new RuntimeException("Parametr {$key} musí být celé číslo -1 nebo vyšší.");
+        }
+        if ($key === 'grid_density' && ($number < 1 || $number > 1000 || floor($number) !== $number)) {
+            throw new RuntimeException('Hustota mřížky musí být celé číslo 1–1000.');
+        }
+        if (in_array($key, ['grid_width', 'grid_height'], true) && ($number < 1 || $number > MapConfigurationReader::WORLD_SIZE)) {
+            throw new RuntimeException("Parametr {$key} musí být v rozsahu 1–15360 metrů.");
+        }
+        if (in_array($key, ['min_steepness', 'max_steepness'], true) && ($number < -90 || $number > 90)) {
+            throw new RuntimeException("Parametr {$key} musí být v rozsahu -90 až 90 stupňů.");
+        }
+        if (str_contains($key, 'dist_') && ($number < 0 || $number > MapConfigurationReader::WORLD_SIZE)) {
+            throw new RuntimeException("Parametr {$key} musí být v rozsahu 0–15360 metrů.");
+        }
+
+        return $this->number($number);
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function validatePlayerPairs(array $parameters): void
+    {
+        foreach ([
+            ['min_dist_infected', 'max_dist_infected'],
+            ['min_dist_player', 'max_dist_player'],
+            ['min_dist_static', 'max_dist_static'],
+            ['generator_min_dist_static', 'generator_max_dist_static'],
+            ['min_steepness', 'max_steepness'],
+        ] as [$minimum, $maximum]) {
+            if (isset($parameters[$minimum], $parameters[$maximum])
+                && $parameters[$minimum] !== '' && $parameters[$maximum] !== ''
+                && (float) $parameters[$minimum] > (float) $parameters[$maximum]) {
+                throw new RuntimeException("Hodnota {$minimum} nesmí být vyšší než {$maximum}.");
+            }
+        }
+    }
+
+    private function boolean(mixed $value): string
+    {
+        return match (strtolower(trim((string) $value))) {
+            '1', 'true', 'yes', 'on' => 'true',
+            '0', 'false', 'no', 'off' => 'false',
+            default => throw new RuntimeException('Logická hodnota musí být true nebo false.'),
+        };
+    }
+
+    private function setOptionalIntegerAttribute(DOMElement $element, string $name, mixed $value): void
+    {
+        if ($value === null || $value === '') {
+            $element->removeAttribute($name);
+            return;
+        }
+        if (! is_numeric($value) || (float) $value < -1 || floor((float) $value) !== (float) $value) {
+            throw new RuntimeException("Atribut {$name} musí být celé číslo -1 nebo vyšší.");
+        }
+        $element->setAttribute($name, (string) (int) $value);
     }
 
     /** @param array<string, mixed>|float|int $parameters */

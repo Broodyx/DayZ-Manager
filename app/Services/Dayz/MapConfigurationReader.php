@@ -61,7 +61,9 @@ final class MapConfigurationReader
                 'player-spawn-area',
                 '/playerspawnpoints/'.$modeName.'/generator_posbubbles/group['.($this->siblingIndex($group) + 1).']/pos['.($this->siblingIndex($node) + 1).']',
                 max($width, $height) / 2,
-                'Centrum oblasti generátoru. Server uvnitř oblasti hledá vhodný povrch; nejde o přesný spawn bod.'
+                'Centrum oblasti generátoru. Server uvnitř oblasti hledá vhodný povrch; nejde o přesný spawn bod.',
+                true,
+                $this->playerSpawnParameters($xpath, $modeName, $group)
             );
         }
 
@@ -94,7 +96,9 @@ final class MapConfigurationReader
                 'event-spawn',
                 '/eventposdef/event['.($this->siblingIndex($event) + 1).']/pos['.($this->siblingIndex($node) + 1).']',
                 null,
-                'Pevná kandidátní pozice eventu. Natočení: '.($node->getAttribute('a') ?: '0').'°.'
+                'Pevná kandidátní pozice eventu. Natočení: '.($node->getAttribute('a') ?: '0').'°.',
+                true,
+                ['orientation' => $node->getAttribute('a') ?: '0']
             );
         }
 
@@ -130,7 +134,9 @@ final class MapConfigurationReader
                 'map-group',
                 '/map/group['.($this->siblingIndex($node) + 1).']',
                 null,
-                'Umístění mapové skupiny; prostřední hodnota v atributu pos je výška Y.'
+                'Umístění mapové skupiny; prostřední hodnota v atributu pos je výška Y.',
+                true,
+                $this->mapGroupParameters($node, $parts)
             );
         }
 
@@ -163,7 +169,16 @@ final class MapConfigurationReader
                 'territory',
                 $node->getNodePath(),
                 $radius,
-                'Centrum teritoria zvířat'.($radius ? " s poloměrem {$radius} m." : '.')
+                'Centrum teritoria zvířat'.($radius ? " s poloměrem {$radius} m." : '.'),
+                true,
+                [
+                    'zone_type' => $node->getAttribute('name') ?: 'HuntingGround',
+                    'radius' => $node->getAttribute('r') ?: '150',
+                    'smin' => $node->getAttribute('smin') ?: '0',
+                    'smax' => $node->getAttribute('smax') ?: '0',
+                    'dmin' => $node->getAttribute('dmin') ?: '0',
+                    'dmax' => $node->getAttribute('dmax') ?: '0',
+                ]
             );
         }
 
@@ -220,7 +235,8 @@ final class MapConfigurationReader
     }
 
     /** @return array<string, bool|int|float|string|null> */
-    private function marker(string $filename, float $x, float $z, string $label, string $type, string $path, ?float $radius, string $help, bool $editable = true): array
+    /** @param array<string, mixed> $parameters */
+    private function marker(string $filename, float $x, float $z, string $label, string $type, string $path, ?float $radius, string $help, bool $editable = true, array $parameters = []): array
     {
         return [
             'type' => $type,
@@ -232,6 +248,64 @@ final class MapConfigurationReader
             'radius' => $radius,
             'help' => $help,
             'editable' => $editable,
+            'parameters' => $parameters,
+        ];
+    }
+
+    /** @return array<string, string> */
+    private function playerSpawnParameters(DOMXPath $xpath, string $mode, ?DOMElement $group): array
+    {
+        $parameters = [
+            'spawn_mode' => $mode,
+            'group_name' => $group?->getAttribute('name') ?? '',
+            'group_lifetime_override' => $group?->hasAttribute('lifetime') ? $group->getAttribute('lifetime') : '',
+            'group_counter_override' => $group?->hasAttribute('counter') ? $group->getAttribute('counter') : '',
+        ];
+        foreach ([
+            'spawn_params' => [
+                'min_dist_infected' => 'min_dist_infected',
+                'max_dist_infected' => 'max_dist_infected',
+                'min_dist_player' => 'min_dist_player',
+                'max_dist_player' => 'max_dist_player',
+                'min_dist_static' => 'min_dist_static',
+                'max_dist_static' => 'max_dist_static',
+            ],
+            'generator_params' => [
+                'grid_density' => 'grid_density',
+                'grid_width' => 'grid_width',
+                'grid_height' => 'grid_height',
+                'generator_min_dist_static' => 'min_dist_static',
+                'generator_max_dist_static' => 'max_dist_static',
+                'min_steepness' => 'min_steepness',
+                'max_steepness' => 'max_steepness',
+            ],
+            'group_params' => [
+                'enablegroups' => 'enablegroups',
+                'groups_as_regular' => 'groups_as_regular',
+                'lifetime' => 'lifetime',
+                'counter' => 'counter',
+            ],
+        ] as $section => $values) {
+            foreach ($values as $key => $element) {
+                $node = $xpath->query('/playerspawnpoints/'.$mode.'/'.$section.'/'.$element)->item(0);
+                $parameters[$key] = trim((string) ($node?->textContent ?? ''));
+            }
+        }
+
+        return $parameters;
+    }
+
+    /** @param list<string> $position */
+    private function mapGroupParameters(DOMElement $node, array $position): array
+    {
+        $rotation = preg_split('/\s+/', trim($node->getAttribute('rpy'))) ?: [];
+
+        return [
+            'pos_y' => $position[1] ?? '0',
+            'pitch' => $rotation[0] ?? '0',
+            'yaw' => $rotation[1] ?? '0',
+            'roll' => $rotation[2] ?? '0',
+            'orientation' => $node->getAttribute('a') ?: '0',
         ];
     }
 

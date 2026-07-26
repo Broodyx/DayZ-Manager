@@ -308,6 +308,39 @@ class ConfigurationImporterTest extends TestCase
         $this->assertStringContainsString('type="Land_Train_Wagon_Box_DE"', $saved);
     }
 
+    public function test_event_spawns_xml_has_a_grouped_editor_and_saves_world_position(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Event spawns test',
+            'platform' => 'playstation',
+            'map' => 'chernarusplus',
+        ]);
+        $xml = '<?xml version="1.0"?><eventposdef><event name="StaticSantaCrash"><pos x="5587.466" z="2063.353" a="78.123"/></event></eventposdef>';
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('cfgeventspawns.xml', $xml),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->assertSet('visualKind', 'event-spawns')
+            ->assertSet('eventSpawns.0.name', 'StaticSantaCrash')
+            ->assertSee('Umístění eventů')
+            ->assertSee('Světové souřadnice')
+            ->set('xmlValues./eventposdef[1]/event[1]/pos[1]@x', 6000)
+            ->set('xmlValues./eventposdef[1]/event[1]/pos[1]@a', 90)
+            ->call('saveEventSpawns')
+            ->assertHasNoErrors();
+
+        $saved = Storage::disk('dayz')->get($project->revisions()->latest('revision_number')->firstOrFail()->storage_path);
+        $this->assertStringContainsString('x="6000"', $saved);
+        $this->assertStringContainsString('a="90"', $saved);
+    }
+
     public function test_editor_save_creates_a_new_revision_without_overwriting_the_source(): void
     {
         Storage::fake('dayz');

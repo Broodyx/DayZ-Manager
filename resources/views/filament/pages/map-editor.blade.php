@@ -52,6 +52,7 @@
                     <label>Souřadnice X<input class="dz-edit-x" type="number" min="0" max="15360" step="0.001"></label>
                     <label>Souřadnice Z<input class="dz-edit-z" type="number" min="0" max="15360" step="0.001"></label>
                 </div>
+                <div class="dz-edit-point-fields"></div>
                 <p class="dz-muted">Povolený rozsah Chernarus: 0–15 360. Uložení vždy vytvoří novou revizi původního souboru.</p>
                 <p class="dz-map-feedback" hidden></p>
                 <div class="dz-edit-actions">
@@ -339,12 +340,34 @@
             };
             const pointTypeCatalog = @js($pointTypeCatalog);
             let selectedCatalogOption = null;
-            const renderPointFields = () => {
-                const catalogRoot = document.getElementById('dz-event-catalog');
-                const definition = pointTypeCatalog[pendingButton?.dataset.point] || {};
-                const root = catalogRoot.querySelector('.dz-point-fields');
+            const editDefinitionForMarker = (marker) => {
+                if (marker.type === 'player-spawn-area') return pointTypeCatalog.player;
+                if (marker.type === 'event-spawn') return pointTypeCatalog.dynamic;
+                if (marker.type === 'map-group') return pointTypeCatalog.loot;
+                if (marker.type === 'territory') return pointTypeCatalog.territory;
+                return null;
+            };
+            const buildPointFields = (root, fields, values = {}, editMode = false) => {
                 root.replaceChildren();
-                (definition.fields || []).forEach((field) => {
+                const sections = new Map();
+                (fields || []).forEach((field) => {
+                    const sectionName = field.section || '';
+                    let section = root;
+                    if (sectionName) {
+                        if (!sections.has(sectionName)) {
+                            const group = document.createElement('fieldset');
+                            group.className = 'dz-point-field-section';
+                            const legend = document.createElement('legend');
+                            legend.textContent = sectionName;
+                            group.appendChild(legend);
+                            const grid = document.createElement('div');
+                            grid.className = 'dz-point-field-section-grid';
+                            group.appendChild(grid);
+                            root.appendChild(group);
+                            sections.set(sectionName, grid);
+                        }
+                        section = sections.get(sectionName);
+                    }
                     const label = document.createElement('label');
                     label.textContent = field.label;
                     let input;
@@ -359,15 +382,37 @@
                         });
                     }
                     input.dataset.parameter = field.name;
-                    input.value = field.default ?? '';
+                    input.value = values[field.name] ?? field.default ?? '';
+                    if (editMode && field.name === 'spawn_mode') {
+                        input.disabled = true;
+                        input.title = 'Existující bod nelze přesunout mezi režimy; lze jej smazat a vytvořit v jiném režimu.';
+                    }
                     label.appendChild(input);
                     if (field.help) {
                         const help = document.createElement('small');
                         help.textContent = field.help;
                         label.appendChild(help);
                     }
-                    root.appendChild(label);
+                    section.appendChild(label);
                 });
+            };
+            const renderPointFields = () => {
+                const catalogRoot = document.getElementById('dz-event-catalog');
+                const definition = pointTypeCatalog[pendingButton?.dataset.point] || {};
+                const root = catalogRoot.querySelector('.dz-point-fields');
+                buildPointFields(root, definition.fields || []);
+                const mode = root.querySelector('[data-parameter="spawn_mode"]');
+                if (mode && definition.mode_defaults) {
+                    const applyModeDefaults = () => {
+                        const values = definition.mode_defaults[mode.value] || {};
+                        Object.entries(values).forEach(([name, value]) => {
+                            const input = root.querySelector('[data-parameter="' + name + '"]');
+                            if (input && value !== '') input.value = value;
+                        });
+                    };
+                    mode.addEventListener('change', applyModeDefaults);
+                    applyModeDefaults();
+                }
             };
             const renderRelatedSettings = () => {
                 const catalogRoot = document.getElementById('dz-event-catalog');
@@ -486,6 +531,8 @@
                         editModal.querySelector('.dz-edit-point-context').textContent = marker.label + ' · ' + marker.filename;
                         editModal.querySelector('.dz-edit-x').value = marker.worldX;
                         editModal.querySelector('.dz-edit-z').value = marker.worldZ;
+                        const editDefinition = editDefinitionForMarker(marker);
+                        buildPointFields(editModal.querySelector('.dz-edit-point-fields'), editDefinition?.fields || [], marker.parameters || {}, true);
                         editModal.hidden = false;
                     });
                     root.querySelector('.dz-map-delete')?.addEventListener('click', () => {
@@ -493,6 +540,8 @@
                         editModal.querySelector('.dz-edit-point-context').textContent = marker.label + ' · ' + marker.filename;
                         editModal.querySelector('.dz-edit-x').value = marker.worldX;
                         editModal.querySelector('.dz-edit-z').value = marker.worldZ;
+                        const editDefinition = editDefinitionForMarker(marker);
+                        buildPointFields(editModal.querySelector('.dz-edit-point-fields'), editDefinition?.fields || [], marker.parameters || {}, true);
                         editModal.hidden = false;
                     });
                 });
@@ -535,7 +584,9 @@
                     showFeedback(editModal, 'Souřadnice musí být v rozsahu 0–15 360.');
                     return;
                 }
-                fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ,new_x:newX,new_z:newZ})}).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(()=>({}))).message || 'Bod se nepodařilo upravit.'); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
+                const parameters = {};
+                editModal.querySelectorAll('[data-parameter]').forEach((input) => parameters[input.dataset.parameter] = input.value);
+                fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ,new_x:newX,new_z:newZ,parameters})}).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(()=>({}))).message || 'Bod se nepodařilo upravit.'); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
             };
             editModal.querySelector('.dz-edit-delete').onclick = () => {
                 if (!activeMarker) return;
