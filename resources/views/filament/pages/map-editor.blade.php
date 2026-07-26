@@ -147,18 +147,55 @@
             coordinateControl.onAdd = () => { const div = L.DomUtil.create('div', 'dz-coordinate-control'); div.textContent = 'X: — · Z: —'; return div; };
             coordinateControl.addTo(map);
             const grid = L.layerGroup().addTo(map);
+            const coordinateLabels = L.layerGroup().addTo(map);
             for (let coordinate = 0; coordinate <= 15000; coordinate += 1000) {
                 L.polyline([[0, coordinate], [worldSize, coordinate]], { color:'#d8f57b', weight:1, opacity:.2, interactive:false }).addTo(grid);
                 L.polyline([[coordinate, 0], [coordinate, worldSize]], { color:'#d8f57b', weight:1, opacity:.2, interactive:false }).addTo(grid);
-                if (coordinate > 0) {
-                    L.marker([160, coordinate], { interactive:false, icon:L.divIcon({ className:'dz-grid-label', html:'X '+coordinate, iconSize:[62,16] }) }).addTo(grid);
-                    L.marker([coordinate, 120], { interactive:false, icon:L.divIcon({ className:'dz-grid-label', html:'Z '+coordinate, iconSize:[62,16] }) }).addTo(grid);
-                }
             }
+            const coordinateText = (x, z, source = 'střed') => {
+                document.querySelector('.dz-coordinate-control').textContent = source + ' · X: ' + Math.round(x).toLocaleString() + ' · Z: ' + Math.round(z).toLocaleString();
+            };
+            const refreshCoordinateGrid = () => {
+                coordinateLabels.clearLayers();
+                const zoom = map.getZoom();
+                const step = zoom >= 0 ? 100 : (zoom >= -1.5 ? 500 : (zoom >= -3 ? 1000 : 2000));
+                const visible = map.getBounds();
+                const west = Math.max(0, visible.getWest());
+                const east = Math.min(worldSize, visible.getEast());
+                const south = Math.max(0, visible.getSouth());
+                const north = Math.min(worldSize, visible.getNorth());
+                const firstX = Math.ceil(west / step) * step;
+                const firstZ = Math.ceil(south / step) * step;
+                for (let x = firstX; x <= east; x += step) {
+                    L.polyline([[south, x], [north, x]], { color:'#ecf8d7', weight:1, opacity:.28, interactive:false, dashArray:zoom >= 0 ? '3 4' : null }).addTo(coordinateLabels);
+                    for (let z = firstZ; z <= north; z += step) {
+                        L.marker([z, x], {
+                            interactive:false,
+                            icon:L.divIcon({
+                                className:'dz-grid-coordinate',
+                                html:'<b>X '+Math.round(x).toLocaleString()+'</b><span>Z '+Math.round(z).toLocaleString()+'</span>',
+                                iconSize:[82,30],
+                                iconAnchor:[41,15]
+                            })
+                        }).addTo(coordinateLabels);
+                    }
+                }
+                for (let z = firstZ; z <= north; z += step) {
+                    L.polyline([[z, west], [z, east]], { color:'#ecf8d7', weight:1, opacity:.28, interactive:false, dashArray:zoom >= 0 ? '3 4' : null }).addTo(coordinateLabels);
+                }
+                const center = map.getCenter();
+                coordinateText(center.lng, center.lat, 'Střed mapy');
+            };
+            map.on('moveend zoomend', refreshCoordinateGrid);
+            refreshCoordinateGrid();
             map.on('mousemove', (event) => {
                 const x = Math.max(0, Math.min(worldSize, Math.round(event.latlng.lng)));
                 const z = Math.max(0, Math.min(worldSize, Math.round(event.latlng.lat)));
-                document.querySelector('.dz-coordinate-control').textContent = 'DayZ X: ' + x.toLocaleString() + ' · Z: ' + z.toLocaleString();
+                coordinateText(x, z, 'Kurzor');
+            });
+            map.on('mouseout', () => {
+                const center = map.getCenter();
+                coordinateText(center.lng, center.lat, 'Střed mapy');
             });
             map.on('click', (event) => {
                 if (!event.originalEvent.ctrlKey) return;
