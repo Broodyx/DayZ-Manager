@@ -131,6 +131,9 @@
                 Nebyly nalezeny žádné PC-only prvky. Samotný běžný XML soubor ale nedokáže automaticky rozlišit PlayStation od Xboxu.
             </div>
         @endif
+        @foreach ($dependencyWarnings as $warning)
+            <div class="dz-warning"><strong>Chybějící vazba konfigurace.</strong> {{ $warning }}</div>
+        @endforeach
 
         <div class="flex items-center justify-between gap-4 flex-wrap">
             <div class="dz-tabs">
@@ -349,6 +352,29 @@
                     'networkObjectBatchSend'=>'Objekty v síťové dávce; celé číslo 1–1000.',
                     'networkObjectBatchCompute'=>'Objekty zpracované v dávce; celé číslo 1–1000.',
                     'description'=>'Popis serveru v prohlížeči; libovolný text (doporučeno do 255 znaků).',
+                    'disableBanlist'=>'Banlist: false/0 = ban.txt se používá, true/1 = kontrola ban.txt je vypnutá.',
+                    'disablePrioritylist'=>'Prioritní fronta: false/0 = priority.txt se používá, true/1 = je vypnutý.',
+                    'respawnTime'=>'Čekání před vytvořením nové postavy po smrti, v sekundách; minimum 0.',
+                    'motd'=>'Zpráva dne. Pro více řádků se v CFG používá pole motd[].',
+                    'motdInterval'=>'Interval mezi řádky MOTD v sekundách; minimum 1.',
+                    'timeStampFormat'=>'Formát času v RPT logu: Short nebo Full.',
+                    'logAverageFps'=>'Interval zápisu průměrného FPS do logu v sekundách; vyžaduje -doLogs.',
+                    'logMemory'=>'Interval zápisu využití paměti do logu v sekundách; vyžaduje -doLogs.',
+                    'logPlayers'=>'Interval zápisu počtu hráčů do logu v sekundách; vyžaduje -doLogs.',
+                    'logFile'=>'Název souboru konzolového logu v profiles složce.',
+                    'disableMultiAccountMitigation'=>'Console multi-account ochrana: false = aktivní, true = vypnutá.',
+                    'enableDebugMonitor'=>'Debug monitor: 0 = skrytý, 1 = zobrazený.',
+                    'allowFilePatching'=>'File patching klientů: 0 = zakázán, 1 = povolen; používat pouze pro vývoj PC serveru.',
+                    'simulatedPlayersBatch'=>'Počet simulovaných hráčů zpracovaných za snímek; kladné celé číslo.',
+                    'multithreadedReplication'=>'Vícevláknová replikace: 0 = vypnuta, 1 = zapnuta; souvisí s dayzsettings.xml.',
+                    'defaultVisibility'=>'Maximální dohled terénu v metrech; kladné číslo.',
+                    'defaultObjectViewDistance'=>'Maximální dohled objektů v metrech; kladné číslo.',
+                    'pingWarning'=>'Žluté upozornění na ping v milisekundách.',
+                    'pingCritical'=>'Červené upozornění na ping v milisekundách; má být vyšší než pingWarning.',
+                    'MaxPing'=>'Ping v milisekundách, po jehož překročení je hráč odpojen.',
+                    'serverFpsWarning'=>'Upozornění při poklesu server FPS; oficiální minimum je 11.',
+                    'shotValidation'=>'Validace střelby: 0 = vypnuta, 1 = zapnuta.',
+                    'clientPort'=>'UDP port pro klientská připojení; rozsah 1024–65535.',
                 ];
                 @endphp
                 <section class="dz-editor-card"><h3>Serverová nastavení · serverDZ.cfg</h3><p class="dz-muted">Upravujte hodnoty serveru bez ručního psaní CFG syntaxe. Hesla jsou skrytá; prázdné pole zachová původní hodnotu.</p><div class="dz-fields-grid">
@@ -385,6 +411,12 @@
                     <div class="dz-whitelist-add"><input wire:model.defer="newBanUid" placeholder="UID hráče k zablokování" autocomplete="off"><button type="button" wire:click="addBanEntry" class="dz-save-button">Přidat zákaz</button></div>
                     <div class="dz-whitelist-list">@forelse($banEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removeBanEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Banlist je zatím prázdný.</p>@endforelse</div>
                     <button type="button" wire:click="saveBan" class="dz-save-button">Uložit ban.txt jako novou revizi</button>
+                </section>
+            @elseif ($visualKind === 'priority')
+                <section class="dz-editor-card"><h3>Prioritní fronta · priority.txt</h3><p class="dz-muted">Každý řádek obsahuje UID nebo dvojici UID ve formátu podporovaném DayZ. Hráči v tomto seznamu dostanou přednost před běžnou přihlašovací frontou. Použití lze vypnout přes <code>disablePrioritylist</code> v serverDZ.cfg.</p>
+                    <div class="dz-whitelist-add"><input wire:model.defer="newPriorityUid" placeholder="Steam/console UID nebo dvojice UID" autocomplete="off"><button type="button" wire:click="addPriorityEntry" class="dz-save-button">Přidat hráče</button></div>
+                    <div class="dz-whitelist-list">@forelse($priorityEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removePriorityEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Priority list je zatím prázdný.</p>@endforelse</div>
+                    <button type="button" wire:click="savePriority" class="dz-save-button">Uložit priority.txt jako novou revizi</button>
                 </section>
             @elseif ($visualKind === 'weather')
                 @php
@@ -527,6 +559,22 @@
                         'use3DMap' => '3D mapa v rozhraní: true = zapnuto, false = vypnuto.',
                         'displayPlayerPosition' => 'Zobrazení pozice hráče na mapě: true = zapnuto, false = vypnuto.',
                         'displayNavInfo' => 'Navigační informace na mapě: true = zapnuto, false = vypnuto.',
+                        'objectSpawnersArr' => 'Seznam JSON souborů Object Spawneru v mission složce, např. ["spawnerData.json"]. Vyžaduje enableCfgGameplayFile = 1.',
+                        'spawnGearPresetFiles' => 'Seznam JSON presetů startovní výbavy, např. ["survivalist.json"]. Vyšší spawnWeight znamená častější výběr presetu.',
+                        'Objects' => 'Objekty vytvořené při startu mise. Každý záznam obsahuje name, pos [X,Y,Z], ypr [yaw,pitch,roll], scale a enableCEPersistency.',
+                        'Areas' => 'Seznam statických efektových nebo kontaminovaných oblastí. Pozice používá [X,Y,Z], Radius je v metrech.',
+                        'Triggers' => 'Spouštěče podzemních prostor; určují oblast aktivace, typ triggeru a chování prostředí.',
+                        'Breadcrumbs' => 'Pomocné body podzemní trasy používané pro přechody a orientaci systému podzemních oblastí.',
+                        'pos' => 'Souřadnice objektu [X,Y,Z] v herním světě.',
+                        'Pos' => 'Souřadnice středu oblasti [X,Y,Z] v herním světě.',
+                        'ypr' => 'Orientace [yaw,pitch,roll] ve stupních.',
+                        'Radius' => 'Poloměr oblasti v metrech. Hodnota musí být kladná; u kontaminace ovlivňuje počet částic a výkon.',
+                        'scale' => 'Násobek původní velikosti objektu; 1 = původní velikost.',
+                        'enableCEPersistency' => 'true = po interakci může objekt přejít do persistence Central Economy; false = bez CE persistence.',
+                        'spawnWeight' => 'Relativní váha výběru presetu; minimum 1, vyšší číslo znamená častější výběr.',
+                        'characterTypes' => 'Seznam tříd postav použitelných pro tento spawn preset.',
+                        'attachmentSlotItemSets' => 'Výbava přiřazená do slotů postavy, včetně variant a jejich vah.',
+                        'discreteUnsortedItemSets' => 'Položky vložené do inventáře postavy bez pevného attachment slotu.',
                     ];
                 @endphp
                 <section class="dz-panel dz-server-settings">
@@ -543,6 +591,8 @@
                                                     <label class="dz-switch-control" x-data="{ enabled: @js((bool) data_get($jsonValues, $field['path'], false)) }"><input type="checkbox" wire:model.live="jsonValues.{{ $field['path'] }}" x-model="enabled"><span class="dz-toggle-button" :class="enabled ? 'on' : 'off'" x-text="enabled ? 'Zapnuto' : 'Vypnuto'"></span></label>
                                                 @elseif ($field['type'] === 'number')
                                                     <input type="number" wire:model="jsonValues.{{ $field['path'] }}">
+                                                @elseif ($field['type'] === 'json')
+                                                    <textarea rows="8" wire:model="jsonValues.{{ $field['path'] }}" spellcheck="false"></textarea>
                                                 @else
                                                     <input type="text" wire:model="jsonValues.{{ $field['path'] }}">
                                                 @endif
@@ -558,10 +608,10 @@
             @endif
         @elseif ($visualKind === 'messages')
             <section class="dz-panel dz-server-settings">
-                <div class="dz-panel-head"><strong>messages.xml · vizuální editor</strong><p class="dz-muted text-sm mt-1">Každá zpráva se zobrazí samostatně. Časy jsou v minutách; <code>onconnect</code> a <code>shutdown</code> používají 0 = vypnuto, 1 = zapnuto.</p></div>
+                <div class="dz-panel-head"><strong>messages.xml · vizuální editor</strong><p class="dz-muted text-sm mt-1">Každá zpráva se zobrazí samostatně. Časy jsou v minutách; <code>onconnect</code> a <code>shutdown</code> používají 0 = vypnuto, 1 = zapnuto.</p><button type="button" wire:click="addMessage" class="dz-save-button">+ Přidat zprávu</button></div>
                 <div class="p-3">
                     @forelse ($messagesEntries as $index => $message)
-                        <details class="dz-group" open><summary><span>Zpráva #{{ $index + 1 }}</span><span class="dz-badge dz-server-badge">message</span></summary>
+                        <details class="dz-group" open><summary><span>Zpráva #{{ $index + 1 }}</span><span><span class="dz-badge dz-server-badge">message</span> <button type="button" wire:click.stop="removeMessage({{ $index }})" class="dz-danger">Odebrat</button></span></summary>
                             <div class="dz-fields">
                                 @foreach ([['repeat','Opakování (min)','Interval opakování zprávy v minutách. Prázdné = neopakovat.'],['delay','Zpoždění po startu (min)','Počet minut od startu serveru nebo připojení, než se zpráva zobrazí.'],['deadline','Odpočet do vypnutí (min)','Odpočet do plánovaného vypnutí serveru. Prázdné = bez vypnutí.'],['onconnect','Po připojení (0/1)','1 = zobrazit po připojení hráče, 0 nebo prázdné = ne.'],['shutdown','Vypnutí po odpočtu (0/1)','1 = po deadline server vypnout, 0 nebo prázdné = nevypínat.']] as [$key, $label, $help])
                                     <label class="dz-field" data-tooltip="{{ $help }}"><span class="dz-field-top"><span><strong>{{ $label }}</strong><br><small class="dz-muted">{{ $help }}</small></span><input type="number" min="0" wire:model="messagesEntries.{{ $index }}.{{ $key }}"></span></label>
@@ -570,7 +620,7 @@
                             </div>
                         </details>
                     @empty
-                        <div class="dz-empty-state"><strong>Soubor neobsahuje žádné aktivní zprávy.</strong><p class="dz-muted">Výchozí messages.xml často obsahuje pouze komentované příklady. Přidejte zprávu přes Raw data nebo nahrajte vlastní messages.xml.</p></div>
+                        <div class="dz-empty-state"><strong>Soubor neobsahuje žádné aktivní zprávy.</strong><p class="dz-muted">Výchozí messages.xml často obsahuje pouze komentované příklady. Použijte tlačítko „Přidat zprávu“.</p></div>
                     @endforelse
                 </div>
                 <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny messages.xml"><button type="button" wire:click="saveMessages" wire:loading.attr="disabled" class="dz-action">Validovat a uložit messages.xml</button></div>
@@ -584,7 +634,7 @@
                             <div class="dz-fields">
                                 @foreach ($fields as $field)
                                     <label class="dz-field" data-tooltip="Raw XML: {{ $field['raw'] }}">
-                                        <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $field['raw'] }} · {{ $field['type'] === 'number' ? 'číselná hodnota; rozsah ověřte podle popisu XML' : 'textová hodnota' }}</small></span><input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}" wire:model="xmlValues.{{ $field['path'] }}"></span>
+                                        <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $this->xmlFieldDescription($field) }}</small><small class="dz-muted">Raw: {{ $field['raw'] }}</small></span><input type="{{ $field['type'] === 'number' ? 'number' : 'text' }}" wire:model="xmlValues.{{ $field['path'] }}"></span>
                                     </label>
                                 @endforeach
                             </div>

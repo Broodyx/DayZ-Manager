@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\Project;
 use App\Services\Import\ConfigurationImporter;
+use App\Services\Dayz\ConfigurationCatalog;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -42,12 +43,7 @@ class ConfigurationImport extends Page implements HasForms
     protected function getFormSchema(): array
     {
         return [
-            Select::make('area')->label('Co chcete editovat?')->options([
-                'server' => 'Server a pravidla · serverDZ.cfg', 'economy' => 'Loot a ekonomika · types.xml',
-                'events' => 'Eventy a vozidla · events.xml', 'map' => 'Mapa a spawn body',
-                'weather' => 'Počasí · cfgweather.xml', 'gameplay' => 'Gameplay · cfggameplay.json',
-                'admin' => 'Administrace · ban.txt, whitelist.txt, messages.xml',
-            ])->required(),
+            Select::make('area')->label('Co chcete editovat?')->options(fn (): array => app(ConfigurationCatalog::class)->options())->required(),
             Select::make('project_id')->label('Server')->options(fn (): array => Project::where('user_id', auth()->id())->orderBy('name')->pluck('name', 'id')->all())->searchable()->required(),
             Select::make('platform')->label('Platforma')->options(['playstation' => 'PlayStation', 'xbox' => 'Xbox', 'steam' => 'PC / Steam'])->required(),
             FileUpload::make('file')->label('Soubor konfigurace')

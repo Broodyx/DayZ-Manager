@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
+use ZipArchive;
 
 class ConfigurationImporterTest extends TestCase
 {
@@ -61,6 +62,44 @@ class ConfigurationImporterTest extends TestCase
         $this->assertSame('invalid', $import->validation_status);
         $this->assertNotEmpty($import->validation_errors);
         $this->assertSame('types.xml', $import->validation_errors[0]['file']);
+    }
+
+    public function test_zip_bundle_creates_individually_editable_imports_and_revisions(): void
+    {
+        if (! class_exists(ZipArchive::class)) {
+            $this->markTestSkipped('Lokální PHP nemá ext-zip; produkční Docker image ji instaluje.');
+        }
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Bundle test',
+            'platform' => 'unknown',
+            'map' => 'ChernarusPlus',
+        ]);
+        $temporary = tempnam(sys_get_temp_dir(), 'dayz-');
+        @unlink($temporary);
+        $path = $temporary.'.zip';
+        $zip = new ZipArchive;
+        $zip->open($path, ZipArchive::CREATE);
+        $zip->addFromString('db/types.xml', '<types><type name="AKM"/></types>');
+        $zip->addFromString('cfggameplay.json', '{"version":123,"PlayerData":{"spawnGearPresetFiles":[]}}');
+        $zip->close();
+
+        try {
+            app(ConfigurationImporter::class)->import(
+                $project,
+                new UploadedFile($path, 'mission.zip', 'application/zip', null, true),
+                $user,
+            );
+        } finally {
+            @unlink($path);
+        }
+
+        $this->assertDatabaseHas('configuration_imports', ['original_filename' => 'db/types.xml']);
+        $this->assertDatabaseHas('configuration_imports', ['original_filename' => 'cfggameplay.json']);
+        $this->assertSame(2, $project->revisions()->count());
+        $this->assertSame(['json', 'xml'], $project->revisions()->get()->map(fn ($revision) => pathinfo($revision->storage_path, PATHINFO_EXTENSION))->sort()->values()->all());
     }
 
     public function test_demo_data_can_be_created_repeatedly_for_the_signed_in_user(): void

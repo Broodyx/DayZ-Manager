@@ -7,7 +7,7 @@ use ZipArchive;
 
 final class SafeZipExtractor
 {
-    private const ALLOWED_EXTENSIONS = ['xml', 'json'];
+    private const ALLOWED_EXTENSIONS = ['xml', 'json', 'cfg', 'txt', 'c'];
 
     public function extract(string $archivePath, string $destination): array
     {

@@ -14,6 +14,7 @@ use App\Services\Xml\XmlValidator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use JsonException;
 use RuntimeException;
 use Throwable;
@@ -36,6 +37,9 @@ final readonly class ConfigurationImporter
         $stored = $this->fileStorage->store($file, $project->id);
 
         try {
+            if (strtolower(pathinfo($stored->path, PATHINFO_EXTENSION)) === 'zip') {
+                return $this->importArchive($project, $stored, $user);
+            }
             [$contents, $paths, $validationErrors] = $this->inspect($stored);
             $detection = $this->platformDetector->detect(implode("\n", $contents), $paths);
 
@@ -83,6 +87,54 @@ final readonly class ConfigurationImporter
         } catch (Throwable $exception) {
             Storage::disk('dayz')->delete($stored->path);
 
+            throw $exception;
+        }
+    }
+
+    private function importArchive(Project $project, StoredConfiguration $archive, User $user): ConfigurationImport
+    {
+        [$contents, $paths] = $this->inspect($archive);
+        $storedPaths = [];
+        try {
+            $lastImport = DB::transaction(function () use ($project, $user, $contents, $paths, &$storedPaths): ConfigurationImport {
+                $lockedProject = Project::query()->lockForUpdate()->findOrFail($project->id);
+                $revisionNumber = (int) $lockedProject->revisions()->max('revision_number');
+                $lastImport = null;
+                foreach ($contents as $index => $content) {
+                    $originalFilename = str_replace('\\', '/', $paths[$index]);
+                    $extension = strtolower(pathinfo($originalFilename, PATHINFO_EXTENSION));
+                    $path = "{$project->id}/imports/".Str::uuid().'.'.$extension;
+                    Storage::disk('dayz')->put($path, $content);
+                    $storedPaths[] = $path;
+                    $validationErrors = $this->validate($originalFilename, $content);
+                    $detection = $this->platformDetector->detect($content, [$originalFilename]);
+                    $lastImport = $lockedProject->imports()->create([
+                        'original_filename' => $originalFilename,
+                        'storage_path' => $path,
+                        'sha256' => hash('sha256', $content),
+                        'detected_platform' => $detection->platform,
+                        'detection_confidence' => $detection->confidence,
+                        'validation_status' => $validationErrors === [] ? 'valid' : 'invalid',
+                        'validation_errors' => $validationErrors ?: null,
+                        'imported_at' => now(),
+                    ]);
+                    ConfigurationRevision::query()->create([
+                        'project_id' => $lockedProject->id,
+                        'configuration_import_id' => $lastImport->id,
+                        'revision_number' => ++$revisionNumber,
+                        'storage_path' => $path,
+                        'sha256' => hash('sha256', $content),
+                        'change_summary' => "Import souboru {$originalFilename} ze ZIP balíku",
+                        'created_by' => $user->id,
+                    ]);
+                }
+                if (! $lastImport) throw new RuntimeException('ZIP archiv neobsahuje podporované konfigurační soubory.');
+                return $lastImport;
+            });
+            Storage::disk('dayz')->delete($archive->path);
+            return $lastImport;
+        } catch (Throwable $exception) {
+            Storage::disk('dayz')->delete($storedPaths);
             throw $exception;
         }
     }
@@ -142,7 +194,7 @@ final readonly class ConfigurationImporter
             );
         }
 
-        if (in_array($extension, ['cfg', 'txt'], true)) {
+        if (in_array($extension, ['cfg', 'txt', 'c'], true)) {
             return [];
         }
 

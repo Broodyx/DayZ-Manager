@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Services\Import\ConfigurationImporter;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\WithFileUploads;
 
 class MapEditor extends Page
@@ -63,6 +64,7 @@ class MapEditor extends Page
             'mapgroupdirt.xml' => 'Doplňková data mapových skupin.',
             'cfgeffectarea.json' => 'Efektové a kontaminované oblasti.',
             'cfgundergroundtriggers.json' => 'Spouštěče podzemních oblastí.',
+            '*spawner*.json' => 'Object Spawner: vlastní objekty, pozice a orientace.',
             '*_territories.xml' => 'Teritoria zvířat podle druhu.',
         ];
         $project = $this->projectId ? Project::query()->where('user_id', auth()->id())->find($this->projectId) : null;
@@ -71,7 +73,7 @@ class MapEditor extends Page
         foreach ($definitions as $filename => $description) {
             $revision = $revisions->first(function ($item) use ($filename) {
                 $name = strtolower($item->configurationImport?->original_filename ?? basename($item->storage_path));
-                return $filename === '*_territories.xml' ? str_ends_with($name, '_territories.xml') : $name === $filename;
+                return str_contains($filename, '*') ? Str::is($filename, $name) : $name === $filename;
             });
             $this->mapSources[] = [
                 'filename' => $filename,
@@ -141,8 +143,28 @@ class MapEditor extends Page
                 'cfgplayerspawnpoints.xml', 'mapclusterproto.xml', 'mapgroupproto.xml',
                 'mapgroupcluster.xml', 'mapgroupcluster01.xml', 'mapgroupcluster02.xml',
                 'mapgroupcluster03.xml', 'mapgroupcluster04.xml', 'mapgroupdirt.xml',
-            ], true) || str_ends_with($filename, '_territories.xml');
+                'cfgeffectarea.json', 'cfgundergroundtriggers.json',
+            ], true) || str_ends_with($filename, '_territories.xml') || (str_ends_with($filename, '.json') && str_contains($filename, 'spawner'));
             if (! $isMapSource || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+                continue;
+            }
+            if (str_ends_with($filename, '.json')) {
+                $data = json_decode(Storage::disk('dayz')->get($revision->storage_path), true);
+                if (is_array($data)) {
+                    foreach ($this->jsonPositions($data) as $position) {
+                        [$x, $z, $label] = $position;
+                        if ($x < 0 || $z < 0 || $x > 15360 || $z > 15360) continue;
+                        $this->markers[] = [
+                            'type' => 'json-area',
+                            'label' => $label ?: $filename.' · '.number_format($x, 0).' / '.number_format($z, 0),
+                            'x' => round(($x / 15360) * 100, 3),
+                            'y' => round((1 - ($z / 15360)) * 100, 3),
+                            'worldX' => $x,
+                            'worldZ' => $z,
+                            'filename' => $filename,
+                        ];
+                    }
+                }
                 continue;
             }
             $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
@@ -166,6 +188,30 @@ class MapEditor extends Page
                 ];
             }
         }
+    }
+
+    /** @return list<array{0:float,1:float,2:string}> */
+    private function jsonPositions(array $data, string $label = ''): array
+    {
+        $positions = [];
+        $currentLabel = (string) ($data['AreaName'] ?? $data['name'] ?? $data['Name'] ?? $label);
+        foreach (['Pos', 'pos', 'position', 'Position'] as $key) {
+            $value = $data[$key] ?? null;
+            if (is_array($value) && count($value) >= 3 && is_numeric($value[0]) && is_numeric($value[2])) {
+                $positions[] = [(float) $value[0], (float) $value[2], $currentLabel];
+            }
+        }
+        foreach ($data as $value) {
+            if (! is_array($value)) continue;
+            if (array_is_list($value)) {
+                foreach ($value as $item) {
+                    if (is_array($item)) array_push($positions, ...$this->jsonPositions($item, $currentLabel));
+                }
+            } else {
+                array_push($positions, ...$this->jsonPositions($value, $currentLabel));
+            }
+        }
+        return $positions;
     }
 
     public function importMapConfiguration(ConfigurationImporter $importer): void

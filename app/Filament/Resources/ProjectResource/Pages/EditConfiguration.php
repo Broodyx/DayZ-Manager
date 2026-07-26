@@ -70,6 +70,8 @@ class EditConfiguration extends Page
     public string $newWhitelistUid = '';
     public array $banEntries = [];
     public string $newBanUid = '';
+    public array $priorityEntries = [];
+    public string $newPriorityUid = '';
     public array $messagesEntries = [];
 
     public array $jsonFields = [];
@@ -111,6 +113,7 @@ class EditConfiguration extends Page
 
     /** @var list<string> */
     public array $platformWarnings = [];
+    public array $dependencyWarnings = [];
 
     public function mount(int|string $record): void
     {
@@ -164,6 +167,45 @@ class EditConfiguration extends Page
         return $this->descriptionForFilename($this->currentFilename);
     }
 
+    public function xmlFieldDescription(array $field): string
+    {
+        $path = strtolower((string) ($field['path'] ?? ''));
+        $name = strtolower((string) ($field['label'] ?? ''));
+        $descriptions = [
+            'min dist infected' => 'Minimální vzdálenost od infikovaných v metrech; bližší bod je neplatný.',
+            'max dist infected' => 'Vzdálenost od infikovaných v metrech, nad kterou už bod nezískává lepší hodnocení.',
+            'min dist player' => 'Minimální vzdálenost od jiného hráče v metrech.',
+            'max dist player' => 'Horní vzdálenost od hráčů používaná při hodnocení spawn bodu.',
+            'min dist static' => 'Minimální vzdálenost od budovy nebo statického objektu v metrech.',
+            'max dist static' => 'Horní vzdálenost od statických objektů používaná při hodnocení bodu.',
+            'grid density' => 'Hustota vzorkovací mřížky generátoru spawnů; kladné celé číslo.',
+            'grid width' => 'Celková šířka generované spawn oblasti v metrech.',
+            'grid height' => 'Celková výška generované spawn oblasti v metrech.',
+            'min steepness' => 'Minimální povolený sklon terénu ve stupních; obvykle -45.',
+            'max steepness' => 'Maximální povolený sklon terénu ve stupních; obvykle 45.',
+            'enablegroups' => 'true = používat skupiny spawnů, false = číst body jako běžný seznam.',
+            'groups as regular' => 'true = body skupin lze použít jako běžné body, pokud jsou skupiny vypnuté.',
+            'lifetime' => 'Životnost entity nebo skupiny; jednotka závisí na souboru, u spawn skupin jde o časovač skupiny.',
+            'counter' => 'Počet spawnů obnovujících životnost skupiny; -1 = omezení vypnuto.',
+            'backup period' => 'Interval vytváření persistence záloh v minutách; oficiální minimum 15.',
+            'backup count' => 'Počet uchovávaných persistence záloh; kladné celé číslo.',
+            'backup startup' => 'true = vytvořit zálohu po startu a dokončení inicializace CE.',
+            'world segments' => 'Počet segmentů světa pro ukládání CE; výchozí hodnota Chernarus je 12.',
+            'dyn radius' => 'Výchozí poloměr dynamické infected zóny v metrech.',
+            'report memory lod' => 'yes/no: zapíná hlášení chybějícího Memory LOD pro root class.',
+            'act' => 'Role root class v CE: none/neuvedeno = loot, character = postava, car = vozidlo.',
+        ];
+        foreach ($descriptions as $needle => $description) {
+            if (str_contains($name, $needle) || str_contains($path, str_replace(' ', '_', $needle))) return $description;
+        }
+        if (str_ends_with($path, '@x') || str_ends_with($path, '/x[1]/text()')) return 'Souřadnice X v herním světě; pro Chernarus obvykle 0–15360.';
+        if (str_ends_with($path, '@z') || str_ends_with($path, '/z[1]/text()')) return 'Souřadnice Z v herním světě; pro Chernarus obvykle 0–15360.';
+        if (str_ends_with($path, '@a')) return 'Orientace objektu/eventu ve stupních 0–360.';
+        return ($field['type'] ?? '') === 'number'
+            ? 'Číselná hodnota. Před uložením se ověří syntaxe XML; bezpečný rozsah závisí na konkrétním DayZ souboru.'
+            : 'Textová hodnota používaná příslušnou částí DayZ konfigurace.';
+    }
+
     public function descriptionForFilename(string $filename): string
     {
         if (str_ends_with(strtolower($filename), '_territories.xml')) {
@@ -174,6 +216,9 @@ class EditConfiguration extends Page
             'serverdz.cfg' => 'Hlavní nastavení serveru: přístup, hráči, čas, síť, logování a persistence.',
             'whitelist.txt' => 'Seznam povolených hráčských UID; aktivuje se volbou enableWhitelist v serverDZ.cfg.',
             'ban.txt' => 'Seznam zablokovaných hráčských UID, které se nesmí připojit na server.',
+            'priority.txt' => 'Seznam hráčských UID s přednostním místem v přihlašovací frontě.',
+            'dayzsettings.xml' => 'Nastavení job systému serveru: maximální a rezervovaná CPU jádra a velikosti front.',
+            'beserver_x64.cfg' => 'BattlEye RCon konfigurace; obsahuje RConPassword a omezení vzdálené administrace.',
             'cfglimitsdefinition.xml' => 'Kategorie a usage flagy používané ekonomikou při výběru lootů.',
             'globals.xml' => 'Globální limity zvířat, infikovaných, loot economy a cleanup serveru.',
             'events.xml' => 'Počty, minima, maxima a životnost dynamických eventů jako zombie, loot nebo heli crash.',
@@ -199,6 +244,8 @@ class EditConfiguration extends Page
             'mapgroupcluster04.xml' => 'Umístění clusterů budov na mapě (část 4).',
             'mapgroupdirt.xml' => 'Doplňková data mapových skupin.',
             'messages.xml' => 'Automatické serverové zprávy, intervaly a jejich životnost.',
+            'spawnerdata.json' => 'Object Spawner: objekty, jejich pozice, orientace, měřítko a CE persistence.',
+            'init.c' => 'Inicializační skript mise. Pokročilá PC konfigurace vyžadující Enforce Script.',
             'cfggameplay.json' => 'Gameplay nastavení: stamina, damage, respawn, UI, svět a pohyb hráče.',
             'cfgenvironment.xml' => 'Teploty, prostředí a chování okolního světa.',
             'cfgplayerspawnpoints.xml' => 'Spawnovací body hráčů a jejich orientace.',
@@ -581,6 +628,29 @@ class EditConfiguration extends Page
         session()->flash('status', 'Banlist byl uložen jako nová revize.');
     }
 
+    public function addPriorityEntry(): void
+    {
+        $uid = trim($this->newPriorityUid);
+        if ($uid === '' || ! preg_match('/^[A-Za-z0-9 _;-]{3,128}$/', $uid) || in_array($uid, $this->priorityEntries, true)) return;
+        $this->priorityEntries[] = $uid;
+        $this->newPriorityUid = '';
+    }
+
+    public function removePriorityEntry(int $index): void
+    {
+        unset($this->priorityEntries[$index]);
+        $this->priorityEntries = array_values($this->priorityEntries);
+    }
+
+    public function savePriority(ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $entries = array_values(array_unique(array_filter(array_map('trim', $this->priorityEntries))));
+        $content = $entries === [] ? '' : implode("\n", $entries)."\n";
+        $saved = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, 'Úprava priority.txt ve vizuálním editoru', auth()->user());
+        $this->loadRevision($saved);
+        session()->flash('status', 'Priority list byl uložen jako nová revize.');
+    }
+
     public function saveMessages(ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
     {
         if ($this->visualKind !== 'messages') {
@@ -593,13 +663,16 @@ class EditConfiguration extends Page
         if (! @$document->loadXML($this->rawContent, LIBXML_NONET | LIBXML_COMPACT)) {
             throw ValidationException::withMessages(['rawContent' => 'messages.xml není platné XML.']);
         }
-        $xpath = new \DOMXPath($document);
-        $nodes = $xpath->query('/messages/message');
-        foreach ($this->messagesEntries as $index => $entry) {
-            $message = $nodes?->item((int) $index);
-            if (! $message instanceof \DOMElement) {
-                continue;
-            }
+        $root = $document->documentElement;
+        if (! $root || $root->tagName !== 'messages') {
+            throw ValidationException::withMessages(['rawContent' => 'Kořenový element musí být <messages>.']);
+        }
+        foreach (iterator_to_array($root->childNodes) as $node) {
+            if ($node instanceof \DOMElement && $node->tagName === 'message') $root->removeChild($node);
+        }
+        foreach ($this->messagesEntries as $entry) {
+            $message = $document->createElement('message');
+            $root->appendChild($message);
             foreach (['deadline', 'shutdown', 'repeat', 'delay', 'onconnect'] as $key) {
                 $child = null;
                 foreach ($message->childNodes as $candidate) {
@@ -637,6 +710,17 @@ class EditConfiguration extends Page
         $revision = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, $this->changeSummary ?: 'Úprava messages.xml', auth()->user());
         $this->loadRevision($revision);
         Notification::make()->success()->title("messages.xml uloženo v revizi #{$revision->revision_number}")->send();
+    }
+
+    public function addMessage(): void
+    {
+        $this->messagesEntries[] = ['deadline' => '', 'shutdown' => '', 'repeat' => '', 'delay' => '', 'onconnect' => '', 'text' => ''];
+    }
+
+    public function removeMessage(int $index): void
+    {
+        unset($this->messagesEntries[$index]);
+        $this->messagesEntries = array_values($this->messagesEntries);
     }
 
     public function saveWeather(
@@ -739,9 +823,10 @@ class EditConfiguration extends Page
         $jsonEditor = app(JsonConfigurationEditor::class);
         $xmlEditor = app(XmlConfigurationEditor::class);
         $this->visualKind = match (true) {
-            str_ends_with(strtolower($filename), '.cfg') => 'server',
+            strtolower(basename($filename)) === 'serverdz.cfg' => 'server',
             strtolower(basename($filename)) === 'whitelist.txt' => 'whitelist',
             strtolower(basename($filename)) === 'ban.txt' => 'ban',
+            strtolower(basename($filename)) === 'priority.txt' => 'priority',
             strtolower(basename($filename)) === 'messages.xml' => 'messages',
             $typesEditor->supports($filename, $this->rawContent) => 'types',
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
@@ -752,11 +837,14 @@ class EditConfiguration extends Page
         $this->visualSupported = $this->visualKind !== null;
         $this->typeEntries = $this->visualKind === 'types' ? $typesEditor->entries($this->rawContent) : [];
         $this->weatherForm = $this->visualKind === 'weather' ? $weatherEditor->values($this->rawContent) : [];
-        $this->serverConfig = str_ends_with(strtolower($filename), '.cfg') ? app(ServerConfigEditor::class)->parse($this->rawContent) : [];
+        $this->serverConfig = $this->visualKind === 'server' ? app(ServerConfigEditor::class)->parse($this->rawContent) : [];
         $this->whitelistEntries = $this->visualKind === 'whitelist'
             ? array_values(array_filter(array_map('trim', preg_split('/\R/', $this->rawContent) ?: [])))
             : [];
         $this->banEntries = $this->visualKind === 'ban'
+            ? array_values(array_filter(array_map('trim', preg_split('/\R/', $this->rawContent) ?: [])))
+            : [];
+        $this->priorityEntries = $this->visualKind === 'priority'
             ? array_values(array_filter(array_map('trim', preg_split('/\R/', $this->rawContent) ?: [])))
             : [];
         $this->jsonFields = $this->visualKind === 'json' ? $jsonEditor->fields($this->rawContent) : [];
@@ -773,6 +861,41 @@ class EditConfiguration extends Page
         $this->detectedPlatform = $detection->platform;
         $this->platformReasons = $detection->platform === 'steam' ? $detection->reasons : [];
         $this->platformWarnings = $detection->warnings;
+        $this->dependencyWarnings = $this->detectDependencyWarnings($filename);
+    }
+
+    /** @return list<string> */
+    private function detectDependencyWarnings(string $filename): array
+    {
+        $warnings = [];
+        $lower = strtolower(basename($filename));
+        $revisions = $this->getRecord()->revisions()->with('configurationImport')->latest('revision_number')->get();
+        $byName = fn (string $name) => $revisions->first(fn ($revision) => strtolower($revision->configurationImport?->original_filename ?? '') === strtolower($name));
+        if ($lower === 'cfggameplay.json' || (str_ends_with($lower, '.json') && (str_contains($lower, 'spawner') || str_contains($lower, 'gear')))) {
+            $server = $byName('serverDZ.cfg');
+            $enabled = false;
+            if ($server) {
+                try {
+                    $config = app(ServerConfigEditor::class)->parse(app(ConfigurationRevisionEditor::class)->content($server));
+                    $enabled = in_array(strtolower((string) ($config['enableCfgGameplayFile'] ?? '0')), ['1', 'true'], true);
+                } catch (Throwable) {
+                    $enabled = false;
+                }
+            }
+            if (! $enabled) $warnings[] = 'cfggameplay.json a navázané JSON soubory vyžadují enableCfgGameplayFile = 1 v serverDZ.cfg.';
+        }
+        if ($lower === 'cfggameplay.json') {
+            $decoded = json_decode($this->rawContent, true);
+            foreach (['objectSpawnersArr', 'spawnGearPresetFiles'] as $key) {
+                $files = data_get($decoded, 'PlayerData.'.$key, data_get($decoded, 'WorldData.'.$key, data_get($decoded, $key, [])));
+                foreach (is_array($files) ? $files : [] as $required) {
+                    if (is_string($required) && ! $byName(basename($required))) {
+                        $warnings[] = "{$key} odkazuje na chybějící soubor {$required}.";
+                    }
+                }
+            }
+        }
+        return array_values(array_unique($warnings));
     }
 
     /** @return list<array<string, string>> */

@@ -15,7 +15,7 @@ final class JsonConfigurationEditor
             return false;
         }
 
-        return is_array($data) && array_intersect(array_keys($data), ['GeneralData', 'PlayerData', 'WorldData', 'StaminaData', 'ShockHandlingData', 'MovementData', 'BaseBuildingData', 'UIData', 'version']) !== [];
+        return is_array($data);
     }
 
     public function fields(string $content): array
@@ -39,6 +39,15 @@ final class JsonConfigurationEditor
             throw ValidationException::withMessages(['rawContent' => $e->getMessage()]);
         }
         foreach ($values as $path => $value) {
+            if (is_string($value) && in_array(substr(ltrim($value), 0, 1), ['[', '{'], true)) {
+                try {
+                    $value = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
+                } catch (JsonException $e) {
+                    throw ValidationException::withMessages([
+                        "jsonValues.{$path}" => "Neplatný JSON seznam/objekt: {$e->getMessage()}",
+                    ]);
+                }
+            }
             data_set($data, $path, $value);
         }
 
@@ -52,9 +61,16 @@ final class JsonConfigurationEditor
             if (is_array($value)) {
                 if ($value !== [] && ! array_is_list($value)) {
                     $this->flatten($value, $path, $fields);
+                } else {
+                    $fields[] = [
+                        'path' => $path,
+                        'section' => explode('.', $path)[0],
+                        'label' => str($key)->headline()->toString(),
+                        'type' => 'json',
+                        'value' => json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                    ];
                 }
-
-continue;
+                continue;
             }
             $fields[] = ['path' => $path, 'section' => explode('.', $path)[0], 'label' => str($key)->headline()->toString(), 'type' => is_bool($value) ? 'boolean' : (is_numeric($value) ? 'number' : 'text'), 'value' => $value];
         }

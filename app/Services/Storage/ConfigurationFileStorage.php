@@ -15,6 +15,7 @@ final class ConfigurationFileStorage
         'zip' => ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
         'cfg' => ['text/plain', 'application/octet-stream', 'application/x-config'],
         'txt' => ['text/plain', 'application/octet-stream'],
+        'c' => ['text/plain', 'application/octet-stream', 'text/x-c'],
     ];
 
     public function store(UploadedFile $file, int $projectId): StoredConfiguration
@@ -23,9 +24,9 @@ final class ConfigurationFileStorage
         $mime = $file->getMimeType() ?? '';
         $maxKilobytes = (int) config('dayz.max_upload_size', 10240);
 
-        $isTextConfig = in_array($extension, ['cfg', 'txt'], true);
+        $isTextConfig = in_array($extension, ['cfg', 'txt', 'c'], true);
         if (! isset(self::ALLOWED[$extension]) || (! $isTextConfig && ! in_array($mime, self::ALLOWED[$extension], true))) {
-            throw ValidationException::withMessages(['file' => 'Povolené jsou XML, JSON, CFG, TXT nebo ZIP soubory.']);
+            throw ValidationException::withMessages(['file' => 'Povolené jsou XML, JSON, CFG, TXT, C nebo ZIP soubory.']);
         }
         if (($file->getSize() ?: 0) > $maxKilobytes * 1024) {
             throw ValidationException::withMessages(['file' => 'The uploaded file is too large.']);
