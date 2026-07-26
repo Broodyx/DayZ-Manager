@@ -18,19 +18,62 @@ Route::post('/admin/map-editor/points', function (
     \App\Services\Revision\MapXmlEditor $eventEditor,
     \App\Services\Dayz\MapConfigurationEditor $mapEditor,
 ) {
-    $data = $request->validate(['project_id'=>'required|integer','type'=>'required|string|max:40','label'=>'required|string|max:120','x'=>'required|numeric|min:0|max:15360','z'=>'required|numeric|min:0|max:15360','radius'=>'nullable|numeric|min:1|max:5000']);
+    $data = $request->validate(['project_id'=>'required|integer','type'=>'required|string|max:40','label'=>'required|string|max:120','target_filename'=>'required|string|max:160','zone_type'=>'nullable|in:HuntingGround,Rest,Graze,Water','x'=>'required|numeric|min:0|max:15360','z'=>'required|numeric|min:0|max:15360','radius'=>'nullable|numeric|min:1|max:5000']);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
-    $eventTypes = ['vehicle','dynamic','animal','infected','heli','convoy','aerial'];
-    $filename = in_array($data['type'], $eventTypes, true) ? 'cfgeventspawns.xml' : ($data['type'] === 'player' ? 'cfgplayerspawnpoints.xml' : null);
-    abort_unless($filename, 422, 'Tento typ vyžaduje specializovaný soubor a nelze ho bezpečně zapsat bez dalších parametrů. Nahrajte a upravte příslušnou konfiguraci.');
+    $eventTypes = ['vehicle','dynamic','heli','convoy','aerial'];
+    $filename = strtolower(basename($data['target_filename']));
+    $animalTargets = [
+        'AnimalBear' => 'bear_territories.xml', 'AnimalCow' => 'cattle_territories.xml',
+        'AnimalDeer' => 'red_deer_territories.xml', 'AnimalRoeDeer' => 'roe_deer_territories.xml',
+        'AnimalWolf' => 'wolf_territories.xml', 'AnimalWildBoar' => 'wild_boar_territories.xml',
+        'AnimalSheep' => 'sheep_goat_territories.xml', 'AnimalPig' => 'pig_territories.xml',
+        'AnimalFox' => 'fox_territories.xml', 'AnimalHare' => 'hare_territories.xml',
+        'AnimalHen' => 'hen_territories.xml', 'AnimalDomestic' => 'domestic_animals_territories.xml',
+    ];
+    $validTarget = match (true) {
+        in_array($data['type'], $eventTypes, true) => $filename === 'cfgeventspawns.xml',
+        $data['type'] === 'player' => $filename === 'cfgplayerspawnpoints.xml',
+        $data['type'] === 'contaminated' => $filename === 'cfgeffectarea.json',
+        $data['type'] === 'loot' => $filename === 'mapgrouppos.xml',
+        $data['type'] === 'animal' => ($animalTargets[$data['label']] ?? null) === $filename,
+        $data['type'] === 'territory' => \Illuminate\Support\Str::is('*_territories.xml', $filename),
+        default => false,
+    };
+    abort_unless($validTarget, 422, 'Zvolený typ nelze bezpečně zapsat do požadovaného souboru.');
     $source = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
         ->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? ''))) === $filename);
     abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422, "Nejprve importujte {$filename}.");
+    if (in_array($data['type'], $eventTypes, true)) {
+        $eventsRevision = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? ''))) === 'events.xml');
+        abort_unless($eventsRevision && Storage::disk('dayz')->exists($eventsRevision->storage_path), 422, 'Nejprve importujte aktuální events.xml.');
+        $eventsXml = @simplexml_load_string(Storage::disk('dayz')->get($eventsRevision->storage_path));
+        $eventNames = [];
+        foreach ($eventsXml?->event ?? [] as $event) {
+            $eventNames[] = (string) ($event['name'] ?? '');
+        }
+        abort_unless(in_array($data['label'], $eventNames, true), 422, 'Vybraný event v aktuálním events.xml neexistuje.');
+    }
+    if ($data['type'] === 'loot') {
+        $prototype = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? ''))) === 'mapgroupproto.xml');
+        abort_unless($prototype && Storage::disk('dayz')->exists($prototype->storage_path), 422, 'Nejprve importujte aktuální mapgroupproto.xml.');
+        $prototypeXml = @simplexml_load_string(Storage::disk('dayz')->get($prototype->storage_path));
+        $groupNames = [];
+        foreach ($prototypeXml?->group ?? [] as $group) {
+            $groupNames[] = (string) ($group['name'] ?? '');
+        }
+        abort_unless(in_array($data['label'], $groupNames, true), 422, 'Vybraná loot skupina v aktuálním mapgroupproto.xml neexistuje.');
+    }
     try {
         $content = Storage::disk('dayz')->get($source->storage_path);
-        $content = $filename === 'cfgeventspawns.xml'
-            ? $eventEditor->appendPosition($content, $data['label'], (float) $data['x'], (float) $data['z'])['xml']
-            : $mapEditor->appendPlayerSpawnArea($content, $data['label'], (float) $data['x'], (float) $data['z']);
+        $content = match (true) {
+            $filename === 'cfgeventspawns.xml' => $eventEditor->appendPosition($content, $data['label'], (float) $data['x'], (float) $data['z'])['xml'],
+            $filename === 'cfgplayerspawnpoints.xml' => $mapEditor->appendPlayerSpawnArea($content, $data['label'], (float) $data['x'], (float) $data['z']),
+            $filename === 'cfgeffectarea.json' => $mapEditor->appendContaminatedArea($content, $data['label'], (float) $data['x'], (float) $data['z'], (float) ($data['radius'] ?? 50)),
+            $filename === 'mapgrouppos.xml' => $mapEditor->appendMapGroup($content, $data['label'], (float) $data['x'], (float) $data['z']),
+            \Illuminate\Support\Str::is('*_territories.xml', $filename) => $mapEditor->appendTerritoryZone($content, $data['zone_type'] ?? 'HuntingGround', (float) $data['x'], (float) $data['z'], (float) ($data['radius'] ?? 150)),
+        };
     } catch (\RuntimeException $exception) {
         abort(422, $exception->getMessage());
     }

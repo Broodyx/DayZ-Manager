@@ -5,6 +5,7 @@ namespace App\Services\Dayz;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
+use JsonException;
 use RuntimeException;
 
 final class MapConfigurationEditor
@@ -70,6 +71,87 @@ final class MapConfigurationEditor
         $group->appendChild($position);
 
         return $this->save($document);
+    }
+
+    public function appendTerritoryZone(string $content, string $zoneName, float $x, float $z, float $radius): string
+    {
+        $this->validateCoordinates($x, $z);
+        if ($radius < 1 || $radius > 5000) {
+            throw new RuntimeException('Poloměr teritoria musí být v rozsahu 1–5000 metrů.');
+        }
+        $document = $this->document($content);
+        $root = $document->documentElement;
+        if (! $root || $root->tagName !== 'territory-type') {
+            throw new RuntimeException('Očekáván je kořenový element territory-type.');
+        }
+        $territory = $document->createElement('territory');
+        $territory->setAttribute('color', '4291611852');
+        $zone = $document->createElement('zone');
+        foreach (['name' => $zoneName ?: 'HuntingGround', 'smin' => '0', 'smax' => '0', 'dmin' => '0', 'dmax' => '0'] as $name => $value) {
+            $zone->setAttribute($name, $value);
+        }
+        $zone->setAttribute('x', $this->number($x));
+        $zone->setAttribute('z', $this->number($z));
+        $zone->setAttribute('r', $this->number($radius));
+        $territory->appendChild($zone);
+        $root->appendChild($territory);
+
+        return $this->save($document);
+    }
+
+    public function appendMapGroup(string $content, string $groupName, float $x, float $z): string
+    {
+        $this->validateCoordinates($x, $z);
+        $document = $this->document($content);
+        $root = $document->documentElement;
+        if (! $root || $root->tagName !== 'map') {
+            throw new RuntimeException('Očekáván je kořenový element map.');
+        }
+        $group = $document->createElement('group');
+        $group->setAttribute('name', $groupName);
+        $group->setAttribute('pos', $this->number($x).' 0 '.$this->number($z));
+        $group->setAttribute('rpy', '0 0 0');
+        $group->setAttribute('a', '0');
+        $root->appendChild($group);
+
+        return $this->save($document);
+    }
+
+    public function appendContaminatedArea(string $content, string $areaName, float $x, float $z, float $radius): string
+    {
+        $this->validateCoordinates($x, $z);
+        if ($radius < 1 || $radius > 5000) {
+            throw new RuntimeException('Poloměr zóny musí být v rozsahu 1–5000 metrů.');
+        }
+        try {
+            $data = json_decode($content, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new RuntimeException('cfgeffectarea.json není validní JSON: '.$exception->getMessage(), previous: $exception);
+        }
+        if (! is_array($data) || ! isset($data['Areas']) || ! is_array($data['Areas'])) {
+            throw new RuntimeException('cfgeffectarea.json neobsahuje očekávané pole Areas.');
+        }
+        $data['Areas'][] = [
+            'AreaName' => $areaName,
+            'Type' => 'ContaminatedArea_Static',
+            'TriggerType' => 'ContaminatedTrigger',
+            'Data' => [
+                'Pos' => [$x, 0, $z], 'Radius' => $radius, 'PosHeight' => 20, 'NegHeight' => 3,
+                'InnerPartDist' => max(1, $radius * .8), 'OuterOffset' => 30,
+                'ParticleName' => 'graphics/particles/contaminated_area_gas_bigass',
+            ],
+            'PlayerData' => [
+                'AroundPartName' => 'graphics/particles/contaminated_area_gas_around',
+                'TinyPartName' => 'graphics/particles/contaminated_area_gas_around_tiny',
+                'PPERequesterType' => 'PPERequester_ContaminatedAreaTint',
+            ],
+        ];
+
+        try {
+            return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw new RuntimeException('Aktualizovaný cfgeffectarea.json se nepodařilo sestavit.', previous: $exception);
+        }
     }
 
     /** @return array{0:DOMDocument,1:DOMElement} */

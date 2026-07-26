@@ -73,4 +73,45 @@ class MapConfigurationReaderTest extends TestCase
         $deleted = $editor->delete($updated, $markers[0]['path']);
         $this->assertSame([], (new MapConfigurationReader())->markers('cfgplayerspawnpoints.xml', $deleted));
     }
+
+    public function test_editor_appends_animal_territory_to_territory_xml(): void
+    {
+        $xml = '<?xml version="1.0"?><territory-type><territory color="1"><zone name="Rest" smin="0" smax="0" dmin="0" dmax="0" x="10" z="20" r="30"/></territory></territory-type>';
+
+        $updated = (new MapConfigurationEditor())->appendTerritoryZone($xml, 'HuntingGround', 1200, 3400, 150);
+
+        $this->assertStringContainsString('name="HuntingGround"', $updated);
+        $this->assertStringContainsString('x="1200"', $updated);
+        $this->assertStringContainsString('z="3400"', $updated);
+        $this->assertStringContainsString('r="150"', $updated);
+    }
+
+    public function test_editor_appends_group_to_mapgrouppos_xml(): void
+    {
+        $updated = (new MapConfigurationEditor())->appendMapGroup(
+            '<?xml version="1.0"?><map/>',
+            'Land_Shed_W2',
+            1200,
+            3400,
+        );
+
+        $this->assertStringContainsString('name="Land_Shed_W2"', $updated);
+        $this->assertStringContainsString('pos="1200 0 3400"', $updated);
+    }
+
+    public function test_editor_appends_contaminated_area_to_json(): void
+    {
+        $updated = (new MapConfigurationEditor())->appendContaminatedArea(
+            '{"Areas":[]}',
+            'Test zone',
+            1200,
+            3400,
+            100,
+        );
+        $data = json_decode($updated, true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame('Test zone', $data['Areas'][0]['AreaName']);
+        $this->assertSame([1200.0, 0.0, 3400.0], array_map('floatval', $data['Areas'][0]['Data']['Pos']));
+        $this->assertSame(100.0, (float) $data['Areas'][0]['Data']['Radius']);
+    }
 }

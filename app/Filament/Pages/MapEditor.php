@@ -29,6 +29,7 @@ class MapEditor extends Page
     public array $markers = [];
 
     public array $eventCatalog = [];
+    public array $pointTypeCatalog = [];
     public array $mapSources = [];
     public array $markerCounts = [];
     public array $loadedSources = [];
@@ -42,6 +43,7 @@ class MapEditor extends Page
         $this->loadMarkers();
         $this->loadMapSources();
         $this->loadEventCatalog();
+        $this->loadPointTypeCatalog();
     }
 
     public function updatedProjectId(): void
@@ -49,6 +51,7 @@ class MapEditor extends Page
         $this->loadMarkers();
         $this->loadEventCatalog();
         $this->loadMapSources();
+        $this->loadPointTypeCatalog();
     }
 
     public function loadMapSources(): void
@@ -125,13 +128,111 @@ class MapEditor extends Page
                 $name = (string) ($group['name'] ?? '');
                 if ($name === '') continue;
                 $index = collect($this->eventCatalog)->search(fn ($item) => $item['name'] === $name);
-                if ($index === false) {
-                    $this->eventCatalog[] = ['name' => $name, 'children' => array_values(array_unique($children))];
-                } else {
+                if ($index !== false) {
                     $this->eventCatalog[$index]['children'] = array_values(array_unique(array_merge($this->eventCatalog[$index]['children'], $children)));
                 }
             }
         }
+    }
+
+    public function loadPointTypeCatalog(): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $revisions = $this->latestRevisions($project);
+        $uploaded = $revisions->mapWithKeys(fn ($revision) => [
+            $this->revisionFilename($revision) => [
+                'revision_id' => $revision->id,
+                'revision_number' => $revision->revision_number,
+            ],
+        ])->all();
+        $eventNames = collect($this->eventCatalog)->pluck('name')->filter()->unique()->sort()->values();
+        $uploadUrl = fn (string $filename) => url('/admin/configuration-import?area=map&project='.$this->projectId.'&expected='.urlencode($filename));
+        $exact = function (string $filename, array $options, string $help, array $recommended = []) use ($uploaded, $uploadUrl): array {
+            $missing = array_values(array_filter([$filename, ...$recommended], fn ($name) => ! isset($uploaded[$name])));
+
+            return [
+                'target' => $filename,
+                'target_label' => $filename,
+                'available' => isset($uploaded[$filename]) && $missing === [],
+                'missing' => $missing,
+                'upload_url' => $uploadUrl($missing[0] ?? $filename),
+                'options' => $options,
+                'help' => $help,
+            ];
+        };
+        $options = fn ($names, string $target) => collect($names)->map(fn ($name) => [
+            'value' => $name,
+            'label' => $name,
+            'target' => $target,
+            'available' => isset($uploaded[$target]),
+        ])->values()->all();
+        $animalTargets = [
+            ['AnimalBear', 'Medvěd', 'bear_territories.xml'],
+            ['AnimalCow', 'Skot', 'cattle_territories.xml'],
+            ['AnimalDeer', 'Jelen', 'red_deer_territories.xml'],
+            ['AnimalRoeDeer', 'Srnec', 'roe_deer_territories.xml'],
+            ['AnimalWolf', 'Vlk', 'wolf_territories.xml'],
+            ['AnimalWildBoar', 'Divočák', 'wild_boar_territories.xml'],
+            ['AnimalSheep', 'Ovce / koza', 'sheep_goat_territories.xml'],
+            ['AnimalPig', 'Prase', 'pig_territories.xml'],
+            ['AnimalFox', 'Liška', 'fox_territories.xml'],
+            ['AnimalHare', 'Zajíc', 'hare_territories.xml'],
+            ['AnimalHen', 'Slepice', 'hen_territories.xml'],
+            ['AnimalDomestic', 'Domácí zvířata', 'domestic_animals_territories.xml'],
+        ];
+        $animalOptions = collect($animalTargets)->map(fn ($item) => [
+            'value' => $item[0],
+            'label' => $item[1].' · '.$item[2],
+            'target' => $item[2],
+            'available' => isset($uploaded[$item[2]]),
+            'upload_url' => $uploadUrl($item[2]),
+        ])->all();
+        $territoryOptions = collect(array_keys($uploaded))
+            ->filter(fn ($name) => Str::is('*_territories.xml', $name))
+            ->map(fn ($name) => ['value' => 'HuntingGround', 'label' => $name, 'target' => $name, 'available' => true])
+            ->values()->all();
+        $lootNames = [];
+        if (isset($uploaded['mapgroupproto.xml'])) {
+            $revision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'mapgroupproto.xml');
+            if ($revision && Storage::disk('dayz')->exists($revision->storage_path)) {
+                $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
+                foreach ($xml?->group ?? [] as $group) {
+                    $name = (string) ($group['name'] ?? '');
+                    if ($name !== '') $lootNames[] = $name;
+                }
+            }
+        }
+
+        $this->pointTypeCatalog = [
+            'vehicle' => $exact('cfgeventspawns.xml', $options($eventNames->filter(fn ($name) => Str::startsWith($name, 'Vehicle')), 'cfgeventspawns.xml'), 'Pozice vozidla se zapíše do cfgeventspawns.xml. Parametry eventu zůstávají v events.xml.', ['events.xml']),
+            'heli' => $exact('cfgeventspawns.xml', $options($eventNames->filter(fn ($name) => Str::contains(Str::lower($name), 'heli')), 'cfgeventspawns.xml'), 'Kandidátní pozice heli eventu patří do cfgeventspawns.xml; pravidla eventu jsou v events.xml.', ['events.xml']),
+            'convoy' => $exact('cfgeventspawns.xml', $options($eventNames->filter(fn ($name) => Str::contains(Str::lower($name), ['convoy', 'train'])), 'cfgeventspawns.xml'), 'Konvoj nebo vlak se umístí do cfgeventspawns.xml; jeho složení definuje cfgeventgroups.xml.', ['events.xml', 'cfgeventgroups.xml']),
+            'dynamic' => $exact('cfgeventspawns.xml', $options($eventNames, 'cfgeventspawns.xml'), 'Vybranému eventu z events.xml se přidá kandidátní pozice do cfgeventspawns.xml.', ['events.xml']),
+            'aerial' => $exact('cfgeventspawns.xml', $options($eventNames->filter(fn ($name) => Str::contains(Str::lower($name), ['air', 'heli', 'plane'])), 'cfgeventspawns.xml'), 'Letecký event používá pravidla z events.xml a pozice z cfgeventspawns.xml.', ['events.xml']),
+            'player' => $exact('cfgplayerspawnpoints.xml', [['value' => 'Nová spawn oblast', 'label' => 'Nová spawn oblast hráče', 'target' => 'cfgplayerspawnpoints.xml', 'available' => isset($uploaded['cfgplayerspawnpoints.xml'])]], 'Přidá bod do generátoru oblastí v cfgplayerspawnpoints.xml. Server následně hledá bezpečný povrch v okolí.'),
+            'contaminated' => $exact('cfgeffectarea.json', [['value' => 'ContaminatedArea_Static', 'label' => 'Statická kontaminovaná zóna', 'target' => 'cfgeffectarea.json', 'available' => isset($uploaded['cfgeffectarea.json'])]], 'Zóna včetně poloměru se zapíše do pole Areas v cfgeffectarea.json.'),
+            'loot' => $exact('mapgrouppos.xml', $options($lootNames, 'mapgrouppos.xml'), 'Světová pozice existujícího prototypu skupiny se zapíše do mapgrouppos.xml.', ['mapgroupproto.xml']),
+            'animal' => [
+                'target' => null, 'target_label' => 'odpovídající *_territories.xml', 'available' => true,
+                'missing' => [], 'upload_url' => $uploadUrl('wolf_territories.xml'), 'options' => $animalOptions,
+                'help' => 'Vyberte druh. Nová zóna se uloží pouze do jeho vlastního *_territories.xml; events.xml se tím nemění.',
+            ],
+            'territory' => [
+                'target' => null, 'target_label' => '*_territories.xml', 'available' => count($territoryOptions) > 0,
+                'missing' => count($territoryOptions) ? [] : ['*_territories.xml'], 'upload_url' => $uploadUrl('*_territories.xml'),
+                'options' => $territoryOptions, 'help' => 'Obecná oblast se zapíše do konkrétního nahraného souboru teritorií.',
+            ],
+            'infected' => [
+                'target' => null, 'target_label' => '*infected*_territories.xml', 'available' => false,
+                'missing' => ['příslušný infected territory XML'], 'upload_url' => $uploadUrl('*infected*_territories.xml'),
+                'options' => [], 'help' => 'Zóny nakažených vyžadují export příslušného territory XML z aktuální mise. Bez něj editor zápis z bezpečnostních důvodů nepovolí.',
+            ],
+            'custom' => [
+                'target' => null, 'target_label' => 'Object Spawner JSON', 'available' => false,
+                'missing' => ['Object Spawner JSON'], 'upload_url' => $uploadUrl('*spawner*.json'),
+                'options' => [], 'help' => 'Vlastní objekt nelze bezpečně zapsat bez třídy objektu, orientace a aktuálního Object Spawner JSON.',
+            ],
+        ];
     }
 
     public function loadMarkers(): void
