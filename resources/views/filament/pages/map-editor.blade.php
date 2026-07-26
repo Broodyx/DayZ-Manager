@@ -136,11 +136,10 @@
             if (!el || el.dataset.ready) return;
             el.dataset.ready = '1';
             const worldSize = 15360;
-            const map = L.map(el, { crs: L.CRS.Simple, minZoom: -5, maxZoom: 1, zoomSnap: 0.25, maxBoundsViscosity: 1, preferCanvas:true });
+            const map = L.map(el, { crs: L.CRS.Simple, minZoom: -5, maxZoom: 1, zoomSnap: 0.25, inertia:false, preferCanvas:true });
             const bounds = [[0, 0], [worldSize, worldSize]];
             L.imageOverlay('/maps/chernarus_big_hq.jpg', bounds).addTo(map);
             L.rectangle(bounds, { color: '#b8ed55', weight: 1, fill: false, opacity: .35 }).addTo(map);
-            map.setMaxBounds(bounds);
             map.fitBounds(bounds);
             L.control.scale({ imperial: false }).addTo(map);
             const coordinateControl = L.control({ position: 'bottomleft' });
@@ -158,8 +157,7 @@
             const coordinateText = (x, z, source = 'střed') => {
                 document.querySelector('.dz-coordinate-control').textContent = source + ' · X: ' + Math.round(x).toLocaleString() + ' · Z: ' + Math.round(z).toLocaleString();
             };
-            const refreshCoordinateGrid = () => {
-                coordinateLabels.clearLayers();
+            const visibleCoordinateRange = () => {
                 const zoom = map.getZoom();
                 const step = zoom >= 0 ? 100 : (zoom >= -1.5 ? 500 : (zoom >= -3 ? 1000 : 2000));
                 const visible = map.getBounds();
@@ -169,10 +167,14 @@
                 const north = Math.min(worldSize, visible.getNorth());
                 const firstX = Math.ceil(west / step) * step;
                 const firstZ = Math.ceil(south / step) * step;
+
+                return { zoom, step, west, east, south, north, firstX, firstZ };
+            };
+            const refreshCoordinateAxes = () => {
+                const { step, east, north, firstX, firstZ } = visibleCoordinateRange();
                 xAxis.replaceChildren();
                 zAxis.replaceChildren();
                 for (let x = firstX; x <= east; x += step) {
-                    L.polyline([[south, x], [north, x]], { color:'#ecf8d7', weight:1, opacity:.28, interactive:false, dashArray:zoom >= 0 ? '3 4' : null }).addTo(coordinateLabels);
                     const point = map.latLngToContainerPoint([map.getCenter().lat, x]);
                     const label = document.createElement('span');
                     label.style.left = point.x + 'px';
@@ -180,16 +182,34 @@
                     xAxis.appendChild(label);
                 }
                 for (let z = firstZ; z <= north; z += step) {
-                    L.polyline([[z, west], [z, east]], { color:'#ecf8d7', weight:1, opacity:.28, interactive:false, dashArray:zoom >= 0 ? '3 4' : null }).addTo(coordinateLabels);
                     const point = map.latLngToContainerPoint([z, map.getCenter().lng]);
                     const label = document.createElement('span');
                     label.style.top = point.y + 'px';
                     label.textContent = 'Z ' + Math.round(z).toLocaleString();
                     zAxis.appendChild(label);
                 }
+            };
+            const refreshCoordinateGrid = () => {
+                coordinateLabels.clearLayers();
+                const { zoom, step, west, east, south, north, firstX, firstZ } = visibleCoordinateRange();
+                for (let x = firstX; x <= east; x += step) {
+                    L.polyline([[south, x], [north, x]], { color:'#ecf8d7', weight:1, opacity:.28, interactive:false, dashArray:zoom >= 0 ? '3 4' : null }).addTo(coordinateLabels);
+                }
+                for (let z = firstZ; z <= north; z += step) {
+                    L.polyline([[z, west], [z, east]], { color:'#ecf8d7', weight:1, opacity:.28, interactive:false, dashArray:zoom >= 0 ? '3 4' : null }).addTo(coordinateLabels);
+                }
+                refreshCoordinateAxes();
                 const center = map.getCenter();
                 coordinateText(center.lng, center.lat, 'Střed mapy');
             };
+            let axisFrame = null;
+            map.on('move zoom', () => {
+                if (axisFrame !== null) cancelAnimationFrame(axisFrame);
+                axisFrame = requestAnimationFrame(() => {
+                    refreshCoordinateAxes();
+                    axisFrame = null;
+                });
+            });
             map.on('moveend zoomend', refreshCoordinateGrid);
             refreshCoordinateGrid();
             map.on('mousemove', (event) => {
