@@ -322,6 +322,16 @@
     .dz-point-modal-card { position:relative; width:min(620px,100%); max-height:calc(100dvh - 2rem); overflow-y:auto; overscroll-behavior:contain; border:1px solid #668f32; border-radius:.8rem; background:#111a14; padding:1.4rem; box-shadow:0 20px 70px #000b; scrollbar-color:#668f32 #111a14; }
     #dz-point-modal .dz-point-modal-card { width:min(1120px,calc(100vw - 2rem)); }
     .dz-point-modal-card h3 { color:#d8f57b; margin:0; font-size:1.2rem; }
+    .dz-system-dialog-card { width:min(520px,100%); overflow:hidden; }
+    .dz-system-dialog-message { margin:.7rem 0 1.1rem; color:#bac7b6; line-height:1.55; }
+    .dz-system-dialog-actions { display:flex; justify-content:flex-end; gap:.6rem; }
+    .dz-system-dialog-actions button { min-height:2.65rem; padding:.6rem .9rem; border-radius:.45rem; font-size:.72rem; font-weight:850; cursor:pointer; }
+    .dz-dialog-cancel { border:1px solid #435247; color:#d6e0d2; background:#111914; }
+    .dz-dialog-cancel:hover { border-color:#819080; background:#1a241c; }
+    .dz-dialog-confirm { border:1px solid var(--dz-lime); color:#10160d; background:var(--dz-lime); }
+    .dz-dialog-confirm:hover { background:#ccf66f; }.dz-dialog-confirm:focus { outline:2px solid #fff; outline-offset:2px; }
+    .dz-dialog-confirm.danger { border-color:#ef776d; color:#fff1ef; background:#9e3932; }
+    .dz-dialog-confirm.danger:hover { background:#b9473e; }
     .dz-point-close { position:absolute; top:.7rem; right:.8rem; border:0; background:transparent; color:#c4d3bd; font-size:1.6rem; cursor:pointer; }
     .dz-point-options { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.55rem; margin-top:1rem; }
     .dz-point-options button { min-height:3rem; text-align:left; border:1px solid #3e5c28; border-radius:.5rem; background:#18251a; color:#e7f7d2; padding:.65rem; cursor:pointer; }

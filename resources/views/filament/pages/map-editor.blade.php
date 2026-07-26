@@ -60,6 +60,17 @@
                 </div>
             </div>
         </div>
+        <div id="dz-system-dialog" class="dz-point-modal" hidden role="dialog" aria-modal="true" aria-labelledby="dz-system-dialog-title">
+            <div class="dz-point-modal-card dz-system-dialog-card">
+                <p class="dz-eyebrow">POTVRZENÍ ZMĚNY</p>
+                <h3 id="dz-system-dialog-title">Potvrdit akci</h3>
+                <p class="dz-system-dialog-message"></p>
+                <div class="dz-system-dialog-actions">
+                    <button type="button" class="dz-dialog-cancel">Zrušit</button>
+                    <button type="button" class="dz-dialog-confirm">Potvrdit</button>
+                </div>
+            </div>
+        </div>
         <div class="dz-map-toolbar">
             <div>
                 <p class="dz-eyebrow">MAPOVÝ WORKSPACE · {{ strtoupper($map) }}</p>
@@ -232,6 +243,37 @@
             modal.querySelector('.dz-point-close').onclick = () => modal.hidden = true;
             const editModal = document.getElementById('dz-edit-point-modal');
             editModal.querySelector('.dz-point-close').onclick = () => editModal.hidden = true;
+            const systemDialog = document.getElementById('dz-system-dialog');
+            const dialogCancel = systemDialog.querySelector('.dz-dialog-cancel');
+            const dialogConfirm = systemDialog.querySelector('.dz-dialog-confirm');
+            let dialogResolver = null;
+            const closeSystemDialog = (result) => {
+                systemDialog.hidden = true;
+                const resolver = dialogResolver;
+                dialogResolver = null;
+                resolver?.(result);
+            };
+            const showSystemDialog = ({ title, message, confirmLabel = 'Potvrdit', cancelLabel = 'Zrušit', danger = false, notice = false }) => new Promise((resolve) => {
+                if (dialogResolver) dialogResolver(false);
+                dialogResolver = resolve;
+                systemDialog.querySelector('#dz-system-dialog-title').textContent = title;
+                systemDialog.querySelector('.dz-system-dialog-message').textContent = message;
+                systemDialog.querySelector('.dz-eyebrow').textContent = notice ? 'INFORMACE' : 'POTVRZENÍ ZMĚNY';
+                dialogCancel.textContent = cancelLabel;
+                dialogCancel.hidden = notice;
+                dialogConfirm.textContent = confirmLabel;
+                dialogConfirm.classList.toggle('danger', danger);
+                systemDialog.hidden = false;
+                requestAnimationFrame(() => dialogConfirm.focus());
+            });
+            dialogCancel.onclick = () => closeSystemDialog(false);
+            dialogConfirm.onclick = () => closeSystemDialog(true);
+            systemDialog.addEventListener('click', (event) => {
+                if (event.target === systemDialog && !dialogCancel.hidden) closeSystemDialog(false);
+            });
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && !systemDialog.hidden) closeSystemDialog(false);
+            });
             let activeMarker = null;
             let pendingButton = null;
             const showFeedback = (root, message, isError = true) => {
@@ -451,11 +493,22 @@
                     const select = root?.querySelector('select');
                     const scope = select?.value;
                     if (!scope) {
-                        window.alert('Nejprve vyberte event, režim, skupinu nebo všechny body.');
+                        await showSystemDialog({
+                            title:'Nejdříve vyberte body',
+                            message:'Vyberte konkrétní event, režim, spawn skupinu nebo všechny body vrstvy.',
+                            confirmLabel:'Rozumím',
+                            notice:true
+                        });
                         return;
                     }
                     const label = select.options[select.selectedIndex]?.textContent || scope;
-                    if (!window.confirm('Opravdu odstranit „' + label + '“? Vznikne nová revize a původní zůstane zachována.')) return;
+                    const confirmed = await showSystemDialog({
+                        title:'Odstranit mapové body?',
+                        message:'Opravdu odstranit „' + label + '“? Vznikne nová revize a původní zůstane zachována.',
+                        confirmLabel:'Odstranit body',
+                        danger:true
+                    });
+                    if (!confirmed) return;
                     button.disabled = true;
                     button.textContent = 'Odstraňuji…';
                     try {
@@ -468,7 +521,13 @@
                         if (!response.ok) throw new Error(result.message || 'Body se nepodařilo odstranit.');
                         window.location.reload();
                     } catch (error) {
-                        window.alert(error.message);
+                        await showSystemDialog({
+                            title:'Body se nepodařilo odstranit',
+                            message:error.message,
+                            confirmLabel:'Zavřít',
+                            danger:true,
+                            notice:true
+                        });
                         button.disabled = false;
                         button.textContent = 'Odstranit vybrané';
                     }
