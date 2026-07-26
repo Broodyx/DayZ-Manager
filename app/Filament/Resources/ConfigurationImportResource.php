@@ -24,9 +24,9 @@ class ConfigurationImportResource extends Resource
 
     protected static ?string $pluralModelLabel = 'importy konfigurací';
 
-    protected static ?string $navigationGroup = 'DayZ konfigurace';
+    protected static ?string $navigationGroup = 'Historie a zálohy';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
@@ -69,7 +69,17 @@ class ConfigurationImportResource extends Resource
                     default => 'warning',
                 }),
             Tables\Columns\TextColumn::make('imported_at')->label('Importováno')->dateTime('d. m. Y H:i')->sortable(),
-        ])->actions([
+        ])
+        ->defaultSort('imported_at', 'desc')
+        ->filters([
+            Tables\Filters\SelectFilter::make('validation_status')
+                ->label('Výsledek validace')
+                ->options(['valid' => 'Platná', 'invalid' => 'Neplatná', 'pending' => 'Čeká']),
+            Tables\Filters\SelectFilter::make('detected_platform')
+                ->label('Detekovaná platforma')
+                ->options(['playstation' => 'PlayStation', 'xbox' => 'Xbox', 'steam' => 'PC / Steam', 'unknown' => 'Neurčeno']),
+        ])
+        ->actions([
             Tables\Actions\Action::make('download')
                 ->label('Stáhnout')
                 ->icon('heroicon-o-arrow-down-tray')
@@ -78,7 +88,10 @@ class ConfigurationImportResource extends Resource
                     $record->original_filename,
                 )),
             Tables\Actions\EditAction::make()->label('Detail')->icon('heroicon-o-eye'),
-        ]);
+        ])
+        ->emptyStateHeading('Zatím nebyla nahrána žádná konfigurace')
+        ->emptyStateDescription('Použijte checklist serveru; vybere správnou oblast i očekávaný typ souboru.')
+        ->emptyStateIcon('heroicon-o-arrow-up-tray');
     }
 
     public static function getEloquentQuery(): Builder

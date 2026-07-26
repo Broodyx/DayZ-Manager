@@ -1,39 +1,97 @@
 <x-filament-panels::page>
-    <div class="dz-wizard-grid">
-        <div class="dz-wizard-intro">
-            <p class="dz-eyebrow">DAYZ MANAGER · PRŮVODCE</p>
-            <h2>Co chcete na serveru změnit?</h2>
-            <p class="dz-muted">Nemusíte znát názvy všech DayZ souborů. Vyberte oblast, server a nahrajte doporučený soubor nebo celý ZIP.</p>
-            @if ($projects)
-                <label class="dz-wizard-server-picker">
-                    <span>Server, který chcete spravovat</span>
-                    <select onchange="window.location.href='{{ url('/admin/configuration-wizard') }}?project='+this.value">
-                        @foreach ($projects as $id => $name)
-                            <option value="{{ $id }}" @selected((int) $projectId === (int) $id)>{{ $name }}</option>
-                        @endforeach
-                    </select>
-                </label>
-            @else
-                <div class="dz-wizard-empty">Nejprve založte server. Průvodce pak pozná, které soubory už máte nahrané.</div>
-            @endif
-            <ol class="dz-steps"><li><b>1</b> Vyberte server</li><li><b>2</b> Vyberte oblast</li><li><b>3</b> Nahrajte chybějící soubor nebo rovnou editujte existující</li><li><b>4</b> Stáhněte novou revizi</li></ol>
-        </div>
-        @foreach ($areas as $key => $area)
-            <a class="dz-wizard-card {{ $area['uploaded_count'] ? 'has-configuration' : 'needs-upload' }}" href="{{ $area['url'] }}">
-                <span class="dz-card-number">{{ $loop->iteration }}</span>
-                <x-filament::icon :icon="$area['icon']" class="dz-wizard-icon" />
-                <strong>{{ $area['label'] }}</strong>
-                <span>{{ $area['files'] }}</span>
-                <small>{{ $area['description'] }}</small>
-                @if ($area['uploaded_count'])
-                    <span class="dz-wizard-file-state">Nahráno {{ $area['uploaded_count'] }} {{ $area['uploaded_count'] === 1 ? 'soubor' : ($area['uploaded_count'] < 5 ? 'soubory' : 'souborů') }} · poslední {{ $area['latest_filename'] }} · revize #{{ $area['latest_revision'] }}</span>
-                    <em>{{ $key === 'map' ? 'Otevřít mapový editor' : 'Pokračovat do editoru' }} →</em>
+    @php
+        $totalFiles = collect($areas)->sum(fn ($area) => count($area['entries']));
+        $readyFiles = collect($areas)->sum(fn ($area) => collect($area['entries'])->where('uploaded_count', '>', 0)->count());
+        $progress = $totalFiles ? (int) round(($readyFiles / $totalFiles) * 100) : 0;
+    @endphp
+    <div class="dz-setup">
+        <header class="dz-setup-hero">
+            <div>
+                <p class="dz-kicker">CENTRUM NASTAVENÍ</p>
+                <h2>Konfigurace bez hledání názvů souborů</h2>
+                <p>Vyberte server a oblast. Každý soubor má vlastní vysvětlení a jednu jasnou akci: nahrát chybějící konfiguraci, nebo pokračovat v její poslední revizi.</p>
+            </div>
+            <div class="dz-setup-server">
+                @if ($projects)
+                    <label>
+                        <span>Aktivní server</span>
+                        <select onchange="window.location.href='{{ url('/admin/configuration-wizard') }}?project='+this.value">
+                            @foreach ($projects as $id => $name)
+                                <option value="{{ $id }}" @selected((int) $projectId === (int) $id)>{{ $name }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <div class="dz-setup-progress">
+                        <span><b>{{ $readyFiles }}</b> z {{ $totalFiles }} typů souborů nahráno</span>
+                        <i><b style="width:{{ $progress }}%"></b></i>
+                        <small>{{ $progress }} % pokrytí katalogu. Není nutné nahrávat soubory, které váš hosting nepoužívá.</small>
+                    </div>
                 @else
-                    <span class="dz-wizard-file-state missing">Pro tento server zatím není nahraná odpovídající konfigurace.</span>
-                    <em>Nahrát první soubor →</em>
+                    <div class="dz-empty-state">
+                        <strong>Zatím nemáte žádný server</strong>
+                        <span>Založte ho a průvodce vám sestaví konkrétní checklist.</span>
+                        <a href="{{ url('/admin/projects/create') }}">Založit první server</a>
+                    </div>
                 @endif
-            </a>
-        @endforeach
-        <a class="dz-wizard-card dz-wizard-create" href="{{ url('/admin/projects/create') }}"><strong>+ Založit nový server</strong><span>Nejdříve vytvořte server a potom do něj nahrajte konfiguraci.</span><em>Vytvořit server →</em></a>
+            </div>
+        </header>
+
+        <nav class="dz-setup-shortcuts" aria-label="Rychlé oblasti konfigurace">
+            @foreach ($areas as $key => $area)
+                <a href="#area-{{ $key }}">
+                    <x-filament::icon :icon="$area['icon']" />
+                    <span>{{ $area['label'] }}<small>{{ collect($area['entries'])->where('uploaded_count', '>', 0)->count() }}/{{ count($area['entries']) }}</small></span>
+                </a>
+            @endforeach
+        </nav>
+
+        <div class="dz-setup-areas">
+            @foreach ($areas as $key => $area)
+                @php $areaReady = collect($area['entries'])->where('uploaded_count', '>', 0)->count(); @endphp
+                <details id="area-{{ $key }}" class="dz-setup-area" @if ($loop->first || $areaReady) open @endif>
+                    <summary>
+                        <span class="dz-setup-area-icon"><x-filament::icon :icon="$area['icon']" /></span>
+                        <span class="dz-setup-area-title">
+                            <strong>{{ $area['label'] }}</strong>
+                            <small>{{ $area['description'] }}</small>
+                        </span>
+                        <span class="dz-setup-area-count">{{ $areaReady }}/{{ count($area['entries']) }}</span>
+                        <span class="dz-setup-chevron">⌄</span>
+                    </summary>
+                    <div class="dz-setup-files">
+                        @foreach ($area['entries'] as $entry)
+                            <article class="dz-setup-file {{ $entry['uploaded_count'] ? 'is-ready' : 'is-missing' }}">
+                                <div class="dz-file-status-icon">
+                                    @if ($entry['uploaded_count'])
+                                        <x-filament::icon icon="heroicon-o-check" />
+                                    @else
+                                        <x-filament::icon icon="heroicon-o-plus" />
+                                    @endif
+                                </div>
+                                <div class="dz-file-copy">
+                                    <strong><code>{{ $entry['actual_filename'] ?: $entry['filename'] }}</code></strong>
+                                    <p>{{ $entry['description'] }}</p>
+                                    @if ($entry['uploaded_count'])
+                                        <small>Aktuální revize #{{ $entry['revision_number'] }}{{ $entry['uploaded_count'] > 1 ? ' · '.$entry['uploaded_count'].' odpovídající soubory' : '' }}</small>
+                                    @else
+                                        <small>Nenahráno · doplňte pouze pokud tento soubor váš server používá</small>
+                                    @endif
+                                </div>
+                                <a class="dz-file-action" href="{{ $entry['url'] }}">
+                                    {{ $entry['uploaded_count'] ? 'Otevřít editor' : 'Nahrát soubor' }}
+                                    <span>→</span>
+                                </a>
+                            </article>
+                        @endforeach
+                    </div>
+                    @if ($key === 'map' && $projectId)
+                        <footer class="dz-setup-area-footer">
+                            <span>Máte souřadnicové soubory? Zobrazte je společně nad mapou Chernarus.</span>
+                            <a href="{{ url('/admin/map-editor?project='.$projectId) }}">Otevřít mapový editor →</a>
+                        </footer>
+                    @endif
+                </details>
+            @endforeach
+        </div>
     </div>
 </x-filament-panels::page>

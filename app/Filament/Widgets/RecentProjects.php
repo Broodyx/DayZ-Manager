@@ -48,6 +48,9 @@ class RecentProjects extends TableWidget
                     ->since(),
             ])
             ->recordUrl(fn (Project $record): string => ProjectResource::getUrl('configuration', ['record' => $record]))
+            ->emptyStateHeading('Zatím žádný server')
+            ->emptyStateDescription('Začněte založením serveru a průvodce vás provede dalšími kroky.')
+            ->emptyStateIcon('heroicon-o-server-stack')
             ->paginated([5, 10]);
     }
 }

@@ -46,10 +46,32 @@ class ConfigurationWizard extends Page
             ->get() ?? collect();
 
         foreach ($areas as $key => &$area) {
-            $matches = $revisions->filter(function ($revision) use ($key) {
+            $entries = collect($catalog->filesByArea()[$key] ?? [])->map(function (array $entry) use ($revisions, $project, $key) {
+                $matches = $revisions->filter(function ($revision) use ($entry) {
+                    $filename = strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
+
+                    return Str::is($entry['pattern'], $filename);
+                })->values();
+                $latest = $matches->first();
+                $entry['uploaded_count'] = $matches
+                    ->unique(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))))
+                    ->count();
+                $entry['actual_filename'] = $latest
+                    ? basename(str_replace('\\', '/', $latest->configurationImport?->original_filename ?? $latest->storage_path))
+                    : null;
+                $entry['revision_number'] = $latest?->revision_number;
+                $entry['url'] = ! $project
+                    ? url('/admin/projects/create')
+                    : ($latest
+                        ? url('/admin/projects/'.$project->id.'/configuration?revision='.$latest->id)
+                        : url('/admin/configuration-import?area='.$key.'&project='.$project->id.'&expected='.urlencode($entry['filename'])));
+
+                return $entry;
+            })->all();
+            $matches = $revisions->filter(function ($revision) use ($key, $catalog) {
                 $filename = strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
 
-                return collect($this->patternsFor($key))->contains(fn ($pattern) => Str::is($pattern, $filename));
+                return collect($catalog->filesByArea()[$key] ?? [])->contains(fn ($entry) => Str::is($entry['pattern'], $filename));
             })->values();
             $latest = $matches->first();
             $area['uploaded_count'] = $matches
@@ -59,6 +81,7 @@ class ConfigurationWizard extends Page
                 ? basename(str_replace('\\', '/', $latest->configurationImport?->original_filename ?? $latest->storage_path))
                 : null;
             $area['latest_revision'] = $latest?->revision_number;
+            $area['entries'] = $entries;
             $area['url'] = ! $project
                 ? url('/admin/projects/create')
                 : ($latest
@@ -71,26 +94,13 @@ class ConfigurationWizard extends Page
         return $areas;
     }
 
-    /** @return list<string> */
-    private function patternsFor(string $area): array
-    {
-        return match ($area) {
-            'server' => ['serverdz.cfg', 'dayzsettings.xml', 'beserver*.cfg'],
-            'economy' => ['types.xml', 'globals.xml', 'economy.xml', 'cfgeconomycore.xml', 'cfglimitsdefinition*.xml', 'cfgareaflags.xml'],
-            'events' => ['events.xml', 'cfgeventspawns.xml', 'cfgeventgroups.xml', 'cfgspawnabletypes.xml', '*_territories.xml'],
-            'map' => ['cfgplayerspawnpoints.xml', 'mapgrouppos.xml', 'mapgroupcluster*.xml', 'mapgroupproto.xml', 'mapclusterproto.xml', 'cfgeffectarea.json', '*_territories.xml'],
-            'environment' => ['cfgweather.xml', 'cfgenvironment.xml', 'cfgeffectarea.json', 'cfgundergroundtriggers.json'],
-            'gameplay' => ['cfggameplay.json'],
-            'gear' => ['*spawn-gear*.json'],
-            'objects' => ['*spawner*.json'],
-            'admin' => ['messages.xml', 'whitelist.txt', 'ban.txt', 'priority.txt', 'cfgignorelist.xml', 'cfgrandompresets.xml'],
-            'advanced' => ['init.c'],
-            default => [],
-        };
-    }
-
     public function getTitle(): string
     {
-        return 'Průvodce konfigurací';
+        return 'Nastavit server';
+    }
+
+    public function getSubheading(): ?string
+    {
+        return 'Checklist všech podporovaných oblastí a souborů pro vybraný DayZ server.';
     }
 }

@@ -15,6 +15,7 @@ class ListProjects extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Actions\CreateAction::make()->label('Založit server')->icon('heroicon-o-plus'),
             Actions\Action::make('demo')
                 ->label('Vytvořit demo data')
                 ->icon('heroicon-o-beaker')
@@ -31,7 +32,11 @@ class ListProjects extends ListRecords
                         ->body('Byly vytvořeny servery Chernarus, Livonia a Namalsk.')
                         ->send();
                 }),
-            Actions\CreateAction::make()->label('Nový server'),
         ];
+    }
+
+    public function getSubheading(): ?string
+    {
+        return 'Každý server má vlastní soubory, revize, platformu a mapový editor.';
     }
 }

@@ -25,6 +25,16 @@ class ConfigurationImport extends Page implements HasForms
 
     public ?array $data = [];
 
+    public function getTitle(): string
+    {
+        return 'Přidat konfigurační soubor';
+    }
+
+    public function getSubheading(): ?string
+    {
+        return 'Bezpečný import vytvoří nový zdroj a první revizi bez přepsání existujících dat.';
+    }
+
     public function mount(): void
     {
         $projectId = request()->integer('project');

@@ -126,7 +126,7 @@ class ConfigurationImporterTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/configuration-imports')
             ->assertOk()
-            ->assertSee('Nahrát konfiguraci');
+            ->assertSee('Přidat konfigurační soubor');
 
         $this->actingAs($user)
             ->get('/admin/projects')
@@ -186,8 +186,10 @@ class ConfigurationImporterTest extends TestCase
             ->assertSee('Wizard server')
             ->assertSee('/admin/projects/'.$project->id.'/configuration?revision='.$revision->id, false)
             ->assertSee('/admin/configuration-import?area=gameplay&amp;project='.$project->id, false)
-            ->assertSee('Pokračovat do editoru')
-            ->assertSee('Nahrát první soubor');
+            ->assertSee('Otevřít editor')
+            ->assertSee('Nahrát soubor')
+            ->assertSee('Hlavní pravidla serveru')
+            ->assertSee('Gameplay serveru');
     }
 
     public function test_types_xml_project_has_visual_and_raw_editor(): void

@@ -8,11 +8,12 @@ use App\Filament\Resources\ProjectResource;
 use App\Filament\Widgets\DayzOverview;
 use App\Filament\Widgets\ItemCategoriesChart;
 use App\Filament\Widgets\RecentProjects;
-use App\Models\Project;
+use App\Filament\Widgets\ServerCommandCenter;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Filament\Navigation\NavigationItem;
 use Filament\Pages;
 use Filament\Panel;
@@ -37,31 +38,21 @@ class AdminPanelProvider extends PanelProvider
                 ->label('Servery')
                 ->icon('heroicon-o-server-stack')
                 ->url(fn (): string => ProjectResource::getUrl())
-                ->sort(2)
-                ->group('DayZ konfigurace'),
-            ...(auth()->check()
-            ? Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->with('user')->orderBy('name')->get()->map(
-                fn (Project $server): NavigationItem => NavigationItem::make('server-'.$server->id)
-                    ->label($server->name.($server->user ? ' · '.$server->user->name : ''))
-                    ->icon('heroicon-o-server')
-                    ->url(fn (): string => ProjectResource::getUrl('configuration', ['record' => $server]))
-                    ->group('DayZ konfigurace')
-                    ->parentItem('Servery'),
-            )->all()
-            : []),
+                ->sort(1)
+                ->group('Správa serveru'),
         ];
         $serverItems[] = NavigationItem::make('map-editor')
-            ->label('Mapy')
+            ->label('Mapový editor')
             ->icon('heroicon-o-map')
             ->url(fn (): string => MapEditor::getUrl())
             ->sort(3)
-            ->group('DayZ konfigurace');
+            ->group('Správa serveru');
         $serverItems[] = NavigationItem::make('configuration-wizard')
-            ->label('Průvodce konfigurací')
+            ->label('Nastavit server')
             ->icon('heroicon-o-sparkles')
             ->url(fn (): string => ConfigurationWizard::getUrl())
-            ->sort(1)
-            ->group('DayZ konfigurace');
+            ->sort(2)
+            ->group('Správa serveru');
 
         return $panel->default()->id('admin')->path('admin')->login()
             ->favicon(secure_asset('favicon.svg'))
@@ -72,11 +63,21 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::STYLES_AFTER,
                 fn (): string => view('filament.admin-theme')->render(),
             )
+            ->renderHook(
+                PanelsRenderHook::PAGE_START,
+                fn (): string => auth()->check() ? view('filament.server-workspace-nav')->render() : '',
+            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->navigationItems($serverItems)
+            ->navigationGroups([
+                NavigationGroup::make()->label('Správa serveru'),
+                NavigationGroup::make()->label('Historie a zálohy'),
+                NavigationGroup::make()->label('Administrace'),
+            ])
             ->pages([Pages\Dashboard::class, MapEditor::class])
             ->widgets([
+                ServerCommandCenter::class,
                 DayzOverview::class,
                 ItemCategoriesChart::class,
                 RecentProjects::class,

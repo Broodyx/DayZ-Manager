@@ -9,6 +9,16 @@ class CreateProject extends CreateRecord
 {
     protected static string $resource = ProjectResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Založit DayZ server';
+    }
+
+    public function getSubheading(): ?string
+    {
+        return 'Vytvořte pracovní prostor. Po uložení vás rovnou převezme konfigurační checklist.';
+    }
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['user_id'] = auth()->id();

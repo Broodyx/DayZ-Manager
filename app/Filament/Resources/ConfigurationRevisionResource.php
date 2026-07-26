@@ -25,9 +25,9 @@ class ConfigurationRevisionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'revize';
 
-    protected static ?string $navigationGroup = 'DayZ konfigurace';
+    protected static ?string $navigationGroup = 'Historie a zálohy';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {
@@ -51,6 +51,7 @@ class ConfigurationRevisionResource extends Resource
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('project.name')->label('Server')->searchable(),
+            Tables\Columns\TextColumn::make('configurationImport.original_filename')->label('Soubor')->searchable(),
             Tables\Columns\TextColumn::make('project.platform')
                 ->label('Platforma')
                 ->badge()
@@ -71,7 +72,21 @@ class ConfigurationRevisionResource extends Resource
             Tables\Columns\TextColumn::make('change_summary')->label('Změna')->limit(50),
             Tables\Columns\TextColumn::make('creator.name')->label('Autor'),
             Tables\Columns\TextColumn::make('created_at')->label('Vytvořeno')->dateTime('d. m. Y H:i')->sortable(),
-        ])->actions([
+        ])
+        ->defaultSort('created_at', 'desc')
+        ->filters([
+            Tables\Filters\SelectFilter::make('project_platform')
+                ->label('Platforma serveru')
+                ->options(['playstation' => 'PlayStation', 'xbox' => 'Xbox', 'steam' => 'PC / Steam', 'unknown' => 'Neurčeno'])
+                ->query(fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
+                    ? $query->whereHas('project', fn (Builder $project): Builder => $project->where('platform', $data['value']))
+                    : $query),
+        ])
+        ->actions([
+            Tables\Actions\Action::make('editor')
+                ->label('Otevřít editor')
+                ->icon('heroicon-o-pencil-square')
+                ->url(fn (ConfigurationRevision $record): string => url('/admin/projects/'.$record->project_id.'/configuration?revision='.$record->id)),
             Tables\Actions\Action::make('download')
                 ->label('Stáhnout')
                 ->icon('heroicon-o-arrow-down-tray')
@@ -80,7 +95,10 @@ class ConfigurationRevisionResource extends Resource
                     app(ConfigurationRevisionEditor::class)->downloadName($record),
                 )),
             Tables\Actions\EditAction::make()->label('Detail')->icon('heroicon-o-eye'),
-        ]);
+        ])
+        ->emptyStateHeading('Zatím neexistuje žádná revize')
+        ->emptyStateDescription('První revize vznikne automaticky při importu konfiguračního souboru.')
+        ->emptyStateIcon('heroicon-o-clock');
     }
 
     public static function getEloquentQuery(): Builder

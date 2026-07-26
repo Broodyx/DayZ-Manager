@@ -119,6 +119,18 @@
     </style>
 
     <div class="space-y-4">
+        <section class="dz-editor-command">
+            <div>
+                <p class="dz-kicker">EDITOR KONFIGURACE</p>
+                <h2>{{ $currentFilename }}</h2>
+                <p>{{ $this->configurationDescription() }}</p>
+            </div>
+            <div class="dz-editor-command-meta">
+                <span><small>REVIZE</small><strong>#{{ $revisionNumber }}</strong></span>
+                <span><small>FORMÁT</small><strong>{{ strtoupper(pathinfo($currentFilename, PATHINFO_EXTENSION) ?: 'TEXT') }}</strong></span>
+                <span><small>REŽIM</small><strong>{{ $mode === 'visual' ? 'VIZUÁLNÍ' : 'RAW DATA' }}</strong></span>
+            </div>
+        </section>
         @if ($this->getRecord()->platform !== 'steam' && $detectedPlatform === 'steam')
             <div class="dz-warning">
                 <strong>Detekovány PC-only prvky.</strong>
@@ -135,20 +147,11 @@
             <div class="dz-warning"><strong>Chybějící vazba konfigurace.</strong> {{ $warning }}</div>
         @endforeach
 
-        <div class="flex items-center justify-between gap-4 flex-wrap">
-            <div class="dz-tabs">
-                @if ($visualSupported)
-                    <button type="button" wire:click="$set('mode', 'visual')" class="dz-tab {{ $mode === 'visual' ? 'active' : '' }}">
-                        Vizuální editor
-                    </button>
-                @endif
-                <button type="button" wire:click="$set('mode', 'raw')" class="dz-tab {{ $mode === 'raw' ? 'active' : '' }}">
-                    Raw data
-                </button>
-            </div>
-            <div class="flex items-center gap-3 flex-wrap">
+        <div class="dz-editor-toolbar-new">
+            <div class="dz-editor-file-choice">
+                <span>Konfigurační soubor</span>
                 <details class="dz-file-menu">
-                    <summary>{{ $currentFilename ?: 'Vybrat konfiguraci' }} · revize #{{ $revisionNumber }}</summary>
+                    <summary>{{ $currentFilename ?: 'Vybrat konfiguraci' }} <small>revize #{{ $revisionNumber }}</small></summary>
                     <div class="dz-file-menu-list" aria-label="Výběr konfigurace">
                     @foreach ($this->editableFiles() as $id => $label)
                         @php
@@ -162,7 +165,16 @@
                     @endforeach
                     </div>
                 </details>
-                <span class="dz-muted">Aktuální revize #{{ $revisionNumber }}</span>
+            </div>
+            <div class="dz-tabs" aria-label="Režim editoru">
+                @if ($visualSupported)
+                    <button type="button" wire:click="$set('mode', 'visual')" class="dz-tab {{ $mode === 'visual' ? 'active' : '' }}">
+                        Vizuální editor
+                    </button>
+                @endif
+                <button type="button" wire:click="$set('mode', 'raw')" class="dz-tab {{ $mode === 'raw' ? 'active' : '' }}">
+                    Raw data
+                </button>
             </div>
         </div>
 

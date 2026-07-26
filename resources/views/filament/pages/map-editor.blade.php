@@ -1,6 +1,14 @@
 <x-filament-panels::page>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <div class="dz-map-page">
+        @if (! $projects)
+            <section class="dz-empty-state dz-map-page-empty">
+                <x-filament::icon icon="heroicon-o-map" />
+                <strong>Mapa zatím nemá k čemu patřit</strong>
+                <span>Nejprve založte server. Potom do něj nahrajete mapové soubory a jejich vrstvy se zobrazí zde.</span>
+                <a href="{{ url('/admin/projects/create') }}">Založit první server →</a>
+            </section>
+        @else
         <div id="dz-point-modal" class="dz-point-modal" hidden>
             <div class="dz-point-modal-card">
                 <button type="button" class="dz-point-close" aria-label="Zavřít">×</button>
@@ -60,9 +68,9 @@
         </div>
         <div class="dz-map-toolbar">
             <div>
-                <p class="dz-eyebrow">DAYZ MAP EDITOR</p>
-                <h2>Mapa {{ $map }}</h2>
-                <p class="dz-muted">Světové souřadnice X/Z z posledních revizí konfigurace vybraného serveru.</p>
+                <p class="dz-eyebrow">MAPOVÝ WORKSPACE · {{ strtoupper($map) }}</p>
+                <h2>Vrstvy a body serveru</h2>
+                <p class="dz-muted">Porovnejte světové souřadnice X/Z z posledních revizí a upravujte body v jejich zdrojových souborech.</p>
             </div>
             <label class="dz-map-server-picker"><span>1. Vyberte server</span><select class="dz-map-select" aria-label="Server" onchange="window.location.href='{{ url('/admin/map-editor') }}?project='+this.value">
                 @foreach ($projects as $id => $name)
@@ -70,7 +78,7 @@
                 @endforeach
             </select></label>
             <div class="dz-map-upload">
-                <a class="dz-map-upload-button" href="{{ url('/admin/configuration-import?area=map&project='.$projectId) }}">Nahrát mapovou konfiguraci</a>
+                <a class="dz-map-upload-button" href="{{ url('/admin/configuration-import?area=map&project='.$projectId) }}">Přidat mapový soubor</a>
                 <small>2. Nahrajte jeden soubor nebo celý ZIP balík. Každý soubor dostane vlastní revizi.</small>
             </div>
         </div>
@@ -285,4 +293,5 @@
             });
         });
     </script>
+        @endif
 </x-filament-panels::page>

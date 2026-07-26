@@ -324,4 +324,9 @@ class MapEditor extends Page
     {
         return 'Mapa · '.$this->map;
     }
+
+    public function getSubheading(): ?string
+    {
+        return 'Souřadnice, vrstvy a bezpečné revize mapových konfiguračních souborů.';
+    }
 }
