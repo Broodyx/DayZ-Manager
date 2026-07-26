@@ -163,6 +163,33 @@ class ConfigurationImporterTest extends TestCase
             ->assertSee('PlayStation');
     }
 
+    public function test_configuration_wizard_opens_existing_file_in_editor_and_only_uploads_missing_areas(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Wizard server',
+            'platform' => 'playstation',
+            'map' => 'chernarusplus',
+        ]);
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('serverDZ.cfg', 'hostname = "Wizard";'),
+            $user,
+        );
+        $revision = $project->revisions()->firstOrFail();
+
+        $this->actingAs($user)
+            ->get('/admin/configuration-wizard?project='.$project->id)
+            ->assertOk()
+            ->assertSee('Wizard server')
+            ->assertSee('/admin/projects/'.$project->id.'/configuration?revision='.$revision->id, false)
+            ->assertSee('/admin/configuration-import?area=gameplay&amp;project='.$project->id, false)
+            ->assertSee('Pokračovat do editoru')
+            ->assertSee('Nahrát první soubor');
+    }
+
     public function test_types_xml_project_has_visual_and_raw_editor(): void
     {
         Storage::fake('dayz');

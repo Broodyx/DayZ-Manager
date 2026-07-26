@@ -297,6 +297,12 @@
     .dz-wizard-card { position:relative; display:flex; flex-direction:column; gap:.45rem; min-height:168px; padding:1.1rem; border:1px solid #3e5c28; border-radius:.7rem; background:#111a14; color:#e7f7d2; text-decoration:none; }
     .dz-card-number { position:absolute; top:.8rem; right:.8rem; }
     .dz-wizard-card:hover { border-color:#b8ed55; transform:translateY(-2px); } .dz-wizard-card strong { color:#d8f57b; font-size:1.05rem; } .dz-wizard-card span { color:#9aa99b; font-size:.8rem; } .dz-wizard-card small { color:#c4d6b8; font-size:.76rem; line-height:1.35; } .dz-wizard-card em { margin-top:auto; color:#b8ed55; font-style:normal; font-weight:700; font-size:.8rem; } .dz-wizard-icon { width:1.5rem; color:#b8ed55; }
+    .dz-wizard-server-picker { display:grid; gap:.35rem; width:min(520px,100%); margin:1rem 0; color:#d8f57b; font-weight:800; }
+    .dz-wizard-server-picker select { min-height:3rem; border:1px solid #496b31; border-radius:.55rem; background:#0b120d; color:#e7f7d2; padding:.65rem .8rem; color-scheme:dark; }
+    .dz-wizard-card.has-configuration { border-color:#5d8733; background:linear-gradient(145deg,#152116,#101713); }
+    .dz-wizard-card .dz-wizard-file-state { margin-top:.25rem; padding:.45rem .55rem; border-radius:.35rem; background:#1c2c17; color:#cfff8c; font-weight:700; }
+    .dz-wizard-card .dz-wizard-file-state.missing { background:#291a12; color:#ffc28f; }
+    .dz-wizard-empty { margin:1rem 0; padding:.8rem 1rem; border:1px solid #995c2f; border-radius:.55rem; background:#291a12; color:#ffd2ad; }
     @media (max-width:760px) { .dz-wizard-grid { grid-template-columns:1fr; } }
     .dz-map-grid { position:absolute; inset:0; opacity:.12; background-image:linear-gradient(#d8f57b 1px,transparent 1px),linear-gradient(90deg,#d8f57b 1px,transparent 1px); background-size:48px 48px; }
     .dz-map-land { display:none; }
