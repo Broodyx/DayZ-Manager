@@ -50,7 +50,18 @@
                 <label><input type="checkbox" checked> Konvoje</label>
                 <label><input type="checkbox" checked> Event spawny</label>
                 <hr>
-                <p class="dz-muted">Mapové zdroje: <code>cfgeventspawns.xml</code>, <code>events.xml</code>, <code>cfgeventgroups.xml</code>, <code>cfgplayerspawnpoints.xml</code>, <code>mapgrouppos.xml</code>, <code>mapgroupcluster*.xml</code>, <code>mapgroupproto.xml</code> a <code>*_territories.xml</code>. Body se načítají z jejich souřadnic a ukládají jako nové revize.</p>
+                <div class="dz-map-source-list">
+                    <strong>Mapové konfigurační soubory</strong>
+                    <span><code>cfgeventspawns.xml</code> – pevné pozice eventů a jejich orientace.</span>
+                    <span><code>events.xml</code> – dynamické eventy, vozidla a heli crash.</span>
+                    <span><code>cfgeventgroups.xml</code> – skupiny a varianty eventů.</span>
+                    <span><code>cfgplayerspawnpoints.xml</code> – spawnovací body hráčů.</span>
+                    <span><code>mapgrouppos.xml</code> – pozice loot skupin a budov.</span>
+                    <span><code>mapgroupcluster*.xml</code> – velké mapové clustery budov.</span>
+                    <span><code>mapgroupproto.xml</code> / <code>mapclusterproto.xml</code> – prototypy budov a clusterů.</span>
+                    <span><code>*_territories.xml</code> – teritoria zvířat podle druhu.</span>
+                    <small>Body se načítají ze souřadnic X/Z a změny se ukládají jako nové revize konfigurace.</small>
+                </div>
             </aside>
         </div>
     </div>

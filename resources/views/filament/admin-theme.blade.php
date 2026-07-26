@@ -290,7 +290,7 @@
     .dz-import-page { max-width:760px; } .dz-import-page h2 { color:#d8f57b; margin:.2rem 0; } .dz-import-form { display:grid; gap:1rem; margin-top:1.5rem; padding:1.25rem; border:1px solid #3e5c28; border-radius:.7rem; background:#111a14; } .dz-import-form label { display:grid; gap:.4rem; color:#d8f57b; font-weight:700; } .dz-import-form select,.dz-import-form input[type=file] { width:100%; min-height:2.8rem; padding:.7rem; border:1px solid #486a2c; border-radius:.45rem; background:#0b110d; color:#e7f7d2; } .dz-import-submit { border:0; border-radius:.45rem; background:#b8ed55; color:#14200f; padding:.8rem 1rem; font-weight:800; cursor:pointer; }
     .dz-wizard-intro { grid-column:1/-1; padding:1rem 0; } .dz-wizard-intro h2 { color:#d8f57b; margin:.2rem 0; }
     .dz-wizard-card { display:flex; flex-direction:column; gap:.45rem; min-height:150px; padding:1.1rem; border:1px solid #3e5c28; border-radius:.7rem; background:#111a14; color:#e7f7d2; text-decoration:none; }
-    .dz-wizard-card:hover { border-color:#b8ed55; transform:translateY(-2px); } .dz-wizard-card strong { color:#d8f57b; font-size:1.05rem; } .dz-wizard-card span { color:#9aa99b; font-size:.8rem; } .dz-wizard-card em { margin-top:auto; color:#b8ed55; font-style:normal; font-weight:700; font-size:.8rem; } .dz-wizard-icon { width:1.5rem; color:#b8ed55; }
+    .dz-wizard-card:hover { border-color:#b8ed55; transform:translateY(-2px); } .dz-wizard-card strong { color:#d8f57b; font-size:1.05rem; } .dz-wizard-card span { color:#9aa99b; font-size:.8rem; } .dz-wizard-card small { color:#c4d6b8; font-size:.76rem; line-height:1.35; } .dz-wizard-card em { margin-top:auto; color:#b8ed55; font-style:normal; font-weight:700; font-size:.8rem; } .dz-wizard-icon { width:1.5rem; color:#b8ed55; }
     @media (max-width:760px) { .dz-wizard-grid { grid-template-columns:1fr; } }
     .dz-map-grid { position:absolute; inset:0; opacity:.12; background-image:linear-gradient(#d8f57b 1px,transparent 1px),linear-gradient(90deg,#d8f57b 1px,transparent 1px); background-size:48px 48px; }
     .dz-map-land { display:none; }
@@ -317,6 +317,10 @@
     @media (max-width:800px) { .dz-fields-grid { grid-template-columns:1fr; } }
     .dz-map-legend { border:1px solid #34472d; border-radius:.7rem; background:#111a14; padding:1rem; }
     .dz-map-legend h3 { color:#d8f57b; margin-top:0; } .dz-map-legend label { display:block; padding:.55rem 0; color:#c5d2bf; }
+    .dz-map-source-list { display:grid; gap:.35rem; margin-top:.75rem; color:#aab6a4; font-size:.78rem; line-height:1.35; }
+    .dz-map-source-list strong { color:#d8f57b; font-size:.85rem; }
+    .dz-map-source-list code { color:#dce8d5; }
+    .dz-map-source-list small { margin-top:.35rem; color:#879987; }
     .dz-map-legend input { accent-color:#b8ed55; margin-right:.5rem; }
     @media (max-width: 760px) { .dz-map-toolbar { align-items:stretch; flex-direction:column; } .dz-map-layout { grid-template-columns:1fr; } .dz-map-canvas { min-height:420px; } .dz-map-land { font-size:1.2rem; } .dz-map-marker { font-size:.62rem; } .dz-point-options { grid-template-columns:1fr 1fr; } }
 </style>
