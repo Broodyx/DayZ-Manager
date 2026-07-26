@@ -290,8 +290,13 @@
     .leaflet-container { background:#1c2b20; font-family:inherit; }
     .dz-coordinate-control { background:#111a14e8; border:1px solid #6c9337; border-radius:.35rem; color:#d8f57b; padding:.4rem .6rem; font:700 .78rem/1.2 ui-monospace,monospace; }
     .dz-grid-label { color:#f0f8e8; background:#0b120dc9; border-radius:.2rem; padding:1px 3px; font:700 9px/1.2 ui-monospace,monospace; white-space:nowrap; }
-    .dz-grid-coordinate { display:grid; place-content:center; justify-items:center; border:1px solid #d8f57b73; border-radius:.3rem; color:#f0f8e8; background:#071009dc; box-shadow:0 2px 8px #0009; font:700 9px/1.15 ui-monospace,monospace; white-space:nowrap; pointer-events:none; }
-    .dz-grid-coordinate b { color:#d8f57b; }.dz-grid-coordinate span { color:#d9e4d5; }
+    .dz-coordinate-axes { position:absolute; inset:0; z-index:650; overflow:hidden; border:1px solid #d8f57b78; border-radius:inherit; pointer-events:none; }
+    .dz-coordinate-axis { position:absolute; color:#d8f57b; font:800 9px/1 ui-monospace,monospace; text-shadow:0 1px 2px #000; }
+    .dz-coordinate-axis span { position:absolute; display:block; padding:4px 5px; border:1px solid #668f328f; color:#e5f6cb; background:#071009e8; white-space:nowrap; }
+    .dz-coordinate-axis-x { top:0; right:0; left:0; height:22px; border-bottom:1px solid #d8f57b55; background:linear-gradient(#071009dc,#0710099c); }
+    .dz-coordinate-axis-x span { top:0; transform:translateX(-50%); border-top:0; border-radius:0 0 .25rem .25rem; }
+    .dz-coordinate-axis-z { top:0; bottom:0; left:0; width:58px; border-right:1px solid #d8f57b55; background:linear-gradient(90deg,#071009dc,#0710099c); }
+    .dz-coordinate-axis-z span { left:0; transform:translateY(-50%); border-left:0; border-radius:0 .25rem .25rem 0; }
     .dz-wizard-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; }
     .dz-import-page { max-width:820px; } .dz-import-page h2 { color:#d8f57b; margin:.2rem 0; } .dz-import-form { display:grid; gap:1rem; margin-top:1.5rem; padding:1.25rem; border:1px solid #3e5c28; border-radius:.7rem; background:#111a14; } .dz-import-form label { display:grid; gap:.4rem; color:#d8f57b; font-weight:700; } .dz-import-form label span { display:flex; align-items:center; gap:.5rem; } .dz-import-form label span b { display:grid; place-items:center; width:1.45rem; height:1.45rem; border-radius:50%; background:#b8ed55; color:#14200f; font-size:.72rem; } .dz-import-form label small { color:#9aa99b; font-weight:400; } .dz-import-form select,.dz-import-form input[type=file] { width:100%; min-height:2.8rem; padding:.7rem; border:1px solid #486a2c; border-radius:.45rem; background:#0b110d; color:#e7f7d2; } .dz-import-submit { border:0; border-radius:.45rem; background:#b8ed55; color:#14200f; padding:.9rem 1rem; font-weight:800; cursor:pointer; }
     .dz-wizard-intro { grid-column:1/-1; padding:1rem 0; } .dz-wizard-intro h2 { color:#d8f57b; margin:.2rem 0; }

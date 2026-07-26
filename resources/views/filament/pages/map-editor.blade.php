@@ -148,6 +148,9 @@
             coordinateControl.addTo(map);
             const grid = L.layerGroup().addTo(map);
             const coordinateLabels = L.layerGroup().addTo(map);
+            const coordinateAxes = L.DomUtil.create('div', 'dz-coordinate-axes', el);
+            const xAxis = L.DomUtil.create('div', 'dz-coordinate-axis dz-coordinate-axis-x', coordinateAxes);
+            const zAxis = L.DomUtil.create('div', 'dz-coordinate-axis dz-coordinate-axis-z', coordinateAxes);
             for (let coordinate = 0; coordinate <= 15000; coordinate += 1000) {
                 L.polyline([[0, coordinate], [worldSize, coordinate]], { color:'#d8f57b', weight:1, opacity:.2, interactive:false }).addTo(grid);
                 L.polyline([[coordinate, 0], [coordinate, worldSize]], { color:'#d8f57b', weight:1, opacity:.2, interactive:false }).addTo(grid);
@@ -166,22 +169,23 @@
                 const north = Math.min(worldSize, visible.getNorth());
                 const firstX = Math.ceil(west / step) * step;
                 const firstZ = Math.ceil(south / step) * step;
+                xAxis.replaceChildren();
+                zAxis.replaceChildren();
                 for (let x = firstX; x <= east; x += step) {
                     L.polyline([[south, x], [north, x]], { color:'#ecf8d7', weight:1, opacity:.28, interactive:false, dashArray:zoom >= 0 ? '3 4' : null }).addTo(coordinateLabels);
-                    for (let z = firstZ; z <= north; z += step) {
-                        L.marker([z, x], {
-                            interactive:false,
-                            icon:L.divIcon({
-                                className:'dz-grid-coordinate',
-                                html:'<b>X '+Math.round(x).toLocaleString()+'</b><span>Z '+Math.round(z).toLocaleString()+'</span>',
-                                iconSize:[82,30],
-                                iconAnchor:[41,15]
-                            })
-                        }).addTo(coordinateLabels);
-                    }
+                    const point = map.latLngToContainerPoint([map.getCenter().lat, x]);
+                    const label = document.createElement('span');
+                    label.style.left = point.x + 'px';
+                    label.textContent = 'X ' + Math.round(x).toLocaleString();
+                    xAxis.appendChild(label);
                 }
                 for (let z = firstZ; z <= north; z += step) {
                     L.polyline([[z, west], [z, east]], { color:'#ecf8d7', weight:1, opacity:.28, interactive:false, dashArray:zoom >= 0 ? '3 4' : null }).addTo(coordinateLabels);
+                    const point = map.latLngToContainerPoint([z, map.getCenter().lng]);
+                    const label = document.createElement('span');
+                    label.style.top = point.y + 'px';
+                    label.textContent = 'Z ' + Math.round(z).toLocaleString();
+                    zAxis.appendChild(label);
                 }
                 const center = map.getCenter();
                 coordinateText(center.lng, center.lat, 'Střed mapy');
@@ -341,15 +345,20 @@
             modal.querySelector('.dz-point-confirm').onclick = () => { if (pendingButton) placePoint(pendingButton); };
             const markers = @js($markers);
             const layerGroups = {};
+            const markerRecords = [];
             markers.forEach((marker) => {
                 const color = marker.color || '#b8ed55';
                 const layers = layerGroups[marker.filename] ||= [];
+                const visualLayers = [];
                 if (marker.radius) {
                     const area = L.circle([marker.worldZ, marker.worldX], { radius:Number(marker.radius), color, weight:1.5, fillColor:color, fillOpacity:.1 }).addTo(map);
                     layers.push(area);
+                    visualLayers.push({ layer:area, kind:'area' });
                 }
                 const imported = L.circleMarker([marker.worldZ, marker.worldX], { radius: 6, color, fillColor: color, fillOpacity: .9 }).addTo(map);
                 layers.push(imported);
+                visualLayers.push({ layer:imported, kind:'point' });
+                markerRecords.push({ marker, color, visualLayers });
                 const markerActions = marker.editable
                     ? '<br><button class="dz-map-edit" type="button">Upravit souřadnice</button> <button class="dz-map-delete" type="button">Smazat bod a vytvořit revizi</button>'
                     : '<br><a href="{{ url('/admin/projects/'.$projectId.'/configuration') }}?revision=' + marker.revision_id + '">Otevřít příslušný editor</a>';
@@ -372,6 +381,36 @@
                     });
                 });
             });
+            const markerMatchesScope = (marker, filename, scope) => {
+                if (marker.filename !== filename) return false;
+                if (scope === 'all') return true;
+                if (scope.startsWith('event:')) return marker.label === scope.slice(6);
+                if (scope.startsWith('mode:')) return marker.path.includes('/playerspawnpoints/' + scope.slice(5) + '/');
+                if (scope.startsWith('group:')) {
+                    const [mode, name] = scope.slice(6).split('|');
+                    return marker.path.includes('/playerspawnpoints/' + mode + '/') && marker.label.startsWith(name + ' ·');
+                }
+                return false;
+            };
+            const highlightScope = (filename, scope) => {
+                markerRecords.forEach((record) => {
+                    const sameLayer = record.marker.filename === filename;
+                    const selected = scope && markerMatchesScope(record.marker, filename, scope);
+                    record.visualLayers.forEach(({layer, kind}) => {
+                        if (!scope || !sameLayer) {
+                            layer.setStyle({ color:record.color, fillColor:record.color, opacity:1, fillOpacity:kind === 'area' ? .1 : .9, weight:kind === 'area' ? 1.5 : 1 });
+                            if (kind === 'point') layer.setRadius(6);
+                        } else if (selected) {
+                            layer.setStyle({ color:'#ffffff', fillColor:record.color, opacity:1, fillOpacity:kind === 'area' ? .28 : 1, weight:kind === 'area' ? 3 : 4 });
+                            if (kind === 'point') layer.setRadius(10);
+                            layer.bringToFront?.();
+                        } else {
+                            layer.setStyle({ color:record.color, fillColor:record.color, opacity:.14, fillOpacity:kind === 'area' ? .025 : .08, weight:1 });
+                            if (kind === 'point') layer.setRadius(4);
+                        }
+                    });
+                });
+            };
             editModal.querySelector('.dz-edit-save').onclick = () => {
                 if (!activeMarker) return;
                 const newX = Number(editModal.querySelector('.dz-edit-x').value);
@@ -413,6 +452,12 @@
                         button.disabled = false;
                         button.textContent = 'Odstranit vybrané';
                     }
+                });
+            });
+            document.querySelectorAll('.dz-layer-cleanup select').forEach((select) => {
+                select.addEventListener('change', () => {
+                    const button = select.closest('.dz-layer-cleanup')?.querySelector('.dz-layer-delete');
+                    if (button) highlightScope(button.dataset.filename, select.value);
                 });
             });
             document.querySelectorAll('.map-layer-toggle').forEach((toggle) => {
