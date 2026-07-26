@@ -70,6 +70,7 @@ class EditConfiguration extends Page
     public string $newWhitelistUid = '';
     public array $banEntries = [];
     public string $newBanUid = '';
+    public array $messagesEntries = [];
 
     public array $jsonFields = [];
 
@@ -580,6 +581,64 @@ class EditConfiguration extends Page
         session()->flash('status', 'Banlist byl uložen jako nová revize.');
     }
 
+    public function saveMessages(ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
+    {
+        if ($this->visualKind !== 'messages') {
+            return;
+        }
+
+        $document = new \DOMDocument('1.0', 'UTF-8');
+        $document->preserveWhiteSpace = false;
+        $document->formatOutput = true;
+        if (! @$document->loadXML($this->rawContent, LIBXML_NONET | LIBXML_COMPACT)) {
+            throw ValidationException::withMessages(['rawContent' => 'messages.xml není platné XML.']);
+        }
+        $xpath = new \DOMXPath($document);
+        $nodes = $xpath->query('/messages/message');
+        foreach ($this->messagesEntries as $index => $entry) {
+            $message = $nodes?->item((int) $index);
+            if (! $message instanceof \DOMElement) {
+                continue;
+            }
+            foreach (['deadline', 'shutdown', 'repeat', 'delay', 'onconnect'] as $key) {
+                $child = null;
+                foreach ($message->childNodes as $candidate) {
+                    if ($candidate instanceof \DOMElement && $candidate->tagName === $key) {
+                        $child = $candidate;
+                        break;
+                    }
+                }
+                $value = trim((string) ($entry[$key] ?? ''));
+                if ($value === '') {
+                    if ($child) $message->removeChild($child);
+                    continue;
+                }
+                if (! $child) {
+                    $child = $document->createElement($key);
+                    $message->appendChild($child);
+                }
+                $child->nodeValue = $value;
+            }
+            $text = null;
+            foreach ($message->childNodes as $candidate) {
+                if ($candidate instanceof \DOMElement && $candidate->tagName === 'text') {
+                    $text = $candidate;
+                    break;
+                }
+            }
+            if (! $text) {
+                $text = $document->createElement('text');
+                $message->appendChild($text);
+            }
+            $text->nodeValue = (string) ($entry['text'] ?? '');
+        }
+        $content = $document->saveXML() ?: $this->rawContent;
+        $compatibility->assertEditable($this->getRecord(), $content, ['messages.xml']);
+        $revision = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, $this->changeSummary ?: 'Úprava messages.xml', auth()->user());
+        $this->loadRevision($revision);
+        Notification::make()->success()->title("messages.xml uloženo v revizi #{$revision->revision_number}")->send();
+    }
+
     public function saveWeather(
         WeatherXmlEditor $weatherEditor,
         ConfigurationRevisionEditor $revisionEditor,
@@ -683,6 +742,7 @@ class EditConfiguration extends Page
             str_ends_with(strtolower($filename), '.cfg') => 'server',
             strtolower(basename($filename)) === 'whitelist.txt' => 'whitelist',
             strtolower(basename($filename)) === 'ban.txt' => 'ban',
+            strtolower(basename($filename)) === 'messages.xml' => 'messages',
             $typesEditor->supports($filename, $this->rawContent) => 'types',
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
             $jsonEditor->supports($this->rawContent) => 'json',
@@ -706,12 +766,31 @@ class EditConfiguration extends Page
         }
         $this->xmlFields = $this->visualKind === 'xml' ? $xmlEditor->fields($this->rawContent) : [];
         $this->xmlValues = collect($this->xmlFields)->mapWithKeys(fn (array $field): array => [$field['path'] => $field['value']])->all();
+        $this->messagesEntries = $this->visualKind === 'messages' ? $this->parseMessages($this->rawContent) : [];
         $this->mode = $this->visualSupported ? 'visual' : 'raw';
 
         $detection = app(PlatformDetector::class)->detect($this->rawContent, [$filename]);
         $this->detectedPlatform = $detection->platform;
         $this->platformReasons = $detection->platform === 'steam' ? $detection->reasons : [];
         $this->platformWarnings = $detection->warnings;
+    }
+
+    /** @return list<array<string, string>> */
+    private function parseMessages(string $content): array
+    {
+        $document = new \DOMDocument('1.0', 'UTF-8');
+        if (! @$document->loadXML($content, LIBXML_NONET | LIBXML_COMPACT)) return [];
+        $entries = [];
+        foreach ((new \DOMXPath($document))->query('/messages/message') ?: [] as $message) {
+            $entry = array_fill_keys(['deadline', 'shutdown', 'repeat', 'delay', 'onconnect', 'text'], '');
+            foreach ($message->childNodes as $child) {
+                if ($child instanceof \DOMElement && array_key_exists($child->tagName, $entry)) {
+                    $entry[$child->tagName] = trim($child->textContent);
+                }
+            }
+            $entries[] = $entry;
+        }
+        return $entries;
     }
 
     private function sourceRevision(): ConfigurationRevision

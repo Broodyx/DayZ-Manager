@@ -39,6 +39,9 @@
         .dz-toggle-button.off { color:#cbd5c0; background:#263229; border:1px solid rgba(190,209,175,.35) }
         .dz-toggle-button:hover { filter:brightness(1.12) }
         .dz-field input[type=range] { width:100%; accent-color:#a3e635 }
+        .dz-field textarea { width:100%; min-height:5rem; box-sizing:border-box; resize:vertical; border:1px solid rgba(190,209,175,.2); border-radius:.25rem; padding:.55rem .65rem; color:#edf2e9; background:#090d0a; font:inherit }
+        .dz-field-wide { grid-column:1 / -1 }
+        .dz-empty-state { margin:1rem; padding:1rem; border:1px dashed rgba(182,233,79,.35); border-radius:.4rem; background:rgba(182,233,79,.04) }
         .dz-field[data-tooltip] { position:relative }
         .dz-field[data-tooltip]::after { content:attr(data-tooltip); position:absolute; z-index:20; left:.75rem; bottom:calc(100% + .35rem); max-width:28rem; padding:.45rem .6rem; border:1px solid rgba(182,233,79,.3); border-radius:.25rem; color:#e7f4dc; background:#0a100c; box-shadow:0 8px 24px rgba(0,0,0,.45); font:12px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:normal; opacity:0; pointer-events:none; transform:translateY(.25rem); transition:opacity .15s,transform .15s }
         .dz-field[data-tooltip]:hover::after,.dz-field[data-tooltip]:focus-within::after { opacity:1; transform:translateY(0) }
@@ -553,6 +556,25 @@
                     <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny JSON konfigurace"><button type="button" wire:click="saveJson" wire:loading.attr="disabled" class="dz-action">Validovat a uložit JSON revizi</button></div>
                 </section>
             @endif
+        @elseif ($visualKind === 'messages')
+            <section class="dz-panel dz-server-settings">
+                <div class="dz-panel-head"><strong>messages.xml · vizuální editor</strong><p class="dz-muted text-sm mt-1">Každá zpráva se zobrazí samostatně. Časy jsou v minutách; <code>onconnect</code> a <code>shutdown</code> používají 0 = vypnuto, 1 = zapnuto.</p></div>
+                <div class="p-3">
+                    @forelse ($messagesEntries as $index => $message)
+                        <details class="dz-group" open><summary><span>Zpráva #{{ $index + 1 }}</span><span class="dz-badge dz-server-badge">message</span></summary>
+                            <div class="dz-fields">
+                                @foreach ([['repeat','Opakování (min)','Interval opakování zprávy v minutách. Prázdné = neopakovat.'],['delay','Zpoždění po startu (min)','Počet minut od startu serveru nebo připojení, než se zpráva zobrazí.'],['deadline','Odpočet do vypnutí (min)','Odpočet do plánovaného vypnutí serveru. Prázdné = bez vypnutí.'],['onconnect','Po připojení (0/1)','1 = zobrazit po připojení hráče, 0 nebo prázdné = ne.'],['shutdown','Vypnutí po odpočtu (0/1)','1 = po deadline server vypnout, 0 nebo prázdné = nevypínat.']] as [$key, $label, $help])
+                                    <label class="dz-field" data-tooltip="{{ $help }}"><span class="dz-field-top"><span><strong>{{ $label }}</strong><br><small class="dz-muted">{{ $help }}</small></span><input type="number" min="0" wire:model="messagesEntries.{{ $index }}.{{ $key }}"></span></label>
+                                @endforeach
+                                <label class="dz-field dz-field-wide" data-tooltip="Text zprávy podporuje tokeny jako #name a #tmin."><span class="dz-field-top"><span><strong>Text zprávy</strong><br><small class="dz-muted">Text, který se zobrazí hráčům. Podporované tokeny: #name, #tmin, #pos.</small></span><textarea wire:model="messagesEntries.{{ $index }}.text" rows="3"></textarea></span></label>
+                            </div>
+                        </details>
+                    @empty
+                        <div class="dz-empty-state"><strong>Soubor neobsahuje žádné aktivní zprávy.</strong><p class="dz-muted">Výchozí messages.xml často obsahuje pouze komentované příklady. Přidejte zprávu přes Raw data nebo nahrajte vlastní messages.xml.</p></div>
+                    @endforelse
+                </div>
+                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny messages.xml"><button type="button" wire:click="saveMessages" wire:loading.attr="disabled" class="dz-action">Validovat a uložit messages.xml</button></div>
+            </section>
         @elseif ($visualKind === 'xml')
             <section class="dz-panel dz-server-settings">
                 <div class="dz-panel-head"><strong>{{ $currentFilename }} · vizuální editor</strong><p class="dz-muted text-sm mt-1">Parametry XML jsou rozdělené podle sekcí a u každého pole je uveden raw XPath zápis.</p></div>
