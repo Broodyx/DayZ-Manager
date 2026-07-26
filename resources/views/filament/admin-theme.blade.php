@@ -306,6 +306,7 @@
     .dz-point-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.55rem; margin-top:1rem; }
     .dz-point-options button { min-height:3rem; text-align:left; border:1px solid #3e5c28; border-radius:.5rem; background:#18251a; color:#e7f7d2; padding:.65rem; cursor:pointer; }
     .dz-point-options button:hover { border-color:#b8ed55; background:#263b20; color:#d8f57b; }
+    .dz-point-options button.selected { border-color:#b8ed55; background:#b8ed55; color:#0d160d; box-shadow:0 0 0 2px rgba(184,237,85,.25); }
     .dz-event-catalog { margin-top:1rem; display:grid; gap:.55rem; }
     .dz-event-catalog[hidden] { display:none; }
     .dz-event-catalog label { color:#d8f57b; font-weight:700; }

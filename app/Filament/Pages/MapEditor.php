@@ -87,17 +87,42 @@ class MapEditor extends Page
     {
         $this->eventCatalog = [];
         $project = $this->projectId ? Project::query()->where('user_id', auth()->id())->find($this->projectId) : null;
-        $revision = $project?->revisions()->with('configurationImport')->latest()->get()->first(fn ($item) => strtolower($item->configurationImport?->original_filename ?? '') === 'events.xml');
-        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
-            return;
-        }
-        $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
-        foreach ($xml?->event ?? [] as $event) {
-            $children = [];
-            foreach ($event->children->child ?? [] as $child) {
-                $children[] = (string) ($child['type'] ?? '');
+        $revisions = $project?->revisions()->with('configurationImport')->latest()->get() ?? collect();
+        $byName = fn (string $name) => $revisions->first(fn ($item) => strtolower($item->configurationImport?->original_filename ?? basename($item->storage_path)) === $name);
+        $events = $byName('events.xml');
+        if ($events && Storage::disk('dayz')->exists($events->storage_path)) {
+            $xml = @simplexml_load_string(Storage::disk('dayz')->get($events->storage_path));
+            foreach ($xml?->event ?? [] as $event) {
+                $children = [];
+                foreach ($event->children->child ?? [] as $child) {
+                    $children[] = (string) ($child['type'] ?? '');
+                }
+                $this->eventCatalog[] = ['name' => (string) $event['name'], 'children' => array_values(array_filter($children))];
             }
-            $this->eventCatalog[] = ['name' => (string) $event['name'], 'children' => array_values(array_filter($children))];
+        }
+
+        // cfgeventgroups.xml is the authoritative catalogue for compound events
+        // (trains, convoys and their individual vehicle/object classes).
+        $groups = $byName('cfgeventgroups.xml');
+        if ($groups && Storage::disk('dayz')->exists($groups->storage_path)) {
+            $xml = @simplexml_load_string(Storage::disk('dayz')->get($groups->storage_path));
+            foreach ($xml?->group ?? [] as $group) {
+                $children = [];
+                foreach ($group->child ?? [] as $child) {
+                    $type = (string) ($child['type'] ?? '');
+                    if ($type !== '') {
+                        $children[] = $type;
+                    }
+                }
+                $name = (string) ($group['name'] ?? '');
+                if ($name === '') continue;
+                $index = collect($this->eventCatalog)->search(fn ($item) => $item['name'] === $name);
+                if ($index === false) {
+                    $this->eventCatalog[] = ['name' => $name, 'children' => array_values(array_unique($children))];
+                } else {
+                    $this->eventCatalog[$index]['children'] = array_values(array_unique(array_merge($this->eventCatalog[$index]['children'], $children)));
+                }
+            }
         }
     }
 

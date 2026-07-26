@@ -20,7 +20,7 @@
                     <button data-point="aerial">Letecký event</button>
                     <button data-point="custom">Vlastní bod</button>
                 </div>
-                <div id="dz-event-catalog" class="dz-event-catalog" hidden><label>Možnosti pro vybraný typ</label><select></select><input class="dz-point-name" placeholder="Název bodu / vozidla"><input class="dz-point-radius" type="number" min="1" max="5000" value="50" placeholder="Poloměr zóny (m)"><small>Vyberte existující možnost nebo zadejte vlastní název. U zón lze nastavit poloměr.</small><button type="button" class="dz-point-confirm">Umístit bod</button></div>
+                <div id="dz-event-catalog" class="dz-event-catalog" hidden><label>Možnosti pro vybraný typ</label><select></select><input class="dz-point-name" placeholder="Vlastní název (volitelné)"><label class="dz-point-radius-wrap" hidden>Poloměr zóny (m)<input class="dz-point-radius" type="number" min="1" max="5000" value="50" placeholder="Např. 150"></label><small>Vyberte konkrétní event nebo vozidlo z katalogu. Katalog se načítá z events.xml a cfgeventgroups.xml.</small><button type="button" class="dz-point-confirm">Umístit bod</button></div>
             </div>
         </div>
         <div class="dz-map-toolbar">
@@ -104,14 +104,23 @@
             const modal = document.getElementById('dz-point-modal');
             modal.querySelector('.dz-point-close').onclick = () => modal.hidden = true;
             let pendingButton = null;
-            const catalogs = { vehicle: ['M1025','OffroadHatchback','CivilianSedan','Truck_01_Covered','V3S'], animal: ['Animal_CervusElaphus','Animal_Boar','Animal_Wolf','Animal_BosTaurus','Animal_Goat'], infected: ['ZmbM_CitizenASkinny_Blue','ZmbM_PolicemanFat','ZmbF_JournalistNormal_Blue'], loot: ['LootGroup_City','LootGroup_Military','LootGroup_Hunting','LootGroup_Industrial'], heli: ['StaticHeliCrash'], convoy: ['StaticConvoy'], dynamic: ['DynamicEvent'], contaminated: ['ContaminatedZone'], player: ['PlayerSpawn'], territory: ['Territory'], aerial: ['AerialEvent'], custom: ['CustomPoint'] };
+            const eventCatalog = @js($eventCatalog); const eventNames = eventCatalog.map((item) => item.name); const childNames = eventCatalog.flatMap((item) => item.children || []);
+            const catalogs = { vehicle: [...new Set(['M1025','OffroadHatchback','CivilianSedan','Truck_01_Covered','V3S', ...childNames])], animal: [...new Set(['Animal_CervusElaphus','Animal_Boar','Animal_Wolf','Animal_BosTaurus','Animal_Goat', ...childNames.filter((name) => name.startsWith('Animal'))])], infected: [...new Set(['ZmbM_CitizenASkinny_Blue','ZmbM_PolicemanFat','ZmbF_JournalistNormal_Blue', ...childNames.filter((name) => name.startsWith('Infected') || name.startsWith('Zmb'))])], loot: ['LootGroup_City','LootGroup_Military','LootGroup_Hunting','LootGroup_Industrial'], heli: eventNames.filter((name) => name.toLowerCase().includes('heli')).concat(['StaticHeliCrash']), convoy: eventNames.filter((name) => name.toLowerCase().includes('convoy') || name.toLowerCase().includes('train')).concat(['StaticMilitaryConvoy','StaticPoliceCar']), dynamic: eventNames.filter((name) => !name.startsWith('Animal') && !name.startsWith('Infected') && !name.startsWith('Static')).concat(['DynamicEvent']), contaminated: ['ContaminatedArea','ContaminatedZone'], player: ['PlayerSpawn'], territory: ['Territory'], aerial: ['AerialEvent'], custom: ['CustomPoint'] };
+            const typeHelp = { vehicle: 'Třída vozidla z events.xml/cfgeventgroups.xml. Uloží se název typu a souřadnice; počet, lifetime a loot se řídí nastavením eventu.', heli: 'Heli crash je dynamický event. Vyberte event (např. StaticHeliCrash); jeho spawn pozice patří do cfgeventspawns.xml.', convoy: 'Konvoj je skupina z cfgeventgroups.xml (např. vlak nebo vojenský konvoj). Zvolte skupinu, ne jednotlivý objekt; obsah se načítá z child položek.', dynamic: 'Dynamický event z events.xml. Jeho pravidla (nominal, min, max, lifetime, restock a child typy) se nemění pouze umístěním bodu.', animal: 'Třída zvířete. Samotný bod je jen vizualizace; skutečný spawn řídí Animal event a příslušné *_territories.xml.', infected: 'Třída infikovaného. Skutečný spawn řídí Infected event, event skupina a limity ekonomiky.', loot: 'Loot skupina/pozice. Pro funkční loot musí odpovídat mapgrouppos.xml, mapgroupcluster*.xml a ekonomice (types.xml).', contaminated: 'Kontaminovaná zóna. Poloměr je v metrech; pro serverovou zónu se používá cfgeffectarea.json nebo odpovídající event.', player: 'Spawn hráče z cfgplayerspawnpoints.xml. Vyberte bod a ověřte, že leží na souši; souřadnice jsou X/Z v rozsahu 0–15360.', territory: 'Území/teritorium. Poloměr je v metrech a skutečné chování určuje *_territories.xml pro konkrétní druh.', aerial: 'Letecký event (např. heli nebo jiný event z events.xml). Nastavení eventu a spawn pozic zůstává v příslušných XML.', custom: 'Vlastní bod pouze pro vaše poznámky/mapové vrstvy. Poloměr je v metrech; před exportem ověřte, zda pro něj existuje podporovaný XML formát.' };
             const placePoint = (button) => {
                 const label = button.dataset.label || button.textContent.trim();
                 if (pendingButton !== button) {
                     pendingButton = button;
-                    const catalog = document.getElementById('dz-event-catalog'); const select = catalog.querySelector('select');
-                    const entries = catalogs[button.dataset.point] || @js($eventCatalog).map((item) => item.name);
-                    select.innerHTML = '<option value="">Vyberte existující možnost...</option>' + entries.map((item) => '<option>' + item + '</option>').join(''); catalog.hidden = false;
+                    modal.querySelectorAll('[data-point]').forEach((item) => item.classList.toggle('selected', item === button));
+                    const catalog = document.getElementById('dz-event-catalog'); const select = catalog.querySelector('select'); const nameInput = catalog.querySelector('.dz-point-name');
+                    const entries = catalogs[button.dataset.point] || eventNames;
+                    select.replaceChildren(new Option('Vyberte existující možnost...', ''));
+                    entries.forEach((item) => select.add(new Option(item, item)));
+                    catalog.hidden = false;
+                    nameInput.value = ''; catalog.querySelector('select').selectedIndex = 0;
+                    const radiusTypes = ['contaminated', 'infected', 'territory', 'custom'];
+                    catalog.querySelector('.dz-point-radius-wrap').hidden = !radiusTypes.includes(button.dataset.point);
+                    catalog.querySelector('small').textContent = typeHelp[button.dataset.point] || 'Vyberte existující možnost nebo zadejte vlastní název.';
                     return;
                 }
                 const chosen = document.querySelector('#dz-event-catalog select')?.value || document.querySelector('.dz-point-name')?.value || label;
