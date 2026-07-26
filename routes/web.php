@@ -129,6 +129,27 @@ Route::post('/admin/map-editor/points/delete', function (Request $request, \App\
     return response()->json(['ok'=>true]);
 })->middleware('auth')->name('map-editor.points.delete');
 
+Route::post('/admin/map-editor/points/bulk-delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor) {
+    $data = $request->validate([
+        'project_id' => ['required', 'integer'],
+        'revision_id' => ['required', 'integer'],
+        'filename' => ['required', 'in:cfgeventspawns.xml,cfgplayerspawnpoints.xml'],
+        'scope' => ['required', 'string', 'max:220'],
+    ]);
+    $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
+    $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
+    abort_unless(strtolower(basename($source->configurationImport?->original_filename ?? '')) === $data['filename'], 422, 'Revize nepatří vybranému souboru.');
+    abort_unless(Storage::disk('dayz')->exists($source->storage_path), 422, 'Zdrojová revize už není dostupná.');
+    try {
+        $result = $mapEditor->deleteScope($data['filename'], Storage::disk('dayz')->get($source->storage_path), $data['scope']);
+    } catch (\RuntimeException $exception) {
+        abort(422, $exception->getMessage());
+    }
+    $saved = $editor->save($project, $source, $result['content'], "Hromadně odstraněno {$result['deleted']} mapových bodů", auth()->user());
+
+    return response()->json(['ok' => true, 'deleted' => $result['deleted'], 'revision' => $saved->revision_number]);
+})->middleware('auth')->name('map-editor.points.bulk-delete');
+
 Route::get('/admin/projects/{project}/configuration/{revision}/download', function (Project $project, \App\Models\ConfigurationRevision $revision) {
     abort_unless(((int) $project->user_id === (int) auth()->id() || auth()->user()?->is_admin) && (int) $revision->project_id === (int) $project->id, 403);
     $disk = Storage::disk('dayz');

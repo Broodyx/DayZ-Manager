@@ -10,6 +10,57 @@ use RuntimeException;
 
 final class MapConfigurationEditor
 {
+    /** @return array{content:string,deleted:int} */
+    public function deleteScope(string $filename, string $content, string $scope): array
+    {
+        $filename = strtolower(basename(str_replace('\\', '/', $filename)));
+        $document = $this->document($content);
+        $xpath = new DOMXPath($document);
+        $nodes = [];
+
+        if ($filename === 'cfgeventspawns.xml') {
+            if ($scope === 'all') {
+                $nodes = iterator_to_array($xpath->query('/eventposdef/event/pos') ?: []);
+            } elseif (str_starts_with($scope, 'event:')) {
+                $eventName = substr($scope, 6);
+                foreach ($xpath->query('/eventposdef/event') ?: [] as $event) {
+                    if ($event instanceof DOMElement && hash_equals($event->getAttribute('name'), $eventName)) {
+                        $nodes = iterator_to_array($xpath->query('./pos', $event) ?: []);
+                        break;
+                    }
+                }
+            }
+        } elseif ($filename === 'cfgplayerspawnpoints.xml') {
+            if ($scope === 'all') {
+                $nodes = iterator_to_array($xpath->query('/playerspawnpoints/*/generator_posbubbles/group/pos') ?: []);
+            } elseif (preg_match('/^mode:(fresh|hop|travel)$/', $scope, $matches)) {
+                $nodes = iterator_to_array($xpath->query('/playerspawnpoints/'.$matches[1].'/generator_posbubbles/group/pos') ?: []);
+            } elseif (preg_match('/^group:(fresh|hop|travel)\|(.+)$/', $scope, $matches)) {
+                foreach ($xpath->query('/playerspawnpoints/'.$matches[1].'/generator_posbubbles/group') ?: [] as $group) {
+                    if ($group instanceof DOMElement && hash_equals($group->getAttribute('name'), $matches[2])) {
+                        $nodes = iterator_to_array($xpath->query('./pos', $group) ?: []);
+                        break;
+                    }
+                }
+            }
+        } else {
+            throw new RuntimeException('Hromadné mazání pro tento mapový soubor není podporováno.');
+        }
+
+        $deleted = 0;
+        foreach ($nodes as $node) {
+            if ($node instanceof DOMElement && $node->parentNode) {
+                $node->parentNode->removeChild($node);
+                $deleted++;
+            }
+        }
+        if ($deleted === 0) {
+            throw new RuntimeException('Ve vybrané skupině nebyly nalezeny žádné body.');
+        }
+
+        return ['content' => $this->save($document), 'deleted' => $deleted];
+    }
+
     public function updateCoordinates(string $filename, string $content, string $path, float $x, float $z): string
     {
         $this->validateCoordinates($x, $z);

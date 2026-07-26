@@ -373,7 +373,15 @@
     .dz-map-source.missing { border-color:rgba(217,119,56,.35); }
     .dz-map-source.missing b { color:#ffc08f; }
     .dz-map-legend input { accent-color:#b8ed55; margin-right:.5rem; }
-    .dz-map-layers label { display:flex; align-items:flex-start; gap:.35rem; padding:.4rem 0; color:#c5d2bf; font-size:.75rem; } .dz-map-layers label span { display:grid; gap:.05rem; overflow-wrap:anywhere; } .dz-map-layers label small { color:#7f9182; font-size:.65rem; }
+    .dz-map-layers { display:grid; gap:.55rem; }
+    .dz-map-layer-card { display:grid; gap:.45rem; padding:.65rem; border:1px solid #2c3d2e; border-radius:.55rem; background:#0c130e; }
+    .dz-map-layers label { display:flex; align-items:flex-start; gap:.4rem; color:#c5d2bf; font-size:.75rem; cursor:pointer; } .dz-map-layers label span { display:grid; gap:.05rem; overflow-wrap:anywhere; } .dz-map-layers label b { color:#dce6d8; } .dz-map-layers label small { color:#8c9b8c; font-size:.65rem; }
+    .dz-map-layer-card > p { margin:0; color:#879587; font-size:.65rem; line-height:1.45; }
+    .dz-layer-cleanup { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.4rem; }
+    .dz-layer-cleanup select { min-width:0; min-height:2.2rem; padding:.4rem .5rem; border:1px solid #405a30; border-radius:.4rem; color:#dce8d7; background:#080d09; color-scheme:dark; font-size:.63rem; }
+    .dz-layer-delete { padding:.4rem .55rem; border:1px solid #9b463f; border-radius:.4rem; color:#ffd4cf; background:#2b1715; font-size:.62rem; font-weight:850; cursor:pointer; }
+    .dz-layer-delete:hover { border-color:#ef776d; background:#4a211e; }.dz-layer-delete:disabled { opacity:.55; cursor:wait; }
+    .dz-layer-warning { color:#b77c74 !important; font-size:.58rem !important; line-height:1.35; }
     .dz-load-dense { display:flex; align-items:flex-start; gap:.45rem; margin:.35rem 0; padding:.55rem; border:1px dashed #506d2b; border-radius:.4rem; color:#d8f57b; text-decoration:none; font-size:.75rem; } .dz-load-dense span { display:grid; gap:.05rem; } .dz-load-dense small { color:#879987; }
     .dz-layer-dot { width:.65rem; height:.65rem; border-radius:50%; display:inline-block; }
     .layer-0 { background:#b8ed55; } .layer-1 { background:#80b8ff; } .layer-2 { background:#f1b44c; } .layer-3 { background:#e96a5f; } .layer-4 { background:#d58cff; } .layer-5 { background:#55e0c1; } .layer-6 { background:#ff82b2; } .layer-7 { background:#f6d365; }

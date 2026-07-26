@@ -33,6 +33,7 @@ class MapEditor extends Page
     public array $mapSources = [];
     public array $markerCounts = [];
     public array $loadedSources = [];
+    public array $layerScopes = [];
     public bool $showDenseLayers = false;
 
     public function mount(): void
@@ -320,6 +321,7 @@ class MapEditor extends Page
         $this->markers = [];
         $this->markerCounts = [];
         $this->loadedSources = [];
+        $this->layerScopes = [];
         $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
         if (! $project) {
             return;
@@ -332,6 +334,7 @@ class MapEditor extends Page
                 continue;
             }
             $content = Storage::disk('dayz')->get($revision->storage_path);
+            $this->layerScopes[$filename] = $this->scopesFor($filename, $content);
             if ($filename === 'mapgrouppos.xml' && ! $this->showDenseLayers) {
                 $this->markerCounts[$filename] = substr_count($content, '<group ');
                 continue;
@@ -344,6 +347,48 @@ class MapEditor extends Page
                 $this->loadedSources[$filename] = true;
             }
         }
+    }
+
+    /** @return list<array{value:string,label:string,count:int}> */
+    private function scopesFor(string $filename, string $content): array
+    {
+        $xml = @simplexml_load_string($content);
+        if (! $xml) {
+            return [];
+        }
+        $scopes = [];
+        if ($filename === 'cfgeventspawns.xml') {
+            foreach ($xml->event ?? [] as $event) {
+                $count = count($event->pos ?? []);
+                if ($count > 0) {
+                    $name = (string) ($event['name'] ?? '');
+                    $scopes[] = ['value' => 'event:'.$name, 'label' => $name, 'count' => $count];
+                }
+            }
+        }
+        if ($filename === 'cfgplayerspawnpoints.xml') {
+            foreach (['fresh', 'hop', 'travel'] as $mode) {
+                $modeNode = $xml->{$mode};
+                if (! $modeNode) {
+                    continue;
+                }
+                $modeCount = 0;
+                foreach ($modeNode->generator_posbubbles->group ?? [] as $group) {
+                    $count = count($group->pos ?? []);
+                    if ($count === 0) {
+                        continue;
+                    }
+                    $name = (string) ($group['name'] ?? 'Bez názvu');
+                    $modeCount += $count;
+                    $scopes[] = ['value' => "group:{$mode}|{$name}", 'label' => "{$mode} · {$name}", 'count' => $count];
+                }
+                if ($modeCount > 0) {
+                    array_unshift($scopes, ['value' => 'mode:'.$mode, 'label' => strtoupper($mode).' · celý režim', 'count' => $modeCount]);
+                }
+            }
+        }
+
+        return $scopes;
     }
 
     private function projectQuery()

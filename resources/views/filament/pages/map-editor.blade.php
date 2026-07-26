@@ -90,7 +90,25 @@
                 <div class="dz-map-layers">
                     @foreach ($mapSources as $source)
                         @if ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0 && $source['loaded'])
-                            <label><input class="map-layer-toggle" type="checkbox" @checked($source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="background:{{ $source['color'] }}"></i><span>{{ $source['filename'] }}<small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
+                            <article class="dz-map-layer-card">
+                                <label><input class="map-layer-toggle" type="checkbox" @checked($source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="background:{{ $source['color'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
+                                <p>{{ $source['description'] }}</p>
+                                @if (in_array($source['filename'], ['cfgeventspawns.xml', 'cfgplayerspawnpoints.xml'], true))
+                                    <div class="dz-layer-cleanup">
+                                        <select aria-label="Rozsah bodů k odstranění">
+                                            <option value="">Vyberte skupinu k vyčištění…</option>
+                                            @foreach ($layerScopes[$source['filename']] ?? [] as $scope)
+                                                <option value="{{ $scope['value'] }}">{{ $scope['label'] }} · {{ $scope['count'] }} bodů</option>
+                                            @endforeach
+                                            <option value="all">VŠECHNY BODY VRSTVY · {{ $source['marker_count'] }}</option>
+                                        </select>
+                                        <button type="button" class="dz-layer-delete"
+                                            data-filename="{{ $source['filename'] }}"
+                                            data-revision="{{ $source['revision_id'] }}">Odstranit vybrané</button>
+                                    </div>
+                                    <small class="dz-layer-warning">Odstraní pouze body/pozice. Ostatní parametry souboru zachová a vytvoří novou revizi.</small>
+                                @endif
+                            </article>
                         @elseif ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0)
                             <a class="dz-load-dense" href="{{ url('/admin/map-editor?project='.$projectId.'&dense=1') }}"><i class="dz-layer-dot" style="background:{{ $source['color'] }}"></i><span>Načíst {{ $source['filename'] }}<small>{{ number_format($source['marker_count'], 0, ',', ' ') }} hustých bodů</small></span></a>
                         @endif
@@ -331,6 +349,35 @@
                 if (!activeMarker) return;
                 fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ})}).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(()=>({}))).message || 'Bod se nepodařilo odstranit.'); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
             };
+            document.querySelectorAll('.dz-layer-delete').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const root = button.closest('.dz-layer-cleanup');
+                    const select = root?.querySelector('select');
+                    const scope = select?.value;
+                    if (!scope) {
+                        window.alert('Nejprve vyberte event, režim, skupinu nebo všechny body.');
+                        return;
+                    }
+                    const label = select.options[select.selectedIndex]?.textContent || scope;
+                    if (!window.confirm('Opravdu odstranit „' + label + '“? Vznikne nová revize a původní zůstane zachována.')) return;
+                    button.disabled = true;
+                    button.textContent = 'Odstraňuji…';
+                    try {
+                        const response = await fetch('{{ route('map-editor.points.bulk-delete') }}', {
+                            method:'POST',
+                            headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},
+                            body:JSON.stringify({project_id:@js($projectId),revision_id:Number(button.dataset.revision),filename:button.dataset.filename,scope})
+                        });
+                        const result = await response.json().catch(() => ({}));
+                        if (!response.ok) throw new Error(result.message || 'Body se nepodařilo odstranit.');
+                        window.location.reload();
+                    } catch (error) {
+                        window.alert(error.message);
+                        button.disabled = false;
+                        button.textContent = 'Odstranit vybrané';
+                    }
+                });
+            });
             document.querySelectorAll('.map-layer-toggle').forEach((toggle) => {
                 const syncLayer = () => (layerGroups[toggle.dataset.layer] || []).forEach((layer) => toggle.checked ? layer.addTo(map) : map.removeLayer(layer));
                 toggle.addEventListener('change', syncLayer);

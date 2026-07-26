@@ -181,4 +181,26 @@ class MapConfigurationReaderTest extends TestCase
         $this->assertSame('tiny', $area['PlayerData']['TinyPartName']);
         $this->assertSame('ppe', $area['PlayerData']['PPERequesterType']);
     }
+
+    public function test_editor_bulk_deletes_only_selected_event_positions(): void
+    {
+        $xml = '<eventposdef><event name="VehicleA"><pos x="1" z="2" a="0"/><pos x="3" z="4" a="0"/></event><event name="VehicleB"><pos x="5" z="6" a="0"/></event></eventposdef>';
+        $result = (new MapConfigurationEditor())->deleteScope('cfgeventspawns.xml', $xml, 'event:VehicleA');
+
+        $this->assertSame(2, $result['deleted']);
+        $this->assertStringNotContainsString('x="1"', $result['content']);
+        $this->assertStringContainsString('name="VehicleB"', $result['content']);
+        $this->assertStringContainsString('x="5"', $result['content']);
+    }
+
+    public function test_editor_bulk_deletes_selected_player_spawn_group_only(): void
+    {
+        $xml = '<playerspawnpoints><fresh><generator_posbubbles><group name="Coast"><pos x="1" z="2"/></group><group name="Town"><pos x="3" z="4"/></group></generator_posbubbles></fresh><hop><generator_posbubbles><group name="Coast"><pos x="5" z="6"/></group></generator_posbubbles></hop></playerspawnpoints>';
+        $result = (new MapConfigurationEditor())->deleteScope('cfgplayerspawnpoints.xml', $xml, 'group:fresh|Coast');
+
+        $this->assertSame(1, $result['deleted']);
+        $this->assertStringNotContainsString('x="1"', $result['content']);
+        $this->assertStringContainsString('x="3"', $result['content']);
+        $this->assertStringContainsString('x="5"', $result['content']);
+    }
 }
