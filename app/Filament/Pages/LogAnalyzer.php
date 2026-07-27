@@ -2,9 +2,13 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\LogAnalysis;
 use App\Models\Project;
 use App\Services\Dayz\ServerLogAnalyzer;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class LogAnalyzer extends Page
 {
@@ -26,6 +30,10 @@ class LogAnalyzer extends Page
 
     public bool $analyzed = false;
 
+    public array $history = [];
+
+    public ?int $viewingHistoryId = null;
+
     public function mount(): void
     {
         $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
@@ -33,11 +41,37 @@ class LogAnalyzer extends Page
         $this->projectId = array_key_exists($requestedProject, $this->projects)
             ? $requestedProject
             : array_key_first($this->projects);
+        $this->loadHistory();
+    }
+
+    public function updatedProjectId(): void
+    {
+        $this->loadHistory();
+    }
+
+    public function loadHistory(): void
+    {
+        $this->history = LogAnalysis::query()
+            ->where('created_by', auth()->id())
+            ->when($this->projectId, fn ($query) => $query->where('project_id', $this->projectId))
+            ->latest()
+            ->limit(20)
+            ->get()
+            ->map(fn (LogAnalysis $item): array => [
+                'id' => $item->id,
+                'created_at' => $item->created_at->format('d.m.Y H:i'),
+                'total_lines' => $item->total_lines,
+                'matched_lines' => $item->matched_lines,
+                'critical_count' => $item->critical_count,
+                'warning_count' => $item->warning_count,
+            ])
+            ->all();
     }
 
     public function analyze(ServerLogAnalyzer $analyzer): void
     {
         $this->analyzed = true;
+        $this->viewingHistoryId = null;
         if (trim($this->logContent) === '') {
             $this->findings = [];
             $this->totalLines = 0;
@@ -49,11 +83,68 @@ class LogAnalyzer extends Page
         $this->findings = $result['findings'];
         $this->totalLines = $result['totalLines'];
         $this->matchedLines = $result['matchedLines'];
+
+        $this->saveHistory($result);
+    }
+
+    private function saveHistory(array $result): void
+    {
+        $path = 'log-analyses/'.auth()->id().'/'.now()->format('Ymd-His').'-'.Str::random(8).'.log';
+        Storage::disk('dayz')->put($path, $this->logContent);
+
+        $counts = collect($result['findings'])->countBy('severity');
+
+        LogAnalysis::query()->create([
+            'project_id' => $this->projectId,
+            'created_by' => auth()->id(),
+            'storage_path' => $path,
+            'findings' => $result['findings'],
+            'total_lines' => $result['totalLines'],
+            'matched_lines' => $result['matchedLines'],
+            'critical_count' => $counts->get('critical', 0),
+            'warning_count' => $counts->get('warning', 0),
+        ]);
+
+        $this->loadHistory();
+    }
+
+    public function loadFromHistory(int $id): void
+    {
+        $item = LogAnalysis::query()->where('created_by', auth()->id())->find($id);
+        if (! $item) {
+            return;
+        }
+
+        $this->logContent = Storage::disk('dayz')->exists($item->storage_path)
+            ? Storage::disk('dayz')->get($item->storage_path)
+            : '';
+        $this->findings = $item->findings;
+        $this->totalLines = $item->total_lines;
+        $this->matchedLines = $item->matched_lines;
+        $this->analyzed = true;
+        $this->viewingHistoryId = $item->id;
+    }
+
+    public function deleteHistory(int $id): void
+    {
+        $item = LogAnalysis::query()->where('created_by', auth()->id())->find($id);
+        if (! $item) {
+            return;
+        }
+        if (Storage::disk('dayz')->exists($item->storage_path)) {
+            Storage::disk('dayz')->delete($item->storage_path);
+        }
+        $item->delete();
+        if ($this->viewingHistoryId === $id) {
+            $this->viewingHistoryId = null;
+        }
+        $this->loadHistory();
+        Notification::make()->success()->title('Analýza odstraněna z historie.')->send();
     }
 
     public function clear(): void
     {
-        $this->reset(['logContent', 'findings', 'totalLines', 'matchedLines', 'analyzed']);
+        $this->reset(['logContent', 'findings', 'totalLines', 'matchedLines', 'analyzed', 'viewingHistoryId']);
     }
 
     public function mapEditorUrl(?string $openEvent = null): string

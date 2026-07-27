@@ -35,4 +35,9 @@ class Project extends Model
     {
         return $this->hasMany(ConfigurationRevision::class);
     }
+
+    public function logAnalyses(): HasMany
+    {
+        return $this->hasMany(LogAnalysis::class);
+    }
 }

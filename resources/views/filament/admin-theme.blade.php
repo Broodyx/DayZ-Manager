@@ -712,6 +712,17 @@
     .dz-log-example { color:#8c9b8c; font-size:.75rem; }
     .dz-log-example summary { cursor:pointer; color:#aab6a4; }
     .dz-log-example code { display:block; margin-top:.4rem; padding:.5rem .65rem; border-radius:.35rem; background:#080d09; color:#cddac8; overflow-wrap:anywhere; font-size:.72rem; }
+    .dz-log-history { border:1px solid #2c3d2e; border-radius:.55rem; background:#0c130e; padding:.1rem 1rem; }
+    .dz-log-history summary { cursor:pointer; padding:.75rem 0; color:#d8f57b; font-weight:800; font-size:.85rem; display:flex; align-items:center; gap:.5rem; }
+    .dz-log-history summary small { padding:.1rem .5rem; border-radius:999px; background:#1a241a; color:#aab6a4; font-size:.7rem; font-weight:800; }
+    .dz-log-history-list { display:grid; gap:.5rem; padding:0 0 .9rem; }
+    .dz-log-history-row { display:flex; align-items:center; gap:.5rem; border:1px solid #2c3d2e; border-radius:.45rem; background:#0b110d; }
+    .dz-log-history-row.active { border-color:#b8ed55; }
+    .dz-log-history-open { flex:1; display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.6rem .8rem; background:transparent; border:none; color:#e7f7d2; cursor:pointer; text-align:left; font-size:.8rem; flex-wrap:wrap; }
+    .dz-log-history-meta { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; color:#aab6a4; }
+    .dz-log-history-badge-critical { background:rgba(224,85,74,.18); color:#f2a49c; padding:.1rem .5rem; border-radius:999px; font-size:.7rem; font-weight:800; }
+    .dz-log-history-badge-warning { background:rgba(217,119,56,.18); color:#f0b280; padding:.1rem .5rem; border-radius:999px; font-size:.7rem; font-weight:800; }
+    .dz-log-history-row .dz-danger { margin-right:.6rem; }
 
     @media (max-width:1100px) {
         .dz-workspace-nav { grid-template-columns:1fr; gap:.6rem; }.dz-workspace-identity { border-right:0; padding-right:0; }.dz-workspace-meta { display:none; }

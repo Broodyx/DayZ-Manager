@@ -11,6 +11,27 @@
             </label>
         @endif
 
+        @if (count($history))
+            <details class="dz-log-history" open>
+                <summary>Historie analýz <small>{{ count($history) }}</small></summary>
+                <div class="dz-log-history-list">
+                    @foreach ($history as $item)
+                        <div class="dz-log-history-row {{ $viewingHistoryId === $item['id'] ? 'active' : '' }}">
+                            <button type="button" wire:click="loadFromHistory({{ $item['id'] }})" class="dz-log-history-open">
+                                <span>{{ $item['created_at'] }}</span>
+                                <span class="dz-log-history-meta">
+                                    @if ($item['critical_count'] > 0)<span class="dz-badge dz-log-history-badge-critical">{{ $item['critical_count'] }}× kritické</span>@endif
+                                    @if ($item['warning_count'] > 0)<span class="dz-badge dz-log-history-badge-warning">{{ $item['warning_count'] }}× varování</span>@endif
+                                    <small>{{ $item['matched_lines'] }}/{{ $item['total_lines'] }} řádků</small>
+                                </span>
+                            </button>
+                            <button type="button" wire:click="deleteHistory({{ $item['id'] }})" wire:confirm="Opravdu odstranit tuto uloženou analýzu z historie?" class="dz-danger">Smazat</button>
+                        </div>
+                    @endforeach
+                </div>
+            </details>
+        @endif
+
         <div class="dz-log-input">
             <label for="dz-log-textarea">Obsah logu (server console log, restart.log, script log …)</label>
             <textarea id="dz-log-textarea" wire:model="logContent" rows="12" placeholder="Vlož sem obsah .RPT / .log souboru…"></textarea>
@@ -21,6 +42,9 @@
         </div>
 
         @if ($analyzed)
+            @if ($viewingHistoryId)
+                <div class="dz-info">Zobrazuješ uloženou analýzu z historie. Nové "Analyzovat log" ji nepřepíše, uloží se jako nová položka.</div>
+            @endif
             <div class="dz-log-summary">
                 <span><b>{{ $totalLines }}</b> řádků celkem</span>
                 <span><b>{{ $matchedLines }}</b> řádků rozpoznáno</span>
