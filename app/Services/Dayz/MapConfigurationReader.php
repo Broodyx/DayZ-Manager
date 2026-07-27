@@ -105,6 +105,47 @@ final class MapConfigurationReader
         return $markers;
     }
 
+    /**
+     * mapgroupproto.xml defines, per building/group prototype, the relative loot points
+     * inside it and which types.xml category/usage tags each point accepts. This reads
+     * that mapping so mapgrouppos.xml markers (which only carry the prototype's name) can
+     * show what kind of loot the building they represent can actually spawn.
+     *
+     * @return array<string, list<string>> group name => sorted unique category names
+     */
+    public function groupPrototypeCategories(string $content): array
+    {
+        [$document, $xpath] = $this->xml($content);
+        if (! $document || ! $xpath) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($xpath->query('//group[@name]') ?: [] as $group) {
+            if (! $group instanceof DOMElement) {
+                continue;
+            }
+            $name = $group->getAttribute('name');
+            if ($name === '') {
+                continue;
+            }
+            $categories = [];
+            foreach ($xpath->query('.//category/@name', $group) ?: [] as $attribute) {
+                $value = trim($attribute->nodeValue ?? '');
+                if ($value !== '') {
+                    $categories[$value] = true;
+                }
+            }
+            if ($categories !== []) {
+                $existing = $result[$name] ?? [];
+                $result[$name] = array_values(array_unique([...$existing, ...array_keys($categories)]));
+                sort($result[$name]);
+            }
+        }
+
+        return $result;
+    }
+
     private function mapGroupMarkers(string $filename, string $content): array
     {
         [$document, $xpath] = $this->xml($content);

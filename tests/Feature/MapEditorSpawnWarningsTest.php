@@ -204,4 +204,37 @@ XML);
             ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename ?? '')) === 'events.xml');
         $this->assertStringContainsString('name="VehicleTransitBus"', Storage::disk('dayz')->get($latest->storage_path));
     }
+
+    public function test_mapgrouppos_markers_are_colored_by_loot_category(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedFile($project, $user, 'mapgroupproto.xml', '<prototype><group name="Land_Mil_Barracks"><point pos="1 0 2"><category name="weapons"/></point></group><group name="Land_Village_House"><point pos="1 0 2"><category name="food"/></point></group></prototype>');
+        $this->seedFile($project, $user, 'mapgrouppos.xml', '<map><group name="Land_Mil_Barracks" pos="5000 0 6000" rpy="0 0 0"/><group name="Land_Village_House" pos="7000 0 8000" rpy="0 0 0"/><group name="Land_Unknown_Shed" pos="9000 0 1000" rpy="0 0 0"/></map>');
+        $this->seedFile($project, $user, 'types.xml', '<types><type name="AKM"><nominal>5</nominal><category name="weapons"/></type><type name="TunaCan"><nominal>5</nominal><category name="food"/></type></types>');
+
+        $component = Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->set('showDenseLayers', true)
+            ->call('loadMarkers');
+
+        $markers = collect($component->get('markers'));
+        $barracks = $markers->firstWhere('label', 'Land_Mil_Barracks');
+        $house = $markers->firstWhere('label', 'Land_Village_House');
+        $shed = $markers->firstWhere('label', 'Land_Unknown_Shed');
+
+        $this->assertSame(['weapons'], $barracks['categories']);
+        $this->assertSame('#e96a5f', $barracks['color']);
+        $this->assertSame(['food'], $house['categories']);
+        $this->assertSame('#8fd15c', $house['color']);
+        $this->assertSame([], $shed['categories']);
+        $this->assertSame('#6b7a6d', $shed['color']);
+
+        $legend = collect($component->get('lootCategoryLegend'))->keyBy('category');
+        $this->assertSame(1, $legend['weapons']['item_count']);
+        $this->assertSame(1, $legend['food']['item_count']);
+    }
 }

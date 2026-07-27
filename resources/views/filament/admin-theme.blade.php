@@ -494,6 +494,13 @@
     .dz-map-layer-card > p { margin:0; color:#879587; font-size:.65rem; line-height:1.45; }
     .dz-layer-cleanup-open { width:100%; padding:.5rem .6rem; border:1px solid #9b463f; border-radius:.4rem; color:#ffd4cf; background:#2b1715; font-size:.63rem; font-weight:850; cursor:pointer; }
     .dz-layer-cleanup-open:hover { border-color:#ef776d; background:#4a211e; }
+    .dz-loot-legend summary { cursor:pointer; color:#9fc4ff; font-size:.63rem; font-weight:700; list-style:none; }
+    .dz-loot-legend summary::-webkit-details-marker { display:none; }
+    .dz-loot-legend summary::before { content:'ⓘ '; }
+    .dz-loot-legend-list { display:grid; gap:.35rem; margin-top:.5rem; }
+    .dz-loot-legend-item { display:flex; align-items:center; gap:.4rem; color:#cbd5c0; font-size:.68rem; }
+    .dz-loot-legend-item i { width:.6rem; height:.6rem; border-radius:50%; flex:0 0 auto; }
+    .dz-loot-legend-item small { color:#7d8c7e; margin-left:auto; }
     .dz-cleanup-list { display:grid; gap:.4rem; max-height:45vh; overflow:auto; margin:1rem 0; padding-right:.25rem; }
     .dz-cleanup-option { display:flex; align-items:center; gap:.55rem; padding:.6rem .7rem; border:1px solid #2c3d2e; border-radius:.4rem; background:#0c130e; color:#dce6d8; font-size:.8rem; cursor:pointer; }
     .dz-cleanup-option:hover { border-color:#496b31; }

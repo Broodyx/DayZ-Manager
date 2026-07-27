@@ -284,4 +284,31 @@ class MapConfigurationReaderTest extends TestCase
 
         $this->assertSame(1, $result['deleted']);
     }
+
+    public function test_group_prototype_categories_reads_points_directly_under_group(): void
+    {
+        $xml = '<prototype><group name="Land_Mil_Barracks"><point pos="1 0 2"><category name="weapons"/><usage name="Military"/></point><point pos="3 0 4"><category name="containers"/></point></group></prototype>';
+
+        $categories = (new MapConfigurationReader())->groupPrototypeCategories($xml);
+
+        $this->assertSame(['containers', 'weapons'], $categories['Land_Mil_Barracks']);
+    }
+
+    public function test_group_prototype_categories_reads_points_nested_under_a_wrapper(): void
+    {
+        $xml = '<prototype><group name="Land_Church"><container name="loot"><point pos="1 0 2"><category name="tools"/></point></container></group></prototype>';
+
+        $categories = (new MapConfigurationReader())->groupPrototypeCategories($xml);
+
+        $this->assertSame(['tools'], $categories['Land_Church']);
+    }
+
+    public function test_group_prototype_categories_skips_groups_with_no_category_tags(): void
+    {
+        $xml = '<prototype><group name="Empty_Shed"><point pos="1 0 2"/></group></prototype>';
+
+        $categories = (new MapConfigurationReader())->groupPrototypeCategories($xml);
+
+        $this->assertArrayNotHasKey('Empty_Shed', $categories);
+    }
 }

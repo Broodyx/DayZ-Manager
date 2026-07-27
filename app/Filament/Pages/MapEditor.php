@@ -9,6 +9,7 @@ use App\Services\Dayz\MapConfigurationEditor;
 use App\Services\Dayz\MapConfigurationReader;
 use App\Services\Import\ConfigurationImporter;
 use App\Services\Revision\ConfigurationRevisionEditor;
+use App\Services\Revision\TypesXmlEditor;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
@@ -47,6 +48,21 @@ class MapEditor extends Page
     public bool $showAddEventModal = false;
     public string $addEventName = '';
     public array $addEventForm = [];
+    public array $lootCategoryLegend = [];
+
+    private const CATEGORY_COLORS = [
+        'weapons' => '#e96a5f',
+        'medical' => '#80b8ff',
+        'food' => '#8fd15c',
+        'tools' => '#f1b44c',
+        'clothes' => '#d58cff',
+        'containers' => '#55e0c1',
+        'vehicles' => '#f6d365',
+        'explosives' => '#ff5a5a',
+    ];
+
+    /** Priority order when a building's loot points span several categories. */
+    private const CATEGORY_PRIORITY = ['weapons', 'explosives', 'medical', 'food', 'tools', 'clothes', 'containers', 'vehicles'];
 
     public function mount(ClassnameCatalog $classnameCatalog): void
     {
@@ -530,13 +546,18 @@ class MapEditor extends Page
         $this->markerCounts = [];
         $this->loadedSources = [];
         $this->layerScopes = [];
+        $this->lootCategoryLegend = [];
         $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
         if (! $project) {
             return;
         }
 
         $reader = app(MapConfigurationReader::class);
-        foreach ($this->latestRevisions($project) as $revision) {
+        $revisions = $this->latestRevisions($project);
+        $groupCategories = $this->groupPrototypeCategories($reader, $revisions);
+        $this->lootCategoryLegend = $this->buildLootCategoryLegend($revisions, $groupCategories);
+
+        foreach ($revisions as $revision) {
             $filename = $this->revisionFilename($revision);
             if (! Storage::disk('dayz')->exists($revision->storage_path)) {
                 continue;
@@ -549,7 +570,16 @@ class MapEditor extends Page
             }
             foreach ($reader->markers($filename, $content) as $marker) {
                 $marker['revision_id'] = $revision->id;
-                $marker['color'] = $this->colorFor($filename);
+                if ($filename === 'mapgrouppos.xml') {
+                    $categories = $groupCategories[$marker['label']] ?? [];
+                    $marker['categories'] = $categories;
+                    $marker['color'] = $this->colorForCategories($categories);
+                    if ($categories !== []) {
+                        $marker['help'] .= ' Loot kategorie podle mapgroupproto.xml: '.implode(', ', $categories).'.';
+                    }
+                } else {
+                    $marker['color'] = $this->colorFor($filename);
+                }
                 $this->markers[] = $marker;
                 $this->markerCounts[$filename] = ($this->markerCounts[$filename] ?? 0) + 1;
                 $this->loadedSources[$filename] = true;
@@ -588,7 +618,7 @@ class MapEditor extends Page
                     }
                     $name = (string) ($group['name'] ?? 'Bez názvu');
                     $modeCount += $count;
-                    $scopes[] = ['value' => "group:{$mode}|{$name}", 'label' => "{$mode} · {$name}", 'count' => $count];
+                    $scopes[] = ['value' => "group:{$mode}|{$name}", 'label' => strtoupper($mode).' · '.$name, 'count' => $count];
                 }
                 if ($modeCount > 0) {
                     array_unshift($scopes, ['value' => 'mode:'.$mode, 'label' => strtoupper($mode).' · celý režim', 'count' => $modeCount]);
@@ -653,6 +683,65 @@ class MapEditor extends Page
         $colors = ['#b8ed55', '#80b8ff', '#f1b44c', '#e96a5f', '#d58cff', '#55e0c1', '#ff82b2', '#f6d365'];
 
         return $colors[abs(crc32(strtolower($filename))) % count($colors)];
+    }
+
+    /** @return array<string, list<string>> group name => categories, read from mapgroupproto.xml if uploaded. */
+    private function groupPrototypeCategories(MapConfigurationReader $reader, $revisions): array
+    {
+        $revision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'mapgroupproto.xml');
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            return [];
+        }
+
+        return $reader->groupPrototypeCategories(Storage::disk('dayz')->get($revision->storage_path));
+    }
+
+    /**
+     * How many types.xml items exist per category, so the map legend can show e.g.
+     * "weapons · 12 položek" next to the color swatch instead of just a color key.
+     *
+     * @param  array<string, list<string>>  $groupCategories
+     * @return list<array{category:string, color:string, item_count:int}>
+     */
+    private function buildLootCategoryLegend($revisions, array $groupCategories): array
+    {
+        if ($groupCategories === []) {
+            return [];
+        }
+        $usedCategories = array_values(array_unique(array_merge(...array_values($groupCategories))));
+        sort($usedCategories);
+
+        $itemCounts = [];
+        $typesRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'types.xml');
+        if ($typesRevision && Storage::disk('dayz')->exists($typesRevision->storage_path)) {
+            $entries = app(TypesXmlEditor::class)->entries(Storage::disk('dayz')->get($typesRevision->storage_path));
+            foreach ($entries as $entry) {
+                $category = strtolower((string) ($entry['category'] ?: 'other'));
+                $itemCounts[$category] = ($itemCounts[$category] ?? 0) + 1;
+            }
+        }
+
+        return array_map(fn (string $category): array => [
+            'category' => $category,
+            'color' => self::CATEGORY_COLORS[strtolower($category)] ?? '#9aa99b',
+            'item_count' => $itemCounts[strtolower($category)] ?? 0,
+        ], $usedCategories);
+    }
+
+    /** @param list<string> $categories */
+    private function colorForCategories(array $categories): string
+    {
+        if ($categories === []) {
+            return '#6b7a6d';
+        }
+        $lowered = array_map('strtolower', $categories);
+        foreach (self::CATEGORY_PRIORITY as $priority) {
+            if (in_array($priority, $lowered, true)) {
+                return self::CATEGORY_COLORS[$priority];
+            }
+        }
+
+        return self::CATEGORY_COLORS[$lowered[0]] ?? '#9aa99b';
     }
 
     public function importMapConfiguration(ConfigurationImporter $importer): void

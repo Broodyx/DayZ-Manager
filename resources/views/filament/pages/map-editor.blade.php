@@ -222,6 +222,24 @@
                                         data-revision="{{ $source['revision_id'] }}"
                                         data-count="{{ $source['marker_count'] }}">Vybrat skupiny k odstranění…</button>
                                 @endif
+                                @if ($source['filename'] === 'mapgrouppos.xml' && count($lootCategoryLegend))
+                                    <details class="dz-loot-legend">
+                                        <summary>Barvy podle kategorie lootu (mapgroupproto.xml + types.xml)</summary>
+                                        <div class="dz-loot-legend-list">
+                                            @foreach ($lootCategoryLegend as $entry)
+                                                <span class="dz-loot-legend-item">
+                                                    <i style="background:{{ $entry['color'] }}"></i>
+                                                    {{ $entry['category'] }}
+                                                    <small>{{ $entry['item_count'] }} položek types.xml</small>
+                                                </span>
+                                            @endforeach
+                                            <span class="dz-loot-legend-item">
+                                                <i style="background:#6b7a6d"></i>
+                                                bez rozpoznané kategorie
+                                            </span>
+                                        </div>
+                                    </details>
+                                @endif
                             </article>
                         @elseif ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0)
                             <a class="dz-load-dense" href="{{ url('/admin/map-editor?project='.$projectId.'&dense=1') }}"><i class="dz-layer-dot" style="background:{{ $source['color'] }}"></i><span>Načíst {{ $source['filename'] }}<small>{{ number_format($source['marker_count'], 0, ',', ' ') }} hustých bodů</small></span></a>
