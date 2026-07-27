@@ -188,6 +188,7 @@ Route::get('/admin/projects/{project}/configuration/{revision}/download', functi
     abort_unless($disk->exists($revision->storage_path), 404, 'Soubor revize již není v úložišti.');
     $revision->load('configurationImport');
     $name = app(\App\Services\Revision\ConfigurationRevisionEditor::class)->downloadName($revision);
+    $revision->forceFill(['downloaded_at' => now()])->save();
     return $disk->download($revision->storage_path, $name, ['Content-Type' => 'application/octet-stream']);
 })->middleware('auth')->name('configuration-revision.download');
 

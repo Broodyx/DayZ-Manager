@@ -113,6 +113,14 @@ class ProjectResource extends Resource
             })->sortable(),
             Tables\Columns\TextColumn::make('imports_count')->label('Soubory')->badge()->color('gray')->sortable(),
             Tables\Columns\TextColumn::make('revisions_count')->label('Revize')->badge()->color('success')->sortable(),
+            Tables\Columns\TextColumn::make('undeployed_files_count')
+                ->label('Nasazeno na server')
+                ->badge()
+                ->formatStateUsing(fn (int $state): string => $state > 0 ? "{$state}× nestaženo" : 'Vše staženo')
+                ->color(fn (int $state): string => $state > 0 ? 'danger' : 'success')
+                ->tooltip(fn (Project $record): string => $record->undeployed_files_count > 0
+                    ? 'Nestažené soubory (poslední revize ještě nikdy nebyla stažená tlačítkem "Stáhnout do počítače"): '.implode(', ', $record->undeployedFiles())
+                    : 'Poslední revize všech souborů byla aspoň jednou stažena.'),
             Tables\Columns\TextColumn::make('updated_at')->label('Poslední změna')->since()->dateTimeTooltip()->sortable(),
         ])
             ->recordUrl(fn (Project $record): string => static::getUrl('configuration', ['record' => $record]))
@@ -138,6 +146,7 @@ class ProjectResource extends Resource
     {
         return parent::getEloquentQuery()
             ->withCount(['imports', 'revisions'])
+            ->with(['revisions.configurationImport'])
             ->when(! auth()->user()?->is_admin, fn (Builder $query): Builder => $query->where('user_id', auth()->id()));
     }
 

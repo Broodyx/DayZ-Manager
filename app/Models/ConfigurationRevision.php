@@ -14,7 +14,10 @@ class ConfigurationRevision extends Model
 
     protected function casts(): array
     {
-        return ['revision_number' => 'integer'];
+        return [
+            'revision_number' => 'integer',
+            'downloaded_at' => 'datetime',
+        ];
     }
 
     public function project(): BelongsTo

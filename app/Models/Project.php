@@ -40,4 +40,26 @@ class Project extends Model
     {
         return $this->hasMany(LogAnalysis::class);
     }
+
+    /**
+     * Filenames whose latest revision has never been downloaded — i.e. edited/imported
+     * here but not yet pulled onto the actual game server by the user.
+     *
+     * @return list<string>
+     */
+    public function undeployedFiles(): array
+    {
+        return $this->revisions
+            ->sortByDesc('revision_number')
+            ->unique(fn (ConfigurationRevision $revision): string => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))))
+            ->filter(fn (ConfigurationRevision $revision): bool => $revision->downloaded_at === null)
+            ->map(fn (ConfigurationRevision $revision): string => $revision->configurationImport?->original_filename ?? basename($revision->storage_path))
+            ->values()
+            ->all();
+    }
+
+    public function getUndeployedFilesCountAttribute(): int
+    {
+        return count($this->undeployedFiles());
+    }
 }

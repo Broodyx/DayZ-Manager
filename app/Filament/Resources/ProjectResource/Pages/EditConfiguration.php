@@ -283,9 +283,11 @@ class EditConfiguration extends Page
                 ->icon('heroicon-o-arrow-up-tray')
                 ->url(fn (): string => url('/admin/configuration-import?project='.$this->getRecord()->id)),
             Actions\Action::make('downloadConfiguration')
-                ->label('Stáhnout do počítače')
+                ->label(fn (): string => in_array($this->revisionId, $this->undeployedRevisionIds(), true)
+                    ? 'Stáhnout do počítače (nestaženo)'
+                    : 'Stáhnout do počítače')
                 ->icon('heroicon-o-arrow-down-tray')
-                ->color('gray')
+                ->color(fn (): string => in_array($this->revisionId, $this->undeployedRevisionIds(), true) ? 'danger' : 'gray')
                 ->url(fn (): string => route('configuration-revision.download', ['project' => $this->getRecord()->id, 'revision' => $this->revisionId])),
         ];
     }
@@ -351,6 +353,24 @@ class EditConfiguration extends Page
                 $revision->id => ($revision->configurationImport?->original_filename ?? basename($revision->storage_path))
                     ." · revize #{$revision->revision_number}",
             ])
+            ->all();
+    }
+
+    /**
+     * IDs from editableFiles() whose revision has never been downloaded — i.e. edited
+     * here but not yet pulled onto the actual game server.
+     *
+     * @return list<int>
+     */
+    public function undeployedRevisionIds(): array
+    {
+        return $this->getRecord()->revisions()
+            ->with('configurationImport')
+            ->orderByDesc('revision_number')
+            ->get()
+            ->unique(fn (ConfigurationRevision $revision): string => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))))
+            ->filter(fn (ConfigurationRevision $revision): bool => $revision->downloaded_at === null)
+            ->pluck('id')
             ->all();
     }
 

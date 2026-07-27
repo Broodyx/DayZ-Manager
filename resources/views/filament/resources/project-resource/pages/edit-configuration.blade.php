@@ -23,6 +23,7 @@
         .dz-badge { display:inline-flex; padding:.16rem .45rem; border-radius:999px; font-size:.68rem; font-weight:800; text-transform:uppercase }
         .dz-badge.safe { color:#c9f67a; background:rgba(145,197,43,.14); border:1px solid rgba(182,233,79,.25) }
         .dz-badge.pc { color:#ffc08f; background:rgba(217,119,56,.14); border:1px solid rgba(217,119,56,.3) }
+        .dz-file-option-undeployed { margin-left:.4rem; color:#f2a49c; background:rgba(224,85,74,.16); border:1px solid rgba(224,85,74,.35) }
         .dz-server-settings { border-color:rgba(56,189,248,.35); background:linear-gradient(135deg,rgba(14,116,144,.18),rgba(17,24,19,.95)) }
         .dz-server-badge { color:#8bdcff; background:rgba(14,165,233,.14); border:1px solid rgba(56,189,248,.35) }
         .dz-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; padding:1rem }
@@ -147,6 +148,11 @@
             <div class="dz-warning"><strong>Chybějící vazba konfigurace.</strong> {{ $warning }}</div>
         @endforeach
 
+        @php $undeployedRevisionIds = $this->undeployedRevisionIds(); @endphp
+        @if (in_array((int) $revisionId, $undeployedRevisionIds, true))
+            <div class="dz-warning"><strong>Nestaženo na live server.</strong> Tahle revize souboru {{ $currentFilename }} ještě nebyla stažena tlačítkem "Stáhnout do počítače" — na herním serveru tedy pořád běží starší verze.</div>
+        @endif
+
         <div class="dz-editor-toolbar-new">
             <div class="dz-editor-file-choice">
                 <span>Konfigurační soubor</span>
@@ -158,7 +164,12 @@
                             [$fileLabel, $revisionLabel] = array_pad(explode(' · ', $label, 2), 2, '');
                         @endphp
                         <button type="button" wire:click="selectRevision({{ $id }})" class="dz-file-option {{ (int) $revisionId === (int) $id ? 'active' : '' }}">
-                            <span class="dz-file-option-title">{{ $fileLabel }}</span>
+                            <span class="dz-file-option-title">
+                                {{ $fileLabel }}
+                                @if (in_array($id, $undeployedRevisionIds, true))
+                                    <span class="dz-badge dz-file-option-undeployed" title="Ještě nestaženo na live server">nestaženo</span>
+                                @endif
+                            </span>
                             <span class="dz-file-option-revision">{{ $revisionLabel }}</span>
                             <span class="dz-file-option-description">{{ $this->descriptionForFilename($fileLabel) }}</span>
                         </button>
