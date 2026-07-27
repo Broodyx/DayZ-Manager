@@ -783,8 +783,27 @@
                 }
                 fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ,new_x:newX,new_z:newZ,parameters})}).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(()=>({}))).message || 'Bod se nepodařilo upravit.'); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
             };
-            editModal.querySelector('.dz-edit-delete').onclick = () => {
+            const deleteConsequence = (filename) => {
+                if (filename === 'cfgplayerspawnpoints.xml') {
+                    return 'Pokud to byl poslední bod v jeho skupině (fresh/hop/travel), daný režim spawnu zůstane bez platné skupiny a hráči dostanou "no valid groups"/"NO VALID SPAWNS".';
+                }
+                if (filename === 'cfgeventspawns.xml') {
+                    return 'Pokud to byla poslední pozice pro tuto událost, událost zůstane definovaná v events.xml, ale nebude mít kam spawnovat — fakticky přestane fungovat.';
+                }
+                if (filename === 'mapgrouppos.xml') {
+                    return 'Vizuální model budovy tím nezmizí (ten je daný terénem mapy) — zmizí jen tenhle loot bod, takže na této pozici přestane vznikat loot podle mapgroupproto.xml.';
+                }
+                return 'Souřadnice ani jiné soubory tím jinak neovlivníš.';
+            };
+            editModal.querySelector('.dz-edit-delete').onclick = async () => {
                 if (!activeMarker) return;
+                const confirmed = await showSystemDialog({
+                    title: 'Smazat bod?',
+                    message: 'Opravdu odstranit tento bod (' + activeMarker.filename + ')? Vytvoří se nová revize, originál zůstane zachovaný. ' + deleteConsequence(activeMarker.filename),
+                    confirmLabel: 'Smazat bod',
+                    danger: true,
+                });
+                if (!confirmed) return;
                 fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ})}).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(()=>({}))).message || 'Bod se nepodařilo odstranit.'); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
             };
             const layerScopeData = @js($layerScopes);
@@ -824,7 +843,7 @@
                 }
                 const confirmed = await showSystemDialog({
                     title: 'Odstranit mapové body?',
-                    message: 'Opravdu odstranit ' + checked.length + ' vybranou/vybrané skupinu/skupiny? Vznikne nová revize a původní zůstane zachována.',
+                    message: 'Opravdu odstranit ' + checked.length + ' vybranou/vybrané skupinu/skupiny? Vznikne nová revize a původní zůstane zachována. ' + deleteConsequence(cleanupTarget.filename),
                     confirmLabel: 'Odstranit body',
                     danger: true,
                 });

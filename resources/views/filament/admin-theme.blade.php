@@ -361,6 +361,7 @@
     .dz-map-empty { position:absolute; inset:45% 10% auto; text-align:center; color:#9aa99b; }
     .dz-point-modal { position:fixed; inset:0; z-index:2000; display:grid; place-items:center; background:#050906bb; padding:1rem; }
     .dz-point-modal[hidden] { display:none; }
+    #dz-system-dialog { z-index:2100; }
     .dz-point-modal-card { position:relative; width:min(620px,100%); max-height:calc(100dvh - 2rem); overflow-y:auto; overscroll-behavior:contain; border:1px solid #668f32; border-radius:.8rem; background:#111a14; padding:1.4rem; box-shadow:0 20px 70px #000b; scrollbar-color:#668f32 #111a14; }
     #dz-point-modal .dz-point-modal-card { width:min(1120px,calc(100vw - 2rem)); }
     #dz-edit-point-modal .dz-point-modal-card { width:min(1120px,calc(100vw - 2rem)); }

@@ -508,7 +508,7 @@ class MapEditor extends Page
                 ['name' => 'ppe_type', 'label' => 'PPE vizuální efekt', 'type' => 'text', 'default' => 'PPERequester_ContaminatedAreaTint'],
             ]]),
             'loot' => array_merge($exact('mapgrouppos.xml', $options($lootNames, 'mapgrouppos.xml'), 'Světová pozice existujícího prototypu skupiny se zapíše do mapgrouppos.xml.', ['mapgroupproto.xml']), ['fields' => [
-                ['name' => 'name', 'label' => 'Classname budovy/skupiny', 'type' => 'text', 'list' => 'dz-mapgroup-name-catalog', 'autocomplete' => false, 'default' => '', 'help' => 'Napovídá známé prototypy z mapgroupproto.xml. Změna přepíše, jaká budova/skupina na této pozici stojí a jaký loot v ní může vzniknout — souřadnice zůstanou stejné.'],
+                ['name' => 'name', 'label' => 'Classname budovy/skupiny', 'type' => 'text', 'list' => 'dz-mapgroup-name-catalog', 'autocomplete' => false, 'default' => '', 'help' => 'Napovídá známé prototypy z mapgroupproto.xml. Nezmění vizuální model ve hře (ten je daný terénem mapy) — přepíše jen to, podle jaké šablony (mapgroupproto.xml) se v tomto bodě generuje loot. Pokud se classname neshoduje se skutečnou budovou na pozici, loot body se nemusí trefit do modelu (spawn mimo/v zemi/vůbec).'],
                 ['name' => 'pos_y', 'label' => 'Výška Y (m)', 'type' => 'number', 'min' => -1000, 'max' => 5000, 'step' => 0.001, 'default' => 0],
                 ['name' => 'pitch', 'label' => 'Náklon pitch (°)', 'type' => 'number', 'min' => -360, 'max' => 360, 'step' => 0.001, 'default' => 0],
                 ['name' => 'yaw', 'label' => 'Natočení yaw (°)', 'type' => 'number', 'min' => -360, 'max' => 360, 'step' => 0.001, 'default' => 0],
