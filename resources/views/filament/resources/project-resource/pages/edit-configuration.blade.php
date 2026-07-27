@@ -92,6 +92,16 @@
         .dz-warning { padding:.85rem 1rem; border-left:3px solid #d97738; color:#e8c8b3; background:rgba(217,119,56,.08) }
         .dz-error { margin-top:.4rem; color:#fb8b8b; font-size:.85rem }
         .dz-info { padding:.85rem 1rem; border-left:3px solid #91c52b; color:#dbeacb; background:rgba(145,197,43,.07) }
+        .dz-status-panel { border:1px solid rgba(190,209,175,.15); border-radius:.4rem; background:#111813; margin-bottom:.85rem }
+        .dz-status-panel summary { cursor:pointer; padding:.6rem .9rem; color:#cbd5c0; font-weight:700; font-size:.82rem; display:flex; align-items:center; gap:.5rem; list-style:none }
+        .dz-status-panel summary::-webkit-details-marker { display:none }
+        .dz-status-panel summary small { padding:.1rem .5rem; border-radius:999px; background:#1a241a; color:#aab6a4; font-size:.68rem; font-weight:800 }
+        .dz-status-list { display:grid; gap:.4rem; padding:0 .9rem .75rem }
+        .dz-status-row { display:flex; justify-content:space-between; align-items:center; gap:.75rem; flex-wrap:wrap; padding:.5rem .7rem; border-radius:.3rem; font-size:.78rem; line-height:1.45 }
+        .dz-status-ok { border-left:3px solid #91c52b; background:rgba(145,197,43,.06); color:#c9d6bd }
+        .dz-status-warning { border-left:3px solid #d97738; background:rgba(217,119,56,.07); color:#e0cdb9 }
+        .dz-status-danger { border-left:3px solid #e0554a; background:rgba(224,85,74,.07); color:#eccac6 }
+        .dz-status-row .dz-danger { flex:0 0 auto; font-size:.72rem; padding:.4rem .65rem }
         .dz-secondary { display:inline-flex; align-items:center; justify-content:center; padding:.65rem 1rem; border:1px solid rgba(182,233,79,.25); border-radius:.25rem; color:#b6e94f; background:#151e17; font-weight:700 }
         .dz-add-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; padding:1rem }
         .dz-control label { display:block; margin-bottom:.35rem; color:#cbd5c0; font-size:.85rem; font-weight:700 }
@@ -134,25 +144,47 @@
                 <span><small>REŽIM</small><strong>{{ $mode === 'visual' ? 'VIZUÁLNÍ' : 'RAW DATA' }}</strong></span>
             </div>
         </section>
-        @if ($this->getRecord()->platform !== 'steam' && $detectedPlatform === 'steam')
-            <div class="dz-warning">
-                <strong>Detekovány PC-only prvky.</strong>
-                Tento projekt je nastavený jako {{ ucfirst($this->getRecord()->platform) }}, ale konfigurace obsahuje:
-                {{ implode(', ', $platformReasons) }}. Tyto části nemusí na konzoli fungovat.
-            </div>
-        @elseif ($platformWarnings !== [])
-            <div class="dz-info">
-                <strong>Konfigurace je konzolově kompatibilní.</strong>
-                Nebyly nalezeny žádné PC-only prvky. Samotný běžný XML soubor ale nedokáže automaticky rozlišit PlayStation od Xboxu.
-            </div>
-        @endif
-        @foreach ($dependencyWarnings as $warning)
-            <div class="dz-warning"><strong>Chybějící vazba konfigurace.</strong> {{ $warning }}</div>
-        @endforeach
-
-        @php $undeployedRevisionIds = $this->undeployedRevisionIds(); @endphp
-        @if (in_array((int) $revisionId, $undeployedRevisionIds, true))
-            <div class="dz-warning"><strong>Nestaženo na live server.</strong> Tahle revize souboru {{ $currentFilename }} ještě nebyla stažena tlačítkem "Stáhnout do počítače" — na herním serveru tedy pořád běží starší verze.</div>
+        @php
+            $undeployedRevisionIds = $this->undeployedRevisionIds();
+            $dzStatusRows = [];
+            if ($this->getRecord()->platform !== 'steam' && $detectedPlatform === 'steam') {
+                $dzStatusRows[] = ['tone' => 'danger', 'label' => 'PC-only prvky', 'text' => 'Projekt je nastavený jako '.ucfirst($this->getRecord()->platform).', ale konfigurace obsahuje: '.implode(', ', $platformReasons).'. Tyto části nemusí na konzoli fungovat.'];
+            } elseif ($platformWarnings !== []) {
+                $dzStatusRows[] = ['tone' => 'ok', 'label' => 'Konzolově kompatibilní', 'text' => 'Nenalezeny žádné PC-only prvky. Samotné XML ale nedokáže automaticky rozlišit PlayStation od Xboxu.'];
+            }
+            foreach ($dependencyWarnings as $warning) {
+                $dzStatusRows[] = ['tone' => 'warning', 'label' => 'Chybějící vazba konfigurace', 'text' => $warning];
+            }
+            if (in_array((int) $revisionId, $undeployedRevisionIds, true)) {
+                $dzStatusRows[] = ['tone' => 'warning', 'label' => 'Nestaženo na live server', 'text' => 'Tahle revize souboru '.$currentFilename.' ještě nebyla stažena tlačítkem "Stáhnout do počítače" — na herním serveru tedy pořád běží starší verze.'];
+            }
+            foreach ($this->relatedLogFindings() as $finding) {
+                $dzStatusRows[] = [
+                    'tone' => 'danger',
+                    'label' => 'Z log analyzátoru',
+                    'text' => $finding['title'],
+                    'fix' => in_array($finding['kind'], ['type-does-not-exist', 'type-not-spawnable'], true) ? $finding['target'] : null,
+                    'link' => $finding['kind'] === 'missing-event-definition' ? url('/admin/map-editor').'?'.http_build_query(['project' => $this->getRecord()->id, 'open_event' => $finding['target']]) : null,
+                ];
+            }
+        @endphp
+        @if (count($dzStatusRows))
+            <details class="dz-status-panel" open>
+                <summary>Stav souboru <small>{{ count($dzStatusRows) }}</small></summary>
+                <div class="dz-status-list">
+                    @foreach ($dzStatusRows as $row)
+                        <div class="dz-status-row dz-status-{{ $row['tone'] }}">
+                            <span><strong>{{ $row['label'] }}.</strong> {{ $row['text'] }}</span>
+                            @if (!empty($row['fix']))
+                                @php $dzStatusFixConfirm = "Bezpečná oprava: odebrat položku '{$row['fix']}' z types.xml. Hra ji stejně už teď nespawnuje, takže se chování serveru nezmění — jen zmizí tahle chyba z logu. Vytvoří se nová revize. Opravdu pokračovat?"; @endphp
+                                <button type="button" class="dz-danger" x-on:click="dzConfirm(@js($dzStatusFixConfirm)).then((ok) => { if (ok) $wire.removeTypeByName(@js($row['fix'])); })">Bezpečně odebrat</button>
+                            @elseif (!empty($row['link']))
+                                <a class="dz-secondary" href="{{ $row['link'] }}">Otevřít Mapový editor →</a>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </details>
         @endif
 
         <div class="dz-editor-toolbar-new">

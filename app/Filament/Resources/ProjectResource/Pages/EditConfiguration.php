@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ProjectResource\Pages;
 
 use App\Filament\Resources\ProjectResource;
 use App\Models\ConfigurationRevision;
+use App\Models\LogAnalysis;
 use App\Services\Import\ConfigurationImporter;
 use App\Services\PlatformDetection\PlatformCompatibility;
 use App\Services\PlatformDetection\PlatformDetector;
@@ -377,6 +378,63 @@ class EditConfiguration extends Page
             ->all();
     }
 
+    /**
+     * Findings from the most recently analyzed server log for this project that are still
+     * relevant to the file currently open — and still unresolved (checked against the live
+     * file content, not just the frozen log snapshot), so a finding disappears once fixed.
+     *
+     * @return list<array{title: string, target: ?string, kind: string}>
+     */
+    public function relatedLogFindings(): array
+    {
+        $relevantKinds = match ($this->visualKind) {
+            'types' => ['type-does-not-exist', 'type-not-spawnable'],
+            'events' => ['missing-event-definition'],
+            default => [],
+        };
+        if ($relevantKinds === []) {
+            return [];
+        }
+
+        $analysis = LogAnalysis::query()
+            ->where('project_id', $this->getRecord()->id)
+            ->latest()
+            ->first();
+        if (! $analysis) {
+            return [];
+        }
+
+        $liveTypeNames = $this->visualKind === 'types'
+            ? collect($this->typeEntries)->pluck('name')->all()
+            : [];
+        $liveEventNames = $this->visualKind === 'events'
+            ? array_map('strtolower', collect($this->eventEntries)->pluck('name')->all())
+            : [];
+
+        return collect($analysis->findings)
+            ->filter(fn (array $finding): bool => in_array($finding['kind'] ?? null, $relevantKinds, true))
+            ->filter(function (array $finding) use ($liveTypeNames, $liveEventNames): bool {
+                $target = $finding['target'] ?? null;
+                if ($target === null) {
+                    return false;
+                }
+
+                return match ($this->visualKind) {
+                    'types' => in_array($target, $liveTypeNames, true),
+                    'events' => ! in_array(strtolower($target), $liveEventNames, true),
+                    default => false,
+                };
+            })
+            ->map(fn (array $finding): array => [
+                'title' => $finding['title'],
+                'target' => $finding['target'],
+                'kind' => $finding['kind'],
+            ])
+            ->unique('target')
+            ->values()
+            ->all();
+    }
+
     public function switchRevision(): void
     {
         $revision = $this->getRecord()->revisions()
@@ -698,23 +756,42 @@ class EditConfiguration extends Page
             return;
         }
 
-        $removed = $this->selectedType;
-        $content = $typesEditor->remove($this->rawContent, $removed);
+        $this->performTypeRemoval($this->selectedType, $typesEditor, $revisionEditor);
+        $this->selectedType = null;
+    }
+
+    /** Same as removeType(), but for the "Bezpečně odebrat" fix button on a type flagged by the log analyzer — works regardless of what's currently selected. */
+    public function removeTypeByName(
+        string $name,
+        TypesXmlEditor $typesEditor,
+        ConfigurationRevisionEditor $revisionEditor,
+    ): void {
+        $this->performTypeRemoval($name, $typesEditor, $revisionEditor);
+        if ($this->selectedType === $name) {
+            $this->selectedType = null;
+        }
+    }
+
+    private function performTypeRemoval(
+        string $name,
+        TypesXmlEditor $typesEditor,
+        ConfigurationRevisionEditor $revisionEditor,
+    ): void {
+        $content = $typesEditor->remove($this->rawContent, $name);
         $revision = $revisionEditor->save(
             $this->getRecord(),
             $this->sourceRevision(),
             $content,
-            "Odebrána položka {$removed}",
+            "Odebrána položka {$name}",
             auth()->user(),
         );
 
         $this->loadRevision($revision);
-        $this->selectedType = null;
 
         Notification::make()
             ->success()
             ->title("Revize #{$revision->revision_number} uložena")
-            ->body("Položka {$removed} byla odebrána z types.xml.")
+            ->body("Položka {$name} byla odebrána z types.xml.")
             ->send();
     }
 
