@@ -233,6 +233,16 @@ class MapConfigurationReaderTest extends TestCase
         $this->assertStringContainsString('x="5"', $result['content']);
     }
 
+    public function test_editor_bulk_delete_removes_now_empty_event_spawn_entry(): void
+    {
+        $xml = '<eventposdef><event name="VehicleA"><pos x="1" z="2" a="0"/></event><event name="VehicleB"><pos x="5" z="6" a="0"/></event></eventposdef>';
+        $result = (new MapConfigurationEditor())->deleteScope('cfgeventspawns.xml', $xml, 'event:VehicleA');
+
+        $this->assertSame(1, $result['deleted']);
+        $this->assertStringNotContainsString('VehicleA', $result['content']);
+        $this->assertStringContainsString('name="VehicleB"', $result['content']);
+    }
+
     public function test_editor_bulk_deletes_selected_player_spawn_group_only(): void
     {
         $xml = '<playerspawnpoints><fresh><generator_posbubbles><group name="Coast"><pos x="1" z="2"/></group><group name="Town"><pos x="3" z="4"/></group></generator_posbubbles></fresh><hop><generator_posbubbles><group name="Coast"><pos x="5" z="6"/></group></generator_posbubbles></hop></playerspawnpoints>';

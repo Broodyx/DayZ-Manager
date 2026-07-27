@@ -124,11 +124,57 @@
                 <ul>
                     @foreach ($eventSpawnWarnings as $eventName)
                         <li>
-                            <strong>{{ $eventName }}</strong> — přidejte tento event do events.xml, nebo v seznamu vrstev vpravo vyberte
-                            <code>{{ $eventName }}</code> u cfgeventspawns.xml a odstraňte jeho pozice.
+                            <div class="dz-map-alert-row">
+                                <span><strong>{{ $eventName }}</strong> — chybí v events.xml.</span>
+                                <span class="dz-map-alert-actions">
+                                    <button type="button" wire:click="openAddEventModal('{{ $eventName }}')" class="dz-secondary">Přidat event do events.xml</button>
+                                    <x-dz-confirm-button call="removeEventSpawnPositions('{{ $eventName }}')" label="Odstranit pozice" saved-label="Odstraněno" class="dz-danger" />
+                                </span>
+                            </div>
                         </li>
                     @endforeach
                 </ul>
+            </div>
+        @endif
+        @if ($showAddEventModal)
+            <div class="dz-point-modal">
+                <div class="dz-point-modal-card">
+                    <button type="button" class="dz-point-close" wire:click="closeAddEventModal" aria-label="Zavřít">×</button>
+                    <h3>Přidat event „{{ $addEventName }}“ do events.xml</h3>
+                    <p class="dz-muted">Vyplňte základní parametry eventu. Vzniklá revize events.xml se dá později doladit v editoru konfigurace.</p>
+                    <div class="dz-add-event-grid">
+                        <label>Nominal<input type="number" min="0" wire:model="addEventForm.nominal"></label>
+                        <label>Min<input type="number" min="0" wire:model="addEventForm.min"></label>
+                        <label>Max<input type="number" min="0" wire:model="addEventForm.max"></label>
+                        <label>Lifetime (s)<input type="number" min="0" wire:model="addEventForm.lifetime"></label>
+                        <label>Restock (s)<input type="number" min="0" wire:model="addEventForm.restock"></label>
+                        <label>Safe radius (m)<input type="number" min="0" wire:model="addEventForm.saferadius"></label>
+                        <label>Distance radius (m)<input type="number" min="0" wire:model="addEventForm.distanceradius"></label>
+                        <label>Cleanup radius (m)<input type="number" min="0" wire:model="addEventForm.cleanupradius"></label>
+                        <label>Position
+                            <select wire:model="addEventForm.position">
+                                <option value="fixed">fixed</option>
+                                <option value="player">player</option>
+                            </select>
+                        </label>
+                        <label>Limit
+                            <select wire:model="addEventForm.limit">
+                                <option value="mixed">mixed</option>
+                                <option value="unlimited">unlimited</option>
+                                <option value="nearest">nearest</option>
+                                <option value="farthest">farthest</option>
+                            </select>
+                        </label>
+                        <label class="dz-add-event-span2">Classname objektu ke spawnutí (volitelné)
+                            <input type="text" placeholder="Např. VehicleTransitBus" wire:model="addEventForm.child_type">
+                            <small>Nechte prázdné, pokud event žádný konkrétní objekt nespawnuje (např. loot event).</small>
+                        </label>
+                    </div>
+                    <div class="dz-edit-actions">
+                        <button type="button" wire:click="closeAddEventModal" class="dz-secondary">Zrušit</button>
+                        <x-dz-confirm-button call="submitAddEvent()" label="Přidat event a vytvořit revizi" saved-label="Přidáno" class="dz-action" />
+                    </div>
+                </div>
             </div>
         @endif
         <div class="dz-map-layout">

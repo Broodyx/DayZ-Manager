@@ -3,12 +3,17 @@
 namespace App\Filament\Pages;
 
 use App\Models\Project;
+use App\Services\Dayz\EventsXmlEditor;
+use App\Services\Dayz\MapConfigurationEditor;
 use App\Services\Dayz\MapConfigurationReader;
 use App\Services\Import\ConfigurationImporter;
+use App\Services\Revision\ConfigurationRevisionEditor;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\WithFileUploads;
+use RuntimeException;
 
 class MapEditor extends Page
 {
@@ -37,6 +42,9 @@ class MapEditor extends Page
     public bool $showDenseLayers = false;
     public array $spawnPointWarnings = [];
     public array $eventSpawnWarnings = [];
+    public bool $showAddEventModal = false;
+    public string $addEventName = '';
+    public array $addEventForm = [];
 
     public function mount(): void
     {
@@ -90,6 +98,77 @@ class MapEditor extends Page
                 $this->eventSpawnWarnings[] = $name;
             }
         }
+    }
+
+    /** Removes cfgeventspawns.xml positions for an event that events.xml does not define. */
+    public function removeEventSpawnPositions(string $eventName, MapConfigurationEditor $mapEditor, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project) {
+            return;
+        }
+        $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'cfgeventspawns.xml');
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            Notification::make()->danger()->title('cfgeventspawns.xml nebyl nalezen.')->send();
+
+            return;
+        }
+        try {
+            $result = $mapEditor->deleteScope('cfgeventspawns.xml', Storage::disk('dayz')->get($revision->storage_path), 'event:'.$eventName);
+        } catch (RuntimeException $exception) {
+            Notification::make()->danger()->title($exception->getMessage())->send();
+
+            return;
+        }
+        $saved = $revisionEditor->save($project, $revision, $result['content'], "Odstraněny pozice eventu {$eventName}", auth()->user());
+        $this->loadMarkers();
+        $this->loadMapSources();
+        $this->loadEventSpawnWarnings();
+        Notification::make()->success()->title("Pozice eventu {$eventName} odstraněny")->body("Vznikla revize #{$saved->revision_number}.")->send();
+    }
+
+    public function openAddEventModal(string $eventName): void
+    {
+        $this->addEventName = $eventName;
+        $this->addEventForm = [
+            'nominal' => 1, 'min' => 0, 'max' => 1,
+            'lifetime' => 3600, 'restock' => 0,
+            'saferadius' => 100, 'distanceradius' => 100, 'cleanupradius' => 100,
+            'position' => 'fixed', 'limit' => 'mixed', 'child_type' => '',
+        ];
+        $this->showAddEventModal = true;
+    }
+
+    public function closeAddEventModal(): void
+    {
+        $this->showAddEventModal = false;
+    }
+
+    public function submitAddEvent(EventsXmlEditor $editor, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project) {
+            return;
+        }
+        $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'events.xml');
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            Notification::make()->danger()->title('events.xml nebyl nalezen.')->body('Nejprve nahrajte events.xml přes „Přidat mapový soubor“.')->send();
+
+            return;
+        }
+        try {
+            $updated = $editor->appendEvent(Storage::disk('dayz')->get($revision->storage_path), $this->addEventName, $this->addEventForm);
+        } catch (RuntimeException $exception) {
+            Notification::make()->danger()->title($exception->getMessage())->send();
+
+            return;
+        }
+        $saved = $revisionEditor->save($project, $revision, $updated, "Přidán event {$this->addEventName}", auth()->user());
+        $this->showAddEventModal = false;
+        $this->loadEventCatalog();
+        $this->loadEventSpawnWarnings();
+        $this->loadPointTypeCatalog();
+        Notification::make()->success()->title("Event {$this->addEventName} byl přidán do events.xml")->body("Vznikla revize #{$saved->revision_number}.")->send();
     }
 
     /** Flags fresh/hop/travel modes that have zero player spawn positions. */

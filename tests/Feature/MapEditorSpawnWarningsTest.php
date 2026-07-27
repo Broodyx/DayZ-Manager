@@ -156,4 +156,52 @@ XML);
             ->call('loadEventSpawnWarnings')
             ->assertSet('eventSpawnWarnings', []);
     }
+
+    public function test_removing_event_spawn_positions_clears_the_warning(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEvents($project, $user, '<events><event name="StaticHeliCrash"><nominal>1</nominal></event></events>');
+        $this->seedEventSpawns($project, $user, '<eventposdef><event name="StaticHeliCrash"><pos x="1" z="2" a="0"/></event><event name="GhostEvent"><pos x="3" z="4" a="0"/></event></eventposdef>');
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadEventCatalog')
+            ->call('loadEventSpawnWarnings')
+            ->assertSet('eventSpawnWarnings', ['GhostEvent'])
+            ->call('removeEventSpawnPositions', 'GhostEvent')
+            ->assertSet('eventSpawnWarnings', []);
+
+        $latest = $project->revisions()->orderByDesc('revision_number')->first();
+        $this->assertStringNotContainsString('GhostEvent', Storage::disk('dayz')->get($latest->storage_path));
+    }
+
+    public function test_adding_missing_event_clears_the_warning_and_creates_a_valid_event(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEvents($project, $user, '<events><event name="StaticHeliCrash"><nominal>1</nominal></event></events>');
+        $this->seedEventSpawns($project, $user, '<eventposdef><event name="StaticHeliCrash"><pos x="1" z="2" a="0"/></event><event name="VehicleTransitBus"><pos x="3" z="4" a="0"/></event></eventposdef>');
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadEventCatalog')
+            ->call('loadEventSpawnWarnings')
+            ->assertSet('eventSpawnWarnings', ['VehicleTransitBus'])
+            ->call('openAddEventModal', 'VehicleTransitBus')
+            ->assertSet('showAddEventModal', true)
+            ->call('submitAddEvent')
+            ->assertSet('showAddEventModal', false)
+            ->assertSet('eventSpawnWarnings', []);
+
+        $latest = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename ?? '')) === 'events.xml');
+        $this->assertStringContainsString('name="VehicleTransitBus"', Storage::disk('dayz')->get($latest->storage_path));
+    }
 }
