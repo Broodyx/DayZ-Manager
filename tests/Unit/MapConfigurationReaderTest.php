@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Services\Dayz\MapConfigurationEditor;
 use App\Services\Dayz\MapConfigurationReader;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 class MapConfigurationReaderTest extends TestCase
 {
@@ -57,6 +58,38 @@ class MapConfigurationReaderTest extends TestCase
         );
 
         $this->assertStringContainsString('pos="1000 113.79 2000"', $updated);
+    }
+
+    public function test_editor_can_change_map_group_classname(): void
+    {
+        $xml = '<map><group name="Land_Misc_DeerStand2" pos="80.25 113.79 4422.18"/></map>';
+
+        $updated = (new MapConfigurationEditor())->updateCoordinates(
+            'mapgrouppos.xml',
+            $xml,
+            '/map/group[1]',
+            80.25,
+            4422.18,
+            ['name' => 'Land_Shed_M1'],
+        );
+
+        $this->assertStringContainsString('name="Land_Shed_M1"', $updated);
+        $this->assertStringNotContainsString('Land_Misc_DeerStand2', $updated);
+    }
+
+    public function test_editor_rejects_invalid_map_group_classname(): void
+    {
+        $xml = '<map><group name="Land_Misc_DeerStand2" pos="80.25 113.79 4422.18"/></map>';
+
+        $this->expectException(RuntimeException::class);
+        (new MapConfigurationEditor())->updateCoordinates(
+            'mapgrouppos.xml',
+            $xml,
+            '/map/group[1]',
+            80.25,
+            4422.18,
+            ['name' => 'not valid!'],
+        );
     }
 
     public function test_editor_can_add_and_remove_player_spawn_area(): void

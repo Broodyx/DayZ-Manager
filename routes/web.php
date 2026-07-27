@@ -130,6 +130,7 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         'parameters.zone_type'=>'nullable|in:HuntingGround,Rest,Graze,Water','parameters.radius'=>'nullable|numeric|min:1|max:5000',
         'parameters.smin'=>'nullable|integer|min:0|max:1000','parameters.smax'=>'nullable|integer|min:0|max:1000',
         'parameters.dmin'=>'nullable|integer|min:0|max:1000','parameters.dmax'=>'nullable|integer|min:0|max:1000',
+        'parameters.name'=>['nullable', 'string', 'max:120', 'regex:/^[A-Za-z0-9_.-]*$/'],
     ]);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);

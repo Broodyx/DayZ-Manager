@@ -152,6 +152,13 @@ final class MapConfigurationEditor
             if (array_key_exists('orientation', $parameters)) {
                 $node->setAttribute('a', $this->number((float) $parameters['orientation']));
             }
+            $name = trim((string) ($parameters['name'] ?? ''));
+            if ($name !== '') {
+                if (! preg_match('/^[A-Za-z0-9_.-]+$/', $name)) {
+                    throw new RuntimeException('Classname smí obsahovat jen písmena, čísla, tečku, pomlčku a podtržítko.');
+                }
+                $node->setAttribute('name', $name);
+            }
         } else {
             throw new RuntimeException('Tento bod nemá editovatelné světové souřadnice X/Z.');
         }

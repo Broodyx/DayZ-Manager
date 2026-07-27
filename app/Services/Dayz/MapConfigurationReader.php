@@ -342,6 +342,7 @@ final class MapConfigurationReader
         $rotation = preg_split('/\s+/', trim($node->getAttribute('rpy'))) ?: [];
 
         return [
+            'name' => $node->getAttribute('name'),
             'pos_y' => $position[1] ?? '0',
             'pitch' => $rotation[0] ?? '0',
             'yaw' => $rotation[1] ?? '0',

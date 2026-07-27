@@ -206,7 +206,7 @@
                     @foreach ($mapSources as $source)
                         @if ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0 && $source['loaded'])
                             <article class="dz-map-layer-card">
-                                <label><input class="map-layer-toggle" type="checkbox" @checked($source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="background:{{ $source['color'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
+                                <label><input class="map-layer-toggle" type="checkbox" @checked($source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
                                 <p>{{ $source['description'] }}</p>
                                 <div class="dz-layer-actions">
                                     <a href="{{ url('/admin/projects/'.$projectId.'/configuration?revision='.$source['revision_id']) }}">Upravit</a>
@@ -242,7 +242,7 @@
                                 @endif
                             </article>
                         @elseif ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0)
-                            <a class="dz-load-dense" href="{{ url('/admin/map-editor?project='.$projectId.'&dense=1') }}"><i class="dz-layer-dot" style="background:{{ $source['color'] }}"></i><span>Načíst {{ $source['filename'] }}<small>{{ number_format($source['marker_count'], 0, ',', ' ') }} hustých bodů</small></span></a>
+                            <a class="dz-load-dense" href="{{ url('/admin/map-editor?project='.$projectId.'&dense=1') }}" data-count="{{ $source['marker_count'] }}" data-filename="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span>Načíst {{ $source['filename'] }}<small>{{ number_format($source['marker_count'], 0, ',', ' ') }} hustých bodů</small></span></a>
                         @endif
                     @endforeach
                 </div>
@@ -456,6 +456,10 @@
                 return node;
             };
             const pointTypeCatalog = @js($pointTypeCatalog);
+            const mapGroupNameCatalog = document.createElement('datalist');
+            mapGroupNameCatalog.id = 'dz-mapgroup-name-catalog';
+            (pointTypeCatalog.loot?.options || []).forEach((option) => mapGroupNameCatalog.appendChild(mkEl('option', { value: option.value })));
+            document.body.appendChild(mapGroupNameCatalog);
             let selectedCatalogOption = null;
             const editDefinitionForMarker = (marker) => {
                 if (marker.type === 'player-spawn-area') return pointTypeCatalog.player;
@@ -494,15 +498,20 @@
                     } else {
                         input = document.createElement('input');
                         input.type = field.type || 'text';
-                        ['min', 'max', 'step'].forEach((attribute) => {
+                        ['min', 'max', 'step', 'list'].forEach((attribute) => {
                             if (field[attribute] !== undefined) input.setAttribute(attribute, field[attribute]);
                         });
+                        if (field.autocomplete === false) input.setAttribute('autocomplete', 'off');
                     }
                     input.dataset.parameter = field.name;
                     input.value = values[field.name] ?? field.default ?? '';
                     if (editMode && field.name === 'spawn_mode') {
                         input.disabled = true;
                         input.title = 'Existující bod nelze přesunout mezi režimy; lze jej smazat a vytvořit v jiném režimu.';
+                    }
+                    if (!editMode && field.name === 'name') {
+                        input.disabled = true;
+                        input.title = 'Při přidávání nového bodu vyber prototyp výše v poli „Vyberte existující možnost“. Toto pole slouží k pozdější změně, až bod edituješ.';
                     }
                     label.appendChild(input);
                     if (field.help) {
@@ -750,7 +759,7 @@
                     });
                 });
             };
-            editModal.querySelector('.dz-edit-save').onclick = () => {
+            editModal.querySelector('.dz-edit-save').onclick = async () => {
                 if (!activeMarker) return;
                 const newX = Number(editModal.querySelector('.dz-edit-x').value);
                 const newZ = Number(editModal.querySelector('.dz-edit-z').value);
@@ -760,6 +769,18 @@
                 }
                 const parameters = {};
                 editModal.querySelectorAll('[data-parameter]').forEach((input) => parameters[input.dataset.parameter] = input.value);
+                if (activeMarker.filename === 'mapgrouppos.xml' && parameters.name && parameters.name !== activeMarker.label) {
+                    const known = (pointTypeCatalog.loot?.options || []).some((option) => option.value === parameters.name);
+                    if (!known) {
+                        const confirmed = await showSystemDialog({
+                            title: 'Neznámý classname',
+                            message: '„' + parameters.name + '“ není v katalogu z mapgroupproto.xml na tomhle serveru. Pokud tahle třída ve hře neexistuje (nebo patří k modu, který server nemá), na této pozici nevznikne žádný loot. Opravdu pokračovat?',
+                            confirmLabel: 'Použít i tak',
+                            danger: true,
+                        });
+                        if (!confirmed) return;
+                    }
+                }
                 fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ,new_x:newX,new_z:newZ,parameters})}).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(()=>({}))).message || 'Bod se nepodařilo upravit.'); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
             };
             editModal.querySelector('.dz-edit-delete').onclick = () => {
@@ -830,6 +851,24 @@
                     const checkedValues = Array.from(cleanupList.querySelectorAll('input:checked')).map((input) => input.value);
                     highlightScope(cleanupTarget.filename, checkedValues.length === 1 ? checkedValues[0] : null);
                 }
+            });
+            document.querySelectorAll('.dz-load-dense').forEach((link) => {
+                link.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    const count = Number(link.dataset.count || 0);
+                    const confirmed = await showSystemDialog({
+                        title: 'Načíst hustou vrstvu?',
+                        message: link.dataset.filename + ' obsahuje ' + count.toLocaleString('cs-CZ') + ' bodů. Načtení a vykreslení může na pomalejším připojení nebo starším počítači trvat i několik desítek sekund — stránka se během toho nebude hýbat, to je normální.',
+                        confirmLabel: 'Načíst i tak',
+                        danger: count > 20000,
+                    });
+                    if (!confirmed) return;
+                    link.classList.add('dz-load-dense-loading');
+                    link.querySelector('span').innerHTML = '';
+                    link.querySelector('span').appendChild(mkEl('span', {}, ['Načítám ' + count.toLocaleString('cs-CZ') + ' bodů…']));
+                    link.querySelector('span').appendChild(mkEl('small', {}, ['Stránka se teď na chvíli nebude hýbat, počkej prosím.']));
+                    window.location.href = link.href;
+                });
             });
             document.querySelectorAll('.dz-source-raw').forEach((button) => {
                 button.addEventListener('click', async () => {

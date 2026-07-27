@@ -508,6 +508,7 @@ class MapEditor extends Page
                 ['name' => 'ppe_type', 'label' => 'PPE vizuální efekt', 'type' => 'text', 'default' => 'PPERequester_ContaminatedAreaTint'],
             ]]),
             'loot' => array_merge($exact('mapgrouppos.xml', $options($lootNames, 'mapgrouppos.xml'), 'Světová pozice existujícího prototypu skupiny se zapíše do mapgrouppos.xml.', ['mapgroupproto.xml']), ['fields' => [
+                ['name' => 'name', 'label' => 'Classname budovy/skupiny', 'type' => 'text', 'list' => 'dz-mapgroup-name-catalog', 'autocomplete' => false, 'default' => '', 'help' => 'Napovídá známé prototypy z mapgroupproto.xml. Změna přepíše, jaká budova/skupina na této pozici stojí a jaký loot v ní může vzniknout — souřadnice zůstanou stejné.'],
                 ['name' => 'pos_y', 'label' => 'Výška Y (m)', 'type' => 'number', 'min' => -1000, 'max' => 5000, 'step' => 0.001, 'default' => 0],
                 ['name' => 'pitch', 'label' => 'Náklon pitch (°)', 'type' => 'number', 'min' => -360, 'max' => 360, 'step' => 0.001, 'default' => 0],
                 ['name' => 'yaw', 'label' => 'Natočení yaw (°)', 'type' => 'number', 'min' => -360, 'max' => 360, 'step' => 0.001, 'default' => 0],
@@ -675,7 +676,29 @@ class MapEditor extends Page
             'marker_count' => $this->markerCounts[$filename] ?? 0,
             'loaded' => (bool) ($this->loadedSources[$filename] ?? false),
             'color' => $this->colorFor($filename),
+            'dot_style' => $this->dotStyleFor($filename),
         ];
+    }
+
+    /**
+     * mapgrouppos.xml markers are colored per loot category (see loadMarkers()), not one flat
+     * color per file — a single-color dot there would lie about what's actually on the map, so
+     * show a small pie of the known category colors instead once we have that data.
+     */
+    private function dotStyleFor(string $filename): string
+    {
+        if ($filename === 'mapgrouppos.xml' && count($this->lootCategoryLegend)) {
+            $colors = array_column($this->lootCategoryLegend, 'color');
+            $slice = 100 / count($colors);
+            $stops = [];
+            foreach ($colors as $index => $color) {
+                $stops[] = $color.' '.($index * $slice).'% '.(($index + 1) * $slice).'%';
+            }
+
+            return 'background:conic-gradient('.implode(', ', $stops).')';
+        }
+
+        return 'background:'.$this->colorFor($filename);
     }
 
     private function colorFor(string $filename): string
