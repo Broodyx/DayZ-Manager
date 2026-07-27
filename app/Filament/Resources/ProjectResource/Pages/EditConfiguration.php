@@ -141,6 +141,13 @@ class EditConfiguration extends Page
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
+
+        if (! $this->getRecord()->revisions()->exists()) {
+            $this->redirect(\App\Filament\Pages\ConfigurationWizard::getUrl(['project' => $this->getRecord()->id]));
+
+            return;
+        }
+
         $requestedRevision = request()->integer('revision');
         $requestedType = trim((string) request()->string('type'));
         $requestedEvent = trim((string) request()->string('event'));

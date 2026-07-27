@@ -323,6 +323,18 @@ class ConfigurationImporterTest extends TestCase
             ->assertSet('messagesEntries.0.shutdown', '1');
     }
 
+    public function test_editor_redirects_to_the_wizard_for_a_project_with_no_files_instead_of_404ing(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Empty server', 'platform' => 'unknown', 'map' => 'chernarusplus',
+        ]);
+
+        $this->actingAs($user)
+            ->get("/admin/projects/{$project->id}/configuration")
+            ->assertRedirect(\App\Filament\Pages\ConfigurationWizard::getUrl(['project' => $project->id]));
+    }
+
     public function test_whitelist_txt_editor_splits_id_and_comment_and_round_trips_them(): void
     {
         Storage::fake('dayz');
