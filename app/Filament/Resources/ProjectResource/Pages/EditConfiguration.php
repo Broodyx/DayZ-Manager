@@ -12,6 +12,7 @@ use App\Services\Revision\EventGroupsXmlEditor;
 use App\Services\Revision\JsonConfigurationEditor;
 use App\Services\Revision\ServerConfigEditor;
 use App\Services\Revision\TypesXmlEditor;
+use App\Services\Dayz\EventsXmlEditor;
 use App\Services\Revision\WeatherXmlEditor;
 use App\Services\Revision\XmlConfigurationEditor;
 use App\Services\Dayz\ConfigurationFieldMetadata;
@@ -59,6 +60,16 @@ class EditConfiguration extends Page
     /** @var list<array<string, mixed>> */
     public array $typeEntries = [];
 
+    public string $eventSearch = '';
+
+    public ?string $selectedEvent = null;
+
+    /** @var array<string, mixed> */
+    public array $eventForm = [];
+
+    /** @var list<array<string, mixed>> */
+    public array $eventEntries = [];
+
     /** @var list<array<string, mixed>> */
     public bool $visualSupported = false;
 
@@ -86,6 +97,8 @@ class EditConfiguration extends Page
 
     public array $eventGroups = [];
     public array $eventSpawns = [];
+    public string $eventSpawnSearch = '';
+    public ?string $expandedEventSpawn = null;
 
     public array $newEventChildTypes = [];
 
@@ -324,6 +337,8 @@ class EditConfiguration extends Page
             ->with('configurationImport')
             ->findOrFail($this->revisionId);
         $this->selectedType = null;
+        $this->selectedEvent = null;
+        $this->expandedEventSpawn = null;
         $this->showAddForm = false;
         $this->loadRevision($revision);
     }
@@ -363,6 +378,82 @@ class EditConfiguration extends Page
         $this->typeForm['tags_csv'] = implode(', ', $entry['tags'] ?? []);
         $this->typeForm['values_csv'] = implode(', ', $entry['values'] ?? []);
         $this->showAddForm = false;
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function filteredEvents(): array
+    {
+        if ($this->eventSearch === '') {
+            return array_slice($this->eventEntries, 0, 200);
+        }
+        $search = mb_strtolower($this->eventSearch);
+
+        return array_slice(array_values(array_filter(
+            $this->eventEntries,
+            static fn (array $entry): bool => str_contains(mb_strtolower($entry['name']), $search),
+        )), 0, 200);
+    }
+
+    public function selectEvent(string $name, EventsXmlEditor $editor): void
+    {
+        if (! collect($this->eventEntries)->firstWhere('name', $name)) {
+            return;
+        }
+        $this->selectedEvent = $name;
+        $this->eventForm = $editor->values($this->rawContent, $name);
+    }
+
+    public function saveEvent(EventsXmlEditor $editor, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        if (! $this->selectedEvent) {
+            return;
+        }
+        $validated = $this->validate([
+            'eventForm.nominal' => ['required', 'integer', 'min:0', 'max:100000'],
+            'eventForm.min' => ['required', 'integer', 'min:0', 'max:100000'],
+            'eventForm.max' => ['required', 'integer', 'min:0', 'max:100000'],
+            'eventForm.lifetime' => ['required', 'integer', 'min:0', 'max:3888000'],
+            'eventForm.restock' => ['required', 'integer', 'min:0', 'max:3888000'],
+            'eventForm.saferadius' => ['required', 'integer', 'min:0', 'max:20000'],
+            'eventForm.distanceradius' => ['required', 'integer', 'min:0', 'max:20000'],
+            'eventForm.cleanupradius' => ['required', 'integer', 'min:0', 'max:20000'],
+            'eventForm.deletable' => ['boolean'],
+            'eventForm.init_random' => ['boolean'],
+            'eventForm.remove_damaged' => ['boolean'],
+            'eventForm.position' => ['required', 'in:fixed,player'],
+            'eventForm.limit' => ['required', 'in:mixed,unlimited,nearest,farthest'],
+            'eventForm.active' => ['boolean'],
+            'eventForm.children' => ['array'],
+            'eventForm.children.*.type' => ['required', 'string', 'regex:/^[A-Za-z0-9_.-]+$/'],
+            'eventForm.children.*.min' => ['required', 'integer', 'min:0', 'max:1000'],
+            'eventForm.children.*.max' => ['required', 'integer', 'min:0', 'max:1000'],
+            'eventForm.children.*.lootmin' => ['required', 'integer', 'min:0', 'max:1000'],
+            'eventForm.children.*.lootmax' => ['required', 'integer', 'min:0', 'max:1000'],
+        ]);
+
+        $content = $editor->update($this->rawContent, $this->selectedEvent, $validated['eventForm']);
+        $revision = $revisionEditor->save(
+            $this->getRecord(),
+            $this->sourceRevision(),
+            $content,
+            "Upraven event {$this->selectedEvent}",
+            auth()->user(),
+        );
+        $this->loadRevision($revision);
+        $this->selectEvent($this->selectedEvent, $editor);
+
+        Notification::make()->success()->title("Event {$this->selectedEvent} byl uložen")->body("Vznikla revize #{$revision->revision_number}.")->send();
+    }
+
+    public function addEventChild(): void
+    {
+        $this->eventForm['children'][] = ['type' => '', 'min' => 1, 'max' => 1, 'lootmin' => 0, 'lootmax' => 0];
+    }
+
+    public function removeEventChild(int $index): void
+    {
+        unset($this->eventForm['children'][$index]);
+        $this->eventForm['children'] = array_values($this->eventForm['children'] ?? []);
     }
 
     public function openAddForm(): void
@@ -857,6 +948,25 @@ class EditConfiguration extends Page
         $this->saveXml($xmlEditor, $revisionEditor, $compatibility);
     }
 
+    /** @return list<array<string, mixed>> */
+    public function filteredEventSpawns(): array
+    {
+        if ($this->eventSpawnSearch === '') {
+            return array_slice($this->eventSpawns, 0, 200);
+        }
+        $search = mb_strtolower($this->eventSpawnSearch);
+
+        return array_slice(array_values(array_filter(
+            $this->eventSpawns,
+            fn (array $event): bool => str_contains(mb_strtolower((string) ($this->xmlValues[$event['name_path']] ?? $event['name'])), $search),
+        )), 0, 200);
+    }
+
+    public function toggleEventSpawn(string $namePath): void
+    {
+        $this->expandedEventSpawn = $this->expandedEventSpawn === $namePath ? null : $namePath;
+    }
+
     public function saveEventGroups(
         XmlConfigurationEditor $xmlEditor,
         ConfigurationRevisionEditor $revisionEditor,
@@ -982,6 +1092,7 @@ class EditConfiguration extends Page
         $jsonEditor = app(JsonConfigurationEditor::class);
         $xmlEditor = app(XmlConfigurationEditor::class);
         $eventGroupsEditor = app(EventGroupsXmlEditor::class);
+        $eventsEditor = app(EventsXmlEditor::class);
         $this->visualKind = match (true) {
             strtolower(basename($filename)) === 'serverdz.cfg' => 'server',
             strtolower(basename($filename)) === 'whitelist.txt' => 'whitelist',
@@ -989,6 +1100,7 @@ class EditConfiguration extends Page
             strtolower(basename($filename)) === 'priority.txt' => 'priority',
             strtolower(basename($filename)) === 'messages.xml' => 'messages',
             strtolower(basename($filename)) === 'cfgeventspawns.xml' => 'event-spawns',
+            $eventsEditor->supports($filename, $this->rawContent) => 'events',
             $typesEditor->supports($filename, $this->rawContent) => 'types',
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
             $jsonEditor->supports($this->rawContent) => 'json',
@@ -999,6 +1111,7 @@ class EditConfiguration extends Page
         };
         $this->visualSupported = $this->visualKind !== null;
         $this->typeEntries = $this->visualKind === 'types' ? $typesEditor->entries($this->rawContent) : [];
+        $this->eventEntries = $this->visualKind === 'events' ? $eventsEditor->entries($this->rawContent) : [];
         $this->weatherForm = $this->visualKind === 'weather' ? $weatherEditor->values($this->rawContent) : [];
         $this->serverConfig = $this->visualKind === 'server' ? app(ServerConfigEditor::class)->parse($this->rawContent) : [];
         $this->whitelistEntries = $this->visualKind === 'whitelist'

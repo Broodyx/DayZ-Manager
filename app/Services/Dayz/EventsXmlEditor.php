@@ -8,6 +8,153 @@ use RuntimeException;
 
 final class EventsXmlEditor
 {
+    private const FIELDS = ['nominal', 'min', 'max', 'lifetime', 'restock', 'saferadius', 'distanceradius', 'cleanupradius'];
+    private const FLAGS = ['deletable', 'init_random', 'remove_damaged'];
+
+    public function supports(string $filename, string $content): bool
+    {
+        if (strtolower(basename($filename)) !== 'events.xml') {
+            return false;
+        }
+        $document = new DOMDocument();
+        if (! @$document->loadXML($content, LIBXML_NONET | LIBXML_COMPACT)) {
+            return false;
+        }
+
+        return $document->documentElement?->tagName === 'events';
+    }
+
+    /** Lightweight summary of every event, cheap enough to list hundreds at once. */
+    public function entries(string $content): array
+    {
+        $document = $this->document($content);
+        $entries = [];
+        foreach ($document->getElementsByTagName('event') as $event) {
+            if (! $event instanceof DOMElement || ! $event->hasAttribute('name')) {
+                continue;
+            }
+            $entries[] = [
+                'name' => $event->getAttribute('name'),
+                'nominal' => $this->childInteger($event, 'nominal'),
+                'min' => $this->childInteger($event, 'min'),
+                'max' => $this->childInteger($event, 'max'),
+                'children_count' => $event->getElementsByTagName('child')->length,
+            ];
+        }
+
+        return $entries;
+    }
+
+    /** Full editable field set for exactly one event. */
+    public function values(string $content, string $name): array
+    {
+        $event = $this->find($this->document($content), $name);
+        $values = [];
+        foreach (self::FIELDS as $field) {
+            $values[$field] = $this->childInteger($event, $field);
+        }
+        $flags = $event->getElementsByTagName('flags')->item(0);
+        foreach (self::FLAGS as $flag) {
+            $values[$flag] = $flags instanceof DOMElement ? (bool) (int) $flags->getAttribute($flag) : false;
+        }
+        $values['position'] = $this->childText($event, 'position') ?: 'fixed';
+        $values['limit'] = $this->childText($event, 'limit') ?: 'mixed';
+        $values['active'] = $this->childText($event, 'active') !== '0';
+        $children = [];
+        foreach ($event->getElementsByTagName('child') as $child) {
+            if ($child instanceof DOMElement) {
+                $children[] = [
+                    'type' => $child->getAttribute('type'),
+                    'min' => (int) $child->getAttribute('min'),
+                    'max' => (int) $child->getAttribute('max'),
+                    'lootmin' => (int) $child->getAttribute('lootmin'),
+                    'lootmax' => (int) $child->getAttribute('lootmax'),
+                ];
+            }
+        }
+        $values['children'] = $children;
+
+        return $values;
+    }
+
+    /** @param array<string, mixed> $values */
+    public function update(string $content, string $name, array $values): string
+    {
+        $document = $this->document($content);
+        $event = $this->find($document, $name);
+
+        foreach (self::FIELDS as $field) {
+            if (! array_key_exists($field, $values)) {
+                continue;
+            }
+            $element = $event->getElementsByTagName($field)->item(0);
+            if (! $element instanceof DOMElement) {
+                $element = $document->createElement($field);
+                $event->appendChild($element);
+            }
+            $element->nodeValue = (string) max(0, (int) $values[$field]);
+        }
+
+        $flags = $event->getElementsByTagName('flags')->item(0);
+        if (! $flags instanceof DOMElement) {
+            $flags = $document->createElement('flags');
+            $event->appendChild($flags);
+        }
+        foreach (self::FLAGS as $flag) {
+            if (array_key_exists($flag, $values)) {
+                $flags->setAttribute($flag, $values[$flag] ? '1' : '0');
+            }
+        }
+
+        if (isset($values['position'])) {
+            $this->setChildText($document, $event, 'position', in_array($values['position'], ['fixed', 'player'], true) ? $values['position'] : 'fixed');
+        }
+        if (isset($values['limit'])) {
+            $this->setChildText($document, $event, 'limit', in_array($values['limit'], ['mixed', 'unlimited', 'nearest', 'farthest'], true) ? $values['limit'] : 'mixed');
+        }
+        if (array_key_exists('active', $values)) {
+            $this->setChildText($document, $event, 'active', $values['active'] ? '1' : '0');
+        }
+
+        if (isset($values['children']) && is_array($values['children'])) {
+            $childrenElement = $event->getElementsByTagName('children')->item(0);
+            if (! $childrenElement instanceof DOMElement) {
+                $childrenElement = $document->createElement('children');
+                $event->appendChild($childrenElement);
+            }
+            foreach (iterator_to_array($childrenElement->childNodes) as $existingChild) {
+                $childrenElement->removeChild($existingChild);
+            }
+            foreach ($values['children'] as $child) {
+                $type = trim((string) ($child['type'] ?? ''));
+                if ($type === '') {
+                    continue;
+                }
+                if (! preg_match('/^[A-Za-z0-9_.-]+$/', $type)) {
+                    throw new RuntimeException("Classname '{$type}' smí obsahovat jen písmena, čísla, tečku, pomlčku a podtržítko.");
+                }
+                $childElement = $document->createElement('child');
+                $childElement->setAttribute('type', $type);
+                $childElement->setAttribute('min', (string) max(0, (int) ($child['min'] ?? 0)));
+                $childElement->setAttribute('max', (string) max(0, (int) ($child['max'] ?? 0)));
+                $childElement->setAttribute('lootmin', (string) max(0, (int) ($child['lootmin'] ?? 0)));
+                $childElement->setAttribute('lootmax', (string) max(0, (int) ($child['lootmax'] ?? 0)));
+                $childrenElement->appendChild($childElement);
+            }
+        }
+
+        return $document->saveXML() ?: throw new RuntimeException('events.xml se nepodařilo sestavit.');
+    }
+
+    public function remove(string $content, string $name): string
+    {
+        $document = $this->document($content);
+        $event = $this->find($document, $name);
+        $event->parentNode?->removeChild($event);
+
+        return $document->saveXML() ?: throw new RuntimeException('events.xml se nepodařilo sestavit.');
+    }
+
     /** @param array<string, mixed> $values */
     public function appendEvent(string $content, string $name, array $values): string
     {
@@ -16,12 +163,7 @@ final class EventsXmlEditor
             throw new RuntimeException('Název eventu smí obsahovat jen písmena, čísla, tečku, pomlčku a podtržítko.');
         }
 
-        $document = new DOMDocument('1.0', 'UTF-8');
-        $document->preserveWhiteSpace = false;
-        $document->formatOutput = true;
-        if (! @$document->loadXML($content, LIBXML_NONET | LIBXML_COMPACT)) {
-            throw new RuntimeException('events.xml není validní XML.');
-        }
+        $document = $this->document($content);
         $root = $document->documentElement;
         if (! $root || $root->tagName !== 'events') {
             throw new RuntimeException('Očekáván je kořenový element events.');
@@ -81,5 +223,52 @@ final class EventsXmlEditor
         $root->appendChild($event);
 
         return $document->saveXML() ?: throw new RuntimeException('events.xml se nepodařilo sestavit.');
+    }
+
+    private function document(string $content): DOMDocument
+    {
+        $document = new DOMDocument('1.0', 'UTF-8');
+        $document->preserveWhiteSpace = false;
+        $document->formatOutput = true;
+        if (! @$document->loadXML($content, LIBXML_NONET | LIBXML_COMPACT)) {
+            throw new RuntimeException('events.xml není validní XML.');
+        }
+
+        return $document;
+    }
+
+    private function find(DOMDocument $document, string $name): DOMElement
+    {
+        foreach ($document->getElementsByTagName('event') as $event) {
+            if ($event instanceof DOMElement && $event->getAttribute('name') === $name) {
+                return $event;
+            }
+        }
+
+        throw new RuntimeException("Event '{$name}' už v events.xml neexistuje.");
+    }
+
+    private function childInteger(DOMElement $event, string $name): int
+    {
+        $element = $event->getElementsByTagName($name)->item(0);
+
+        return $element instanceof DOMElement ? (int) trim($element->textContent) : 0;
+    }
+
+    private function childText(DOMElement $event, string $name): string
+    {
+        $element = $event->getElementsByTagName($name)->item(0);
+
+        return $element instanceof DOMElement ? trim($element->textContent) : '';
+    }
+
+    private function setChildText(DOMDocument $document, DOMElement $event, string $name, string $value): void
+    {
+        $element = $event->getElementsByTagName($name)->item(0);
+        if (! $element instanceof DOMElement) {
+            $element = $document->createElement($name);
+            $event->appendChild($element);
+        }
+        $element->nodeValue = $value;
     }
 }

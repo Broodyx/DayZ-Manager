@@ -350,6 +350,110 @@
                     @endif
                 </section>
             </div>
+            @elseif ($visualKind === 'events')
+            <div class="dz-editor-grid">
+                <section class="dz-panel">
+                    <div class="dz-panel-head">
+                        <strong>Eventy · events.xml</strong>
+                        <p class="dz-muted text-sm mt-1">Vyhledej event a uprav jen jeho detail. Nejvýše 200 výsledků.</p>
+                        <input wire:model.live.debounce.250ms="eventSearch" class="dz-search mt-3" placeholder="Hledat například StaticHeliCrash…">
+                    </div>
+                    <div class="dz-list">
+                        @foreach ($this->filteredEvents() as $entry)
+                            <button type="button" wire:click="selectEvent(@js($entry['name']))" class="dz-item {{ $selectedEvent === $entry['name'] ? 'active' : '' }}">
+                                <span>{{ $entry['name'] }}</span>
+                                <span class="dz-item-meta">
+                                    <small>{{ $entry['nominal'] }} nominal · {{ $entry['children_count'] }} objektů</small>
+                                </span>
+                            </button>
+                        @endforeach
+                    </div>
+                </section>
+
+                <section class="dz-panel">
+                    @if ($selectedEvent)
+                        <div class="dz-panel-head">
+                            <strong>{{ $selectedEvent }}</strong>
+                        </div>
+                        <div class="dz-fields">
+                            @foreach ([
+                                'nominal' => ['Cílový počet eventů', 1000, 'Kolik instancí eventu CE udržuje najednou. Nezáporné celé číslo.'],
+                                'min' => ['Minimum současně', 1000, 'Pod touto hranicí CE doplňuje nové instance. Nezáporné celé číslo.'],
+                                'max' => ['Maximum současně', 1000, 'Horní limit současně aktivních instancí. Nezáporné celé číslo.'],
+                                'lifetime' => ['Životnost (s)', 3888000, 'Jak dlouho instance eventu zůstane ve světě.'],
+                                'restock' => ['Doplnění (s)', 3888000, 'Prodleva mezi doplněními instancí eventu.'],
+                                'saferadius' => ['Bezpečný poloměr (m)', 20000, 'Minimální bezpečná vzdálenost od hráče při vytvoření eventu.'],
+                                'distanceradius' => ['Vzdálenost od dalších instancí (m)', 20000, 'Používá se při kontrole kolize s dalšími instancemi nebo hráči.'],
+                                'cleanupradius' => ['Poloměr úklidu (m)', 20000, 'Poloměr, ve kterém se po expiraci uklidí objekty eventu.'],
+                            ] as $field => [$label, $max, $help])
+                                @php $sliderMax = max($max, (int) ($eventForm[$field] ?? 0)); @endphp
+                                <label class="dz-field">
+                                    <span class="dz-field-top">
+                                        <span><strong>{{ $label }}</strong><br><small class="dz-muted">{{ $help }}</small></span>
+                                        <input type="number" wire:model="eventForm.{{ $field }}" min="0" max="{{ $max }}">
+                                    </span>
+                                    <input type="range" wire:model.live="eventForm.{{ $field }}" min="0" max="{{ $sliderMax }}">
+                                    @error("eventForm.$field") <div class="dz-error">{{ $message }}</div> @enderror
+                                </label>
+                            @endforeach
+                        </div>
+                        <div class="dz-types-advanced">
+                            <details class="dz-group" open>
+                                <summary><span>Chování eventu · flags, position, limit</span><small>7 nastavení</small></summary>
+                                <div class="dz-types-flags">
+                                    @foreach ([
+                                        'deletable' => 'Lze odstranit hráčem/dalším eventem.',
+                                        'init_random' => 'Náhodně posune první spuštění eventu po startu serveru.',
+                                        'remove_damaged' => 'Odstraní poškozené objekty místo jejich ponechání ve světě.',
+                                    ] as $flag => $help)
+                                        <label><span><strong>{{ str($flag)->headline() }}</strong><small>{{ $help }}</small></span><select wire:model="eventForm.{{ $flag }}"><option value="0">0 · vypnuto</option><option value="1">1 · zapnuto</option></select></label>
+                                    @endforeach
+                                    <label><span><strong>Position</strong><small>fixed = pevné pozice z cfgeventspawns.xml; player = kolem hráčů.</small></span>
+                                        <select wire:model="eventForm.position"><option value="fixed">fixed</option><option value="player">player</option></select>
+                                    </label>
+                                    <label><span><strong>Limit</strong><small>Jak CE rozhoduje mezi kandidátními pozicemi.</small></span>
+                                        <select wire:model="eventForm.limit">
+                                            <option value="mixed">mixed</option>
+                                            <option value="unlimited">unlimited</option>
+                                            <option value="nearest">nearest</option>
+                                            <option value="farthest">farthest</option>
+                                        </select>
+                                    </label>
+                                    <label><span><strong>Active</strong><small>0 = event je v souboru, ale server ho nepoužívá.</small></span><select wire:model="eventForm.active"><option value="1">1 · aktivní</option><option value="0">0 · vypnuto</option></select></label>
+                                </div>
+                            </details>
+                            <details class="dz-group" open>
+                                <summary><span>Spawnované objekty · children</span><small>{{ count($eventForm['children'] ?? []) }}</small></summary>
+                                <div class="dz-event-children">
+                                    @foreach ($eventForm['children'] ?? [] as $index => $child)
+                                        <article class="dz-event-child" wire:key="event-child-{{ $index }}">
+                                            <header>
+                                                <span><small>OBJEKT {{ $index + 1 }}</small></span>
+                                                <button type="button" wire:click="removeEventChild({{ $index }})" class="dz-danger">Odebrat</button>
+                                            </header>
+                                            <label><span>Classname</span><input type="text" wire:model="eventForm.children.{{ $index }}.type" placeholder="Např. Wreck_UH1Y"></label>
+                                            <label><span>Min</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.min"></label>
+                                            <label><span>Max</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.max"></label>
+                                            <label><span>Loot min</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.lootmin"></label>
+                                            <label><span>Loot max</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.lootmax"></label>
+                                        </article>
+                                    @endforeach
+                                    <button type="button" wire:click="addEventChild" class="dz-secondary">+ Přidat objekt</button>
+                                </div>
+                            </details>
+                        </div>
+                        <div class="dz-savebar">
+                            <input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny (např. snížení nominal)">
+                            <x-dz-confirm-button call="saveEvent()" label="Uložit novou revizi" class="dz-action" />
+                        </div>
+                    @else
+                        <div class="p-10 text-center">
+                            <strong>Vyber event vlevo</strong>
+                            <p class="dz-muted mt-2">Pak se zobrazí posuvníky, přepínače a spawnované objekty.</p>
+                        </div>
+                    @endif
+                </section>
+            </div>
             @elseif ($visualKind === 'server')
                 <section class="dz-editor-card"><h3>Serverová nastavení · serverDZ.cfg</h3><p class="dz-muted">Upravujte hodnoty serveru bez ručního psaní CFG syntaxe. Hesla jsou skrytá; prázdné pole zachová původní hodnotu.</p><div class="dz-fields-grid">
                     @foreach ($serverConfig as $key => $value)
@@ -588,6 +692,7 @@
                 <div class="dz-panel-head">
                     <strong>Umístění eventů · cfgeventspawns.xml</strong>
                     <p class="dz-muted text-sm mt-1">Každá sekce představuje jeden event a obsahuje jeho kandidátní světové pozice. <b>Název propojuje soubor s events.xml</b>; X/Z jsou souřadnice Chernarus a A je natočení.</p>
+                    <input wire:model.live.debounce.250ms="eventSpawnSearch" class="dz-search mt-3" placeholder="Hledat event, například StaticHeliCrash… (nejvýše 200 výsledků)">
                 </div>
                 <div class="dz-event-spawn-guide">
                     <article><b>NÁZEV EVENTU</b><span>Identifikátor, například <code>StaticSantaCrash</code>. Měňte jej jen společně s odpovídajícím názvem v <code>events.xml</code>.</span></article>
@@ -596,28 +701,31 @@
                     <article><b>CO ZDE NENÍ</b><span>Počet, lifetime, restock a vzdálenosti řídí <code>events.xml</code>; složení konvojů a vlaků řídí <code>cfgeventgroups.xml</code>.</span></article>
                 </div>
                 <div class="dz-event-spawn-list">
-                    @forelse ($eventSpawns as $eventIndex => $event)
-                        <details class="dz-event-spawn" @if ($loop->first) open @endif>
-                            <summary>
+                    @forelse ($this->filteredEventSpawns() as $eventIndex => $event)
+                        @php $isOpen = $expandedEventSpawn === $event['name_path']; @endphp
+                        <details class="dz-event-spawn" @if ($isOpen) open @endif>
+                            <summary wire:click.prevent="toggleEventSpawn(@js($event['name_path']))">
                                 <span><small>EVENT {{ $eventIndex + 1 }}</small><strong>{{ $xmlValues[$event['name_path']] ?? $event['name'] }}</strong></span>
                                 <span class="dz-badge dz-server-badge">{{ count($event['positions']) }} pozic</span>
                             </summary>
-                            <div class="dz-event-spawn-body">
-                                <label class="dz-event-name-field">
-                                    <span><strong>Název eventu</strong><small>Musí přesně odpovídat eventu v events.xml. Povolená jsou písmena, čísla, tečka, pomlčka a podtržítko.</small></span>
-                                    <input type="text" wire:model.blur="xmlValues.{{ $event['name_path'] }}">
-                                </label>
-                                <div class="dz-event-spawn-positions">
-                                    @foreach ($event['positions'] as $positionIndex => $position)
-                                        <article>
-                                            <header><strong>Pozice {{ $positionIndex + 1 }}</strong><code>&lt;pos x="…" z="…" a="…"/&gt;</code></header>
-                                            <label><span>X <small>0–15 360 m</small></span><input type="number" min="0" max="15360" step="0.001" wire:model.blur="xmlValues.{{ $position['x_path'] }}"></label>
-                                            <label><span>Z <small>0–15 360 m</small></span><input type="number" min="0" max="15360" step="0.001" wire:model.blur="xmlValues.{{ $position['z_path'] }}"></label>
-                                            <label><span>Natočení A <small>0 až &lt;360°</small></span><input type="number" min="0" max="359.999" step="0.001" wire:model.blur="xmlValues.{{ $position['a_path'] }}"></label>
-                                        </article>
-                                    @endforeach
+                            @if ($isOpen)
+                                <div class="dz-event-spawn-body">
+                                    <label class="dz-event-name-field">
+                                        <span><strong>Název eventu</strong><small>Musí přesně odpovídat eventu v events.xml. Povolená jsou písmena, čísla, tečka, pomlčka a podtržítko.</small></span>
+                                        <input type="text" wire:model.blur="xmlValues.{{ $event['name_path'] }}">
+                                    </label>
+                                    <div class="dz-event-spawn-positions">
+                                        @foreach ($event['positions'] as $positionIndex => $position)
+                                            <article>
+                                                <header><strong>Pozice {{ $positionIndex + 1 }}</strong><code>&lt;pos x="…" z="…" a="…"/&gt;</code></header>
+                                                <label><span>X <small>0–15 360 m</small></span><input type="number" min="0" max="15360" step="0.001" wire:model.blur="xmlValues.{{ $position['x_path'] }}"></label>
+                                                <label><span>Z <small>0–15 360 m</small></span><input type="number" min="0" max="15360" step="0.001" wire:model.blur="xmlValues.{{ $position['z_path'] }}"></label>
+                                                <label><span>Natočení A <small>0 až &lt;360°</small></span><input type="number" min="0" max="359.999" step="0.001" wire:model.blur="xmlValues.{{ $position['a_path'] }}"></label>
+                                            </article>
+                                        @endforeach
+                                    </div>
                                 </div>
-                            </div>
+                            @endif
                         </details>
                     @empty
                         <div class="dz-empty-state"><strong>Nebyly nalezeny žádné eventy ani pozice.</strong><span>Ověřte kořenový element eventposdef a strukturu event/pos.</span></div>

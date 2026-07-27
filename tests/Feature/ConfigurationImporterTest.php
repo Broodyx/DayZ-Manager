@@ -341,6 +341,38 @@ class ConfigurationImporterTest extends TestCase
         $this->assertStringContainsString('a="90"', $saved);
     }
 
+    public function test_events_xml_has_a_searchable_select_and_edit_one_editor(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Events test',
+            'platform' => 'playstation',
+            'map' => 'chernarusplus',
+        ]);
+        $xml = '<events><event name="StaticHeliCrash"><nominal>1</nominal><min>0</min><max>2</max><lifetime>3600</lifetime><restock>0</restock><saferadius>100</saferadius><distanceradius>100</distanceradius><cleanupradius>100</cleanupradius><flags deletable="0" init_random="1" remove_damaged="0"/><position>fixed</position><limit>mixed</limit><active>1</active><children><child lootmax="0" lootmin="0" max="1" min="1" type="Wreck_UH1Y"/></children></event></events>';
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('events.xml', $xml),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->assertSet('visualKind', 'events')
+            ->assertSee('Vyhledej event')
+            ->call('selectEvent', 'StaticHeliCrash')
+            ->assertSet('selectedEvent', 'StaticHeliCrash')
+            ->assertSet('eventForm.nominal', 1)
+            ->set('eventForm.nominal', 5)
+            ->call('saveEvent')
+            ->assertHasNoErrors();
+
+        $saved = Storage::disk('dayz')->get($project->revisions()->latest('revision_number')->firstOrFail()->storage_path);
+        $this->assertStringContainsString('<nominal>5</nominal>', $saved);
+    }
+
     public function test_large_generated_map_xml_uses_safe_map_mode_instead_of_thousands_of_inputs(): void
     {
         Storage::fake('dayz');
