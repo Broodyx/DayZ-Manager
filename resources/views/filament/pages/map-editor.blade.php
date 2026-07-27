@@ -1,6 +1,6 @@
 <x-filament-panels::page>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <div class="dz-map-page">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         @if (! $projects)
             <section class="dz-empty-state dz-map-page-empty">
                 <x-filament::icon icon="heroicon-o-map" />
@@ -163,9 +163,8 @@
                 </div>
             </aside>
         </div>
-    </div>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+        <script>
         document.addEventListener('DOMContentLoaded', () => {
             const el = document.getElementById('dayz-leaflet-map');
             if (!el || el.dataset.ready) return;
@@ -338,6 +337,18 @@
                 feedback.classList.toggle('error', isError);
                 feedback.hidden = false;
             };
+            const el = (tag, props = {}, children = []) => {
+                const node = document.createElement(tag);
+                Object.entries(props).forEach(([key, value]) => {
+                    if (key === 'text') node.textContent = value;
+                    else node.setAttribute(key, value);
+                });
+                (Array.isArray(children) ? children : [children]).forEach((child) => {
+                    if (child === null || child === undefined) return;
+                    node.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+                });
+                return node;
+            };
             const pointTypeCatalog = @js($pointTypeCatalog);
             let selectedCatalogOption = null;
             const editDefinitionForMarker = (marker) => {
@@ -424,16 +435,27 @@
                 eventRoot.hidden = Object.keys(settings).length === 0;
                 if (!eventRoot.hidden) {
                     const labels = {nominal:'Cílový počet eventů',min:'Minimum současně',max:'Maximum současně',lifetime:'Životnost (s)',restock:'Doplnění (s)',saferadius:'Bezpečný poloměr (m)',distanceradius:'Vzdálenost od hráče (m)',cleanupradius:'Poloměr úklidu (m)',position:'Režim pozice',limit:'Způsob limitu',active:'Aktivní',deletable:'Lze odstranit',init_random:'Náhodný start',remove_damaged:'Odstranit poškozené'};
-                    eventRoot.innerHTML = '<strong>Související pravidla z events.xml</strong><p>Tato nastavení platí pro celý event, ne jen pro právě přidávaný bod.</p><div class="dz-event-setting-grid">'
-                        + Object.entries(settings).map(([key,value]) => '<span><small>'+(labels[key] || key)+'</small><b>'+value+'</b></span>').join('')
-                        + '</div>' + (children.length ? '<details><summary>Varianty / children ('+children.length+')</summary><ul>'+children.map((child)=>'<li><code>'+child.type+'</code> · min '+child.min+', max '+child.max+', loot '+child.lootmin+'–'+child.lootmax+'</li>').join('')+'</ul></details>' : '');
+                    const grid = el('div', {class:'dz-event-setting-grid'}, Object.entries(settings).map(([key,value]) => el('span', {}, [el('small', {text:labels[key] || key}), el('b', {text:String(value)})])));
+                    const nodes = [
+                        el('strong', {text:'Související pravidla z events.xml'}),
+                        el('p', {text:'Tato nastavení platí pro celý event, ne jen pro právě přidávaný bod.'}),
+                        grid,
+                    ];
+                    if (children.length) {
+                        const list = el('ul', {}, children.map((child) => el('li', {}, [el('code', {text:child.type}), ' · min '+child.min+', max '+child.max+', loot '+child.lootmin+'–'+child.lootmax])));
+                        nodes.push(el('details', {}, [el('summary', {text:'Varianty / children ('+children.length+')'}), list]));
+                    }
+                    eventRoot.replaceChildren(...nodes);
                 }
                 const related = definition.related || {};
                 relatedRoot.hidden = Object.keys(related).length === 0;
                 if (!relatedRoot.hidden) {
-                    relatedRoot.innerHTML = '<strong>Další nastavení nejsou vlastností bodu</strong><ul>'
-                        + Object.entries(related).map(([file,description]) => '<li><code>'+file+'</code> – '+description+'</li>').join('')
-                        + '</ul><small>Změňte je v editoru příslušného souboru. Editor je záměrně nezapisuje do cfgeventspawns.xml, protože by vznikla neplatná konfigurace.</small>';
+                    const list = el('ul', {}, Object.entries(related).map(([file,description]) => el('li', {}, [el('code', {text:file}), ' – '+description])));
+                    relatedRoot.replaceChildren(
+                        el('strong', {text:'Další nastavení nejsou vlastností bodu'}),
+                        list,
+                        el('small', {text:'Změňte je v editoru příslušného souboru. Editor je záměrně nezapisuje do cfgeventspawns.xml, protože by vznikla neplatná konfigurace.'}),
+                    );
                 }
             };
             const syncPointTarget = () => {
@@ -450,12 +472,19 @@
                 const status = catalogRoot.querySelector('.dz-point-target-status');
                 if (available) {
                     status.className = 'dz-point-target-status ready';
-                    status.innerHTML = '<strong>Zapíše se do: <code>' + target + '</code></strong><span>Uložení vytvoří novou revizi tohoto souboru; původní revize zůstane zachována.</span>';
+                    status.replaceChildren(
+                        el('strong', {}, ['Zapíše se do: ', el('code', {text:target})]),
+                        el('span', {text:'Uložení vytvoří novou revizi tohoto souboru; původní revize zůstane zachována.'}),
+                    );
                 } else {
                     const names = missing.length ? missing.join(', ') : (definition.target_label || 'požadovaná konfigurace');
                     status.className = 'dz-point-target-status missing';
-                    status.innerHTML = '<strong>Chybí aktuální soubor: ' + names + '</strong><span>Bez něj bod nelze bezpečně uložit do DayZ konfigurace.</span>'
-                        + (uploadUrl ? '<a href="' + uploadUrl + '">Nahrát aktuální konfiguraci →</a>' : '');
+                    const nodes = [
+                        el('strong', {text:'Chybí aktuální soubor: ' + names}),
+                        el('span', {text:'Bez něj bod nelze bezpečně uložit do DayZ konfigurace.'}),
+                    ];
+                    if (uploadUrl) nodes.push(el('a', {href:uploadUrl, text:'Nahrát aktuální konfiguraci →'}));
+                    status.replaceChildren(...nodes);
                 }
                 const confirm = catalogRoot.querySelector('.dz-point-confirm');
                 confirm.disabled = !available || (!selectedCatalogOption && (definition.options || []).length > 0);
@@ -497,7 +526,11 @@
                 const newX = Math.round(Number(modal.dataset.lng));
                 const newZ = Math.round(Number(modal.dataset.lat));
                 fetch('{{ route('map-editor.points.store') }}', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'}, body: JSON.stringify({project_id: @js($projectId), type: button.dataset.point, label: chosen || label, target_filename: targetState.target, x: newX, z: newZ, parameters}) }).then(async (response) => { if (!response.ok) throw new Error((await response.json().catch(()=>({}))).message || 'Uložení bodu selhalo'); window.location.reload(); }).catch((error) => { map.removeLayer(marker); modal.hidden = false; showFeedback(modal, error.message); });
-                const popup = () => '<strong>' + (chosen || label) + '</strong><br><small>Typ: ' + label + '<br>DayZ X/Z: ' + newX + ' / ' + newZ + '</small>';
+                const popup = () => el('span', {}, [
+                    el('strong', {text:chosen || label}),
+                    el('br'),
+                    el('small', {}, ['Typ: ' + label, el('br'), 'DayZ X/Z: ' + newX + ' / ' + newZ]),
+                ]);
                 marker.bindPopup(popup()).openPopup();
                 pendingButton = null;
                 modal.hidden = true;
@@ -521,9 +554,14 @@
                 visualLayers.push({ layer:imported, kind:'point' });
                 markerRecords.push({ marker, color, visualLayers });
                 const markerActions = marker.editable
-                    ? '<br><button class="dz-map-edit" type="button">Upravit souřadnice</button> <button class="dz-map-delete" type="button">Smazat bod a vytvořit revizi</button>'
-                    : '<br><a href="{{ url('/admin/projects/'.$projectId.'/configuration') }}?revision=' + marker.revision_id + '">Otevřít příslušný editor</a>';
-                imported.bindPopup('<strong>' + marker.label + '</strong><br><small>' + marker.help + '<br>DayZ X/Z: ' + Math.round(marker.worldX) + ' / ' + Math.round(marker.worldZ) + '</small>' + markerActions);
+                    ? [el('br'), el('button', {class:'dz-map-edit', type:'button', text:'Upravit souřadnice'}), ' ', el('button', {class:'dz-map-delete', type:'button', text:'Smazat bod a vytvořit revizi'})]
+                    : [el('br'), el('a', {href:'{{ url('/admin/projects/'.$projectId.'/configuration') }}?revision=' + marker.revision_id, text:'Otevřít příslušný editor'})];
+                imported.bindPopup(el('span', {}, [
+                    el('strong', {text:marker.label}),
+                    el('br'),
+                    el('small', {}, [marker.help, el('br'), 'DayZ X/Z: ' + Math.round(marker.worldX) + ' / ' + Math.round(marker.worldZ)]),
+                    ...markerActions,
+                ]));
                 imported.on('popupopen', (event) => {
                     const root = event.popup.getElement();
                     root.querySelector('.dz-map-edit')?.addEventListener('click', () => {
@@ -673,6 +711,7 @@
                 syncLayer();
             });
         });
-    </script>
+        </script>
         @endif
+    </div>
 </x-filament-panels::page>
