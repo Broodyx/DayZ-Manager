@@ -64,6 +64,14 @@ class AdminPanelProvider extends PanelProvider
                 fn (): string => view('filament.admin-theme')->render(),
             )
             ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => '<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#84cc16"><link rel="apple-touch-icon" href="/icon-192.png">',
+            )
+            ->renderHook(
+                PanelsRenderHook::SCRIPTS_AFTER,
+                fn (): string => "<script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));}</script>",
+            )
+            ->renderHook(
                 PanelsRenderHook::PAGE_START,
                 fn (): string => auth()->check() ? view('filament.server-workspace-nav')->render() : '',
             )

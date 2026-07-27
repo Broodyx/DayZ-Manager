@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#090d0a">
     <meta name="description" content="DayZ Manager převádí serverové XML, JSON, CFG a TXT soubory do bezpečných vizuálních editorů.">
     <link rel="icon" type="image/svg+xml" href="{{ secure_asset('favicon.svg') }}">
+    <link rel="apple-touch-icon" href="{{ secure_asset('icon-192.png') }}">
     <link rel="manifest" href="/manifest.webmanifest">
     <title>DayZ Manager · konfigurace serveru bez chaosu</title>
     <style>
