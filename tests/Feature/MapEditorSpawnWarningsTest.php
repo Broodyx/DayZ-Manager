@@ -86,4 +86,74 @@ XML);
             ->call('loadSpawnPointWarnings')
             ->assertSet('spawnPointWarnings', []);
     }
+
+    private function seedEventSpawns(Project $project, User $user, string $content): void
+    {
+        $this->seedFile($project, $user, 'cfgeventspawns.xml', $content);
+    }
+
+    private function seedEvents(Project $project, User $user, string $content): void
+    {
+        $this->seedFile($project, $user, 'events.xml', $content);
+    }
+
+    private function seedFile(Project $project, User $user, string $filename, string $content): void
+    {
+        $path = "{$project->id}/test/{$filename}";
+        Storage::disk('dayz')->put($path, $content);
+        $sha256 = hash('sha256', $content);
+        $import = ConfigurationImport::query()->create([
+            'project_id' => $project->id,
+            'sha256' => $sha256,
+            'original_filename' => $filename,
+            'storage_path' => $path,
+            'detected_platform' => $project->platform,
+            'detection_confidence' => 65,
+            'validation_status' => 'valid',
+            'imported_at' => now(),
+        ]);
+        ConfigurationRevision::query()->create([
+            'project_id' => $project->id,
+            'revision_number' => (int) $project->revisions()->max('revision_number') + 1,
+            'configuration_import_id' => $import->id,
+            'storage_path' => $path,
+            'sha256' => $sha256,
+            'change_summary' => 'test',
+            'created_by' => $user->id,
+        ]);
+    }
+
+    public function test_map_editor_warns_about_event_spawns_referencing_undefined_event(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEvents($project, $user, '<events><event name="StaticHeliCrash"><nominal>1</nominal></event></events>');
+        $this->seedEventSpawns($project, $user, '<eventposdef><event name="StaticHeliCrash"><pos x="1" z="2" a="0"/></event><event name="VehicleTransitBus"><pos x="3" z="4" a="0"/></event></eventposdef>');
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadEventCatalog')
+            ->call('loadEventSpawnWarnings')
+            ->assertSet('eventSpawnWarnings', ['VehicleTransitBus']);
+    }
+
+    public function test_map_editor_has_no_event_warning_when_all_events_are_defined(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEvents($project, $user, '<events><event name="StaticHeliCrash"><nominal>1</nominal></event></events>');
+        $this->seedEventSpawns($project, $user, '<eventposdef><event name="StaticHeliCrash"><pos x="1" z="2" a="0"/></event></eventposdef>');
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadEventCatalog')
+            ->call('loadEventSpawnWarnings')
+            ->assertSet('eventSpawnWarnings', []);
+    }
 }

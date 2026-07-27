@@ -269,7 +269,7 @@
                             </div>
                         </div>
                         <div class="dz-savebar">
-                            <button type="button" wire:click="addType" wire:loading.attr="disabled" class="dz-action">Zkontrolovat a přidat</button>
+                            <x-dz-confirm-button call="addType()" label="Zkontrolovat a přidat" saved-label="Přidáno" class="dz-action" />
                         </div>
                     @elseif ($selectedType)
                         <div class="dz-panel-head">
@@ -340,9 +340,7 @@
                         </div>
                         <div class="dz-savebar">
                             <input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny (např. zvýšení lootů AKM)">
-                            <button type="button" wire:click="saveType" wire:loading.attr="disabled" class="dz-action">
-                                Uložit novou revizi
-                            </button>
+                            <x-dz-confirm-button call="saveType()" label="Uložit novou revizi" class="dz-action" />
                         </div>
                     @else
                         <div class="p-10 text-center">
@@ -360,24 +358,24 @@
                         @endphp
                         <label class="dz-field"><span>{{ $key }}</span><span class="dz-secret-control"><input id="cfg-{{ $key }}" type="{{ $secret ? 'password' : 'text' }}" autocomplete="{{ $secret ? 'new-password' : 'off' }}" placeholder="{{ $secret ? 'Ponechte prázdné pro zachování' : '' }}" wire:model.defer="serverConfig.{{ $key }}">@if($secret)<button type="button" class="dz-reveal" onclick="const i=document.getElementById('cfg-{{ $key }}'); i.type=i.type==='password'?'text':'password'; this.textContent=i.type==='password'?'Zobrazit':'Skrýt';">Zobrazit</button>@endif</span><small>{{ $this->serverFieldDescription($key) }}</small><small>Raw: {{ $key }} = {{ $secret ? '•••••••• (skryto)' : $value }};</small></label>
                     @endforeach
-                </div><button type="button" wire:click="saveServerConfig" class="dz-save-button">Uložit serverDZ.cfg jako novou revizi</button></section>
+                </div><x-dz-confirm-button call="saveServerConfig()" label="Uložit serverDZ.cfg jako novou revizi" class="dz-save-button" /></section>
             @elseif ($visualKind === 'whitelist')
                 <section class="dz-editor-card"><h3>Whitelist hráčů · whitelist.txt</h3><p class="dz-muted">Jeden řádek = jedno UID hráče. Používejte přesné UID z platformy (Steam/Xbox/PlayStation), bez mezer a bez komentářů. Duplicitní, prázdné a neplatné hodnoty se nepřidají. Editor ověřuje délku 3–64 znaků; zapnutí vyžaduje <code>enableWhitelist = 1</code> v serverDZ.cfg.</p>
                     <div class="dz-whitelist-add"><input wire:model.defer="newWhitelistUid" placeholder="UID hráče" autocomplete="off"><button type="button" wire:click="addWhitelistEntry" class="dz-save-button">Přidat hráče</button></div>
                     <div class="dz-whitelist-list">@forelse($whitelistEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removeWhitelistEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Whitelist je zatím prázdný.</p>@endforelse</div>
-                    <button type="button" wire:click="saveWhitelist" class="dz-save-button">Uložit whitelist.txt jako novou revizi</button>
+                    <x-dz-confirm-button call="saveWhitelist()" label="Uložit whitelist.txt jako novou revizi" class="dz-save-button" />
                 </section>
             @elseif ($visualKind === 'ban')
                 <section class="dz-editor-card"><h3>Banlist hráčů · ban.txt</h3><p class="dz-muted">Jeden řádek = jedno UID hráče, kterému server odmítne připojení. Používejte přesné UID bez mezer a komentářů; editor kontroluje délku 3–64 znaků a duplicitní hodnoty.</p>
                     <div class="dz-whitelist-add"><input wire:model.defer="newBanUid" placeholder="UID hráče k zablokování" autocomplete="off"><button type="button" wire:click="addBanEntry" class="dz-save-button">Přidat zákaz</button></div>
                     <div class="dz-whitelist-list">@forelse($banEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removeBanEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Banlist je zatím prázdný.</p>@endforelse</div>
-                    <button type="button" wire:click="saveBan" class="dz-save-button">Uložit ban.txt jako novou revizi</button>
+                    <x-dz-confirm-button call="saveBan()" label="Uložit ban.txt jako novou revizi" class="dz-save-button" />
                 </section>
             @elseif ($visualKind === 'priority')
                 <section class="dz-editor-card"><h3>Prioritní fronta · priority.txt</h3><p class="dz-muted">Každý řádek obsahuje UID nebo dvojici UID ve formátu podporovaném DayZ. Hráči v tomto seznamu dostanou přednost před běžnou přihlašovací frontou. Použití lze vypnout přes <code>disablePrioritylist</code> v serverDZ.cfg.</p>
                     <div class="dz-whitelist-add"><input wire:model.defer="newPriorityUid" placeholder="Steam/console UID nebo dvojice UID" autocomplete="off"><button type="button" wire:click="addPriorityEntry" class="dz-save-button">Přidat hráče</button></div>
                     <div class="dz-whitelist-list">@forelse($priorityEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removePriorityEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Priority list je zatím prázdný.</p>@endforelse</div>
-                    <button type="button" wire:click="savePriority" class="dz-save-button">Uložit priority.txt jako novou revizi</button>
+                    <x-dz-confirm-button call="savePriority()" label="Uložit priority.txt jako novou revizi" class="dz-save-button" />
                 </section>
             @elseif ($visualKind === 'weather')
                 @php
@@ -479,7 +477,7 @@
                     </div>
                     <div class="dz-savebar">
                         <input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny počasí">
-                        <button type="button" wire:click="saveWeather" wire:loading.attr="disabled" class="dz-action">Uložit počasí jako revizi</button>
+                        <x-dz-confirm-button call="saveWeather()" label="Uložit počasí jako revizi" class="dz-action" />
                     </div>
                 </section>
             @elseif ($visualKind === 'json')
@@ -564,7 +562,7 @@
                             </details>
                         @endforeach
                     </div>
-                    <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny JSON konfigurace"><button type="button" wire:click="saveJson" wire:loading.attr="disabled" class="dz-action">Validovat a uložit JSON revizi</button></div>
+                    <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny JSON konfigurace"><x-dz-confirm-button call="saveJson()" label="Validovat a uložit JSON revizi" class="dz-action" /></div>
                 </section>
             @elseif ($visualKind === 'messages')
             <section class="dz-panel dz-server-settings">
@@ -583,7 +581,7 @@
                         <div class="dz-empty-state"><strong>Soubor neobsahuje žádné aktivní zprávy.</strong><p class="dz-muted">Výchozí messages.xml často obsahuje pouze komentované příklady. Použijte tlačítko „Přidat zprávu“.</p></div>
                     @endforelse
                 </div>
-                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny messages.xml"><button type="button" wire:click="saveMessages" wire:loading.attr="disabled" class="dz-action">Validovat a uložit messages.xml</button></div>
+                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny messages.xml"><x-dz-confirm-button call="saveMessages()" label="Validovat a uložit messages.xml" class="dz-action" /></div>
             </section>
         @elseif ($visualKind === 'event-spawns')
             <section class="dz-panel dz-event-spawns-editor">
@@ -626,7 +624,7 @@
                     @endforelse
                 </div>
                 @error('xmlValues') <div class="dz-error">{{ $message }}</div> @enderror
-                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Např. přesunuty pozice heli crashů"><button type="button" wire:click="saveEventSpawns" wire:loading.attr="disabled" class="dz-action">Validovat a uložit novou revizi</button></div>
+                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Např. přesunuty pozice heli crashů"><x-dz-confirm-button call="saveEventSpawns()" label="Validovat a uložit novou revizi" class="dz-action" /></div>
             </section>
         @elseif ($visualKind === 'event-groups')
             <section class="dz-panel dz-event-groups-editor">
@@ -661,7 +659,7 @@
                                 <div class="dz-event-add-child">
                                     <span><strong>Přidat objekt do této skupiny</strong><small>Zadejte přesný DayZ classname. Nový objekt se vloží s nulovým posunem, natočením a loot limity; potom jej můžete upravit níže.</small></span>
                                     <input type="text" wire:model="newEventChildTypes.{{ $groupIndex }}" placeholder="Např. Land_Train_Wagon_Box_DE">
-                                    <button type="button" wire:click="addEventGroupChild({{ $groupIndex }})" wire:loading.attr="disabled">+ Přidat a vytvořit revizi</button>
+                                    <x-dz-confirm-button call="addEventGroupChild({{ $groupIndex }})" label="+ Přidat a vytvořit revizi" saved-label="Přidáno" />
                                     @error('newEventChildTypes.'.$groupIndex) <small class="dz-error">{{ $message }}</small> @enderror
                                 </div>
                                 <div class="dz-event-children">
@@ -710,7 +708,7 @@
                     @endforelse
                 </div>
                 @error('xmlValues') <div class="dz-error">{{ $message }}</div> @enderror
-                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Např. upraveno pořadí a natočení vagónů"><button type="button" wire:click="saveEventGroups" wire:loading.attr="disabled" class="dz-action">Validovat a uložit novou revizi</button></div>
+                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Např. upraveno pořadí a natočení vagónů"><x-dz-confirm-button call="saveEventGroups()" label="Validovat a uložit novou revizi" class="dz-action" /></div>
             </section>
         @elseif ($visualKind === 'map-file')
             <section class="dz-panel dz-map-file-panel">
@@ -753,7 +751,7 @@
                         </details>
                     @endforeach
                 </div>
-                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny XML konfigurace"><button type="button" wire:click="saveXml" wire:loading.attr="disabled" class="dz-action">Validovat a uložit XML revizi</button></div>
+                <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny XML konfigurace"><x-dz-confirm-button call="saveXml()" label="Validovat a uložit XML revizi" class="dz-action" /></div>
             </section>
             @endif
         @else
@@ -774,9 +772,7 @@
                 </div>
                 <div class="dz-savebar">
                     <input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny">
-                    <button type="button" wire:click="saveRaw" wire:loading.attr="disabled" class="dz-action">
-                        Validovat a uložit revizi
-                    </button>
+                    <x-dz-confirm-button call="saveRaw()" label="Validovat a uložit revizi" class="dz-action" />
                 </div>
             </section>
         @endif

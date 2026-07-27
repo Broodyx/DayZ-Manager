@@ -617,7 +617,6 @@ class EditConfiguration extends Page
         $content = $editor->update($this->rawContent, $this->serverConfig);
         $saved = $revisionEditor->save($project, $revision, $content, 'Úprava serverDZ.cfg ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
-        session()->flash('status', 'serverDZ.cfg byl uložen jako nová revize.');
     }
 
     public function addWhitelistEntry(): void
@@ -642,7 +641,6 @@ class EditConfiguration extends Page
         $content = $entries === [] ? "" : implode("\n", $entries)."\n";
         $saved = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, 'Úprava whitelist.txt ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
-        session()->flash('status', 'Whitelist byl uložen jako nová revize.');
     }
 
     public function addBanEntry(): void
@@ -665,7 +663,6 @@ class EditConfiguration extends Page
         $content = $entries === [] ? '' : implode("\n", $entries)."\n";
         $saved = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, 'Úprava ban.txt ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
-        session()->flash('status', 'Banlist byl uložen jako nová revize.');
     }
 
     public function addPriorityEntry(): void
@@ -688,7 +685,6 @@ class EditConfiguration extends Page
         $content = $entries === [] ? '' : implode("\n", $entries)."\n";
         $saved = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, 'Úprava priority.txt ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
-        session()->flash('status', 'Priority list byl uložen jako nová revize.');
     }
 
     public function saveMessages(ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void

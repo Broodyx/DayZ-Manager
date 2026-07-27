@@ -36,6 +36,7 @@ class MapEditor extends Page
     public array $layerScopes = [];
     public bool $showDenseLayers = false;
     public array $spawnPointWarnings = [];
+    public array $eventSpawnWarnings = [];
 
     public function mount(): void
     {
@@ -47,6 +48,7 @@ class MapEditor extends Page
         $this->loadEventCatalog();
         $this->loadPointTypeCatalog();
         $this->loadSpawnPointWarnings();
+        $this->loadEventSpawnWarnings();
     }
 
     public function updatedProjectId(): void
@@ -56,6 +58,38 @@ class MapEditor extends Page
         $this->loadMapSources();
         $this->loadPointTypeCatalog();
         $this->loadSpawnPointWarnings();
+        $this->loadEventSpawnWarnings();
+    }
+
+    /** Flags event names used in cfgeventspawns.xml that events.xml does not define. */
+    public function loadEventSpawnWarnings(): void
+    {
+        $this->eventSpawnWarnings = [];
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project) {
+            return;
+        }
+        $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'cfgeventspawns.xml');
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            return;
+        }
+        $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
+        if (! $xml) {
+            return;
+        }
+        $definedEvents = collect($this->eventCatalog)->pluck('name')->map(fn ($name) => strtolower($name))->all();
+        $usedEvents = [];
+        foreach ($xml->event ?? [] as $event) {
+            $name = (string) ($event['name'] ?? '');
+            if ($name !== '') {
+                $usedEvents[$name] = true;
+            }
+        }
+        foreach (array_keys($usedEvents) as $name) {
+            if (! in_array(strtolower($name), $definedEvents, true)) {
+                $this->eventSpawnWarnings[] = $name;
+            }
+        }
     }
 
     /** Flags fresh/hop/travel modes that have zero player spawn positions. */
@@ -535,7 +569,9 @@ class MapEditor extends Page
         $this->reset('mapFile');
         $this->loadMarkers();
         $this->loadMapSources();
+        $this->loadEventCatalog();
         $this->loadSpawnPointWarnings();
+        $this->loadEventSpawnWarnings();
     }
 
     public function getTitle(): string

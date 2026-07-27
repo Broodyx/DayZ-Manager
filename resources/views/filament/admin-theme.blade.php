@@ -616,6 +616,39 @@
     .dz-event-position-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.45rem; }
     .dz-event-loot-grid { display:grid; grid-template-columns:1fr 1fr minmax(180px,1.25fr); gap:.45rem; }
 
+    [x-cloak] { display:none !important; }
+    .dz-confirm-button[disabled] { opacity:.75; cursor:wait; }
+    .dz-confirm-button.dz-confirm-saved { background:#8fc52b !important; color:#0d1509 !important; border-color:#8fc52b !important; }
+    .dz-confirm-button.dz-confirm-error { background:#e0554a !important; color:#fff !important; border-color:#e0554a !important; }
+    .dz-action { display:inline-flex; align-items:center; justify-content:center; padding:.7rem 1.15rem; border-radius:.25rem; color:#17210d; background:#b6e94f; font-weight:800; text-transform:uppercase; letter-spacing:.03em; border:0; cursor:pointer; }
+    .dz-secondary { display:inline-flex; align-items:center; justify-content:center; padding:.65rem 1rem; border:1px solid rgba(182,233,79,.25); border-radius:.25rem; color:#b6e94f; background:#151e17; font-weight:700; text-decoration:none; cursor:pointer; }
+    .dz-info { padding:.85rem 1rem; border-left:3px solid #91c52b; color:#dbeacb; background:rgba(145,197,43,.07); }
+    .dz-log-page { display:grid; gap:1.25rem; }
+    .dz-log-server-picker { display:grid; gap:.35rem; max-width:24rem; color:#d8f57b; font-size:.78rem; font-weight:800; }
+    .dz-log-input { display:grid; gap:.6rem; }
+    .dz-log-input label { color:#d8f57b; font-weight:700; font-size:.85rem; }
+    .dz-log-input textarea { width:100%; border:1px solid #486a2c; border-radius:.5rem; background:#0b110d; color:#e7f7d2; padding:.85rem 1rem; font:.8rem/1.5 ui-monospace,SFMono-Regular,monospace; resize:vertical; }
+    .dz-log-input textarea:focus { outline:2px solid #b8ed55; outline-offset:1px; }
+    .dz-log-actions { display:flex; gap:.6rem; flex-wrap:wrap; }
+    .dz-log-summary { display:flex; gap:1.25rem; flex-wrap:wrap; padding:.85rem 1rem; border:1px solid #2c3d2e; border-radius:.55rem; background:#0c130e; color:#aab6a4; font-size:.85rem; }
+    .dz-log-summary b { color:#e7f7d2; }
+    .dz-log-group h3 { display:flex; align-items:center; gap:.5rem; margin:0 0 .7rem; font-size:.95rem; letter-spacing:.03em; }
+    .dz-log-group h3 small { padding:.1rem .5rem; border-radius:999px; font-size:.7rem; font-weight:800; background:#1a241a; color:#aab6a4; }
+    .dz-log-group { display:grid; gap:.7rem; }
+    .dz-log-finding { display:grid; gap:.4rem; padding:.9rem 1rem; border-radius:.55rem; border-left:3px solid #506d2b; background:#0c130e; }
+    .dz-log-group-critical .dz-log-finding { border-left-color:#e0554a; background:rgba(224,85,74,.07); }
+    .dz-log-group-warning .dz-log-finding { border-left-color:#d97738; background:rgba(217,119,56,.07); }
+    .dz-log-group-info .dz-log-finding { border-left-color:#80b8ff; background:rgba(128,184,255,.06); }
+    .dz-log-finding-head { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
+    .dz-log-finding-head strong { color:#eef4ea; font-size:.9rem; }
+    .dz-log-count { flex:0 0 auto; padding:.1rem .5rem; border-radius:999px; background:#1a241a; color:#d8f57b; font-size:.72rem; font-weight:800; }
+    .dz-log-finding p { margin:0; color:#b8c4b3; font-size:.82rem; line-height:1.5; }
+    .dz-log-finding-action { color:#e7f7d2 !important; }
+    .dz-log-finding > a.dz-secondary { justify-self:start; }
+    .dz-log-example { color:#8c9b8c; font-size:.75rem; }
+    .dz-log-example summary { cursor:pointer; color:#aab6a4; }
+    .dz-log-example code { display:block; margin-top:.4rem; padding:.5rem .65rem; border-radius:.35rem; background:#080d09; color:#cddac8; overflow-wrap:anywhere; font-size:.72rem; }
+
     @media (max-width:1100px) {
         .dz-workspace-nav { grid-template-columns:1fr; gap:.6rem; }.dz-workspace-identity { border-right:0; padding-right:0; }.dz-workspace-meta { display:none; }
         .dz-command-center,.dz-setup-hero { grid-template-columns:1fr; }

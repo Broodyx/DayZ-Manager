@@ -117,6 +117,20 @@
                 </ul>
             </div>
         @endif
+        @if (count($eventSpawnWarnings))
+            <div class="dz-map-alert">
+                <strong>cfgeventspawns.xml odkazuje na neexistující event{{ count($eventSpawnWarnings) > 1 ? 'y' : '' }}.</strong>
+                Tyto pozice patří eventu, který není definovaný v events.xml — hra je při startu přeskočí (server log hlásí „Skipping entry for non-existing event“).
+                <ul>
+                    @foreach ($eventSpawnWarnings as $eventName)
+                        <li>
+                            <strong>{{ $eventName }}</strong> — přidejte tento event do events.xml, nebo v seznamu vrstev vpravo vyberte
+                            <code>{{ $eventName }}</code> u cfgeventspawns.xml a odstraňte jeho pozice.
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         <div class="dz-map-info">
             <strong>Jak mapu číst:</strong>
             kruhy z <code>cfgplayerspawnpoints.xml</code> jsou oblasti, ve kterých server teprve hledá vhodný povrch.

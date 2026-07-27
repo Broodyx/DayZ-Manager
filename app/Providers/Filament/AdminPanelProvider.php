@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\ConfigurationWizard;
+use App\Filament\Pages\LogAnalyzer;
 use App\Filament\Pages\MapEditor;
 use App\Filament\Resources\ProjectResource;
 use App\Filament\Widgets\DayzOverview;
@@ -53,6 +54,12 @@ class AdminPanelProvider extends PanelProvider
             ->url(fn (): string => ConfigurationWizard::getUrl())
             ->sort(2)
             ->group('Správa serveru');
+        $serverItems[] = NavigationItem::make('log-analyzer')
+            ->label('Log analyzátor')
+            ->icon('heroicon-o-document-magnifying-glass')
+            ->url(fn (): string => LogAnalyzer::getUrl())
+            ->sort(4)
+            ->group('Diagnostika');
 
         return $panel->default()->id('admin')->path('admin')->login()
             ->favicon(secure_asset('favicon.svg'))
@@ -80,10 +87,11 @@ class AdminPanelProvider extends PanelProvider
             ->navigationItems($serverItems)
             ->navigationGroups([
                 NavigationGroup::make()->label('Správa serveru'),
+                NavigationGroup::make()->label('Diagnostika'),
                 NavigationGroup::make()->label('Historie a zálohy'),
                 NavigationGroup::make()->label('Administrace'),
             ])
-            ->pages([Pages\Dashboard::class, MapEditor::class])
+            ->pages([Pages\Dashboard::class, MapEditor::class, LogAnalyzer::class])
             ->widgets([
                 ServerCommandCenter::class,
                 DayzOverview::class,
