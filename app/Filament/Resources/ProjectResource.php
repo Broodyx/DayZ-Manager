@@ -118,9 +118,15 @@ class ProjectResource extends Resource
                 ->badge()
                 ->formatStateUsing(fn (int $state): string => $state > 0 ? "{$state}× nestaženo" : 'Vše staženo')
                 ->color(fn (int $state): string => $state > 0 ? 'danger' : 'success')
-                ->tooltip(fn (Project $record): string => $record->undeployed_files_count > 0
-                    ? 'Nestažené soubory (poslední revize ještě nikdy nebyla stažená tlačítkem "Stáhnout do počítače"): '.implode(', ', $record->undeployedFiles())
-                    : 'Poslední revize všech souborů byla aspoň jednou stažena.'),
+                ->tooltip('Klikni pro seznam souborů a přímé stažení')
+                ->action(
+                    Tables\Actions\Action::make('showUndeployedFiles')
+                        ->label('Nestažené soubory')
+                        ->modalHeading(fn (Project $record): string => 'Nestažené soubory · '.$record->name)
+                        ->modalContent(fn (Project $record) => view('filament.undeployed-files-modal', ['project' => $record]))
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Zavřít'),
+                ),
             Tables\Columns\TextColumn::make('updated_at')->label('Poslední změna')->since()->dateTimeTooltip()->sortable(),
         ])
             ->recordUrl(fn (Project $record): string => static::getUrl('configuration', ['record' => $record]))

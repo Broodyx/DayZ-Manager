@@ -49,11 +49,25 @@ class Project extends Model
      */
     public function undeployedFiles(): array
     {
+        return array_column($this->undeployedFileRevisions(), 'filename');
+    }
+
+    /**
+     * Same as undeployedFiles(), but with the revision info needed to link a direct download.
+     *
+     * @return list<array{filename: string, revision_id: int, revision_number: int}>
+     */
+    public function undeployedFileRevisions(): array
+    {
         return $this->revisions
             ->sortByDesc('revision_number')
             ->unique(fn (ConfigurationRevision $revision): string => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))))
             ->filter(fn (ConfigurationRevision $revision): bool => $revision->downloaded_at === null)
-            ->map(fn (ConfigurationRevision $revision): string => $revision->configurationImport?->original_filename ?? basename($revision->storage_path))
+            ->map(fn (ConfigurationRevision $revision): array => [
+                'filename' => $revision->configurationImport?->original_filename ?? basename($revision->storage_path),
+                'revision_id' => $revision->id,
+                'revision_number' => $revision->revision_number,
+            ])
             ->values()
             ->all();
     }
