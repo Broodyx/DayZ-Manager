@@ -2,13 +2,18 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\ConfigurationRevision;
 use App\Models\LogAnalysis;
 use App\Models\Project;
+use App\Services\Dayz\MapConfigurationEditor;
 use App\Services\Dayz\ServerLogAnalyzer;
+use App\Services\Revision\ConfigurationRevisionEditor;
+use App\Services\Revision\TypesXmlEditor;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class LogAnalyzer extends Page
 {
@@ -167,6 +172,76 @@ class LogAnalyzer extends Page
         }
 
         return url('/admin/projects/'.$this->projectId.'/configuration').'?'.http_build_query(['type' => $typeName]);
+    }
+
+    /** Removes a types.xml entry directly — safe because the game already refuses to spawn it (typo/missing mod/private scope). */
+    public function removeTypeEntry(string $typeName, TypesXmlEditor $typesEditor, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $revision = $this->latestRevisionByFilename('types.xml');
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            Notification::make()->danger()->title('types.xml nebyl pro tento server nalezen.')->send();
+
+            return;
+        }
+
+        try {
+            $content = $typesEditor->remove(Storage::disk('dayz')->get($revision->storage_path), $typeName);
+        } catch (RuntimeException $exception) {
+            Notification::make()->danger()->title($exception->getMessage())->send();
+
+            return;
+        }
+
+        $saved = $revisionEditor->save(
+            $this->projectQuery()->find($this->projectId),
+            $revision,
+            $content,
+            "Odebrána položka {$typeName} (log analyzátor)",
+            auth()->user(),
+        );
+        Notification::make()->success()->title("Položka {$typeName} odebrána z types.xml")->body("Vznikla revize #{$saved->revision_number}.")->send();
+    }
+
+    /** Removes orphaned cfgeventspawns.xml positions for an event events.xml does not define — safe because they currently do nothing. */
+    public function removeOrphanEventSpawn(string $eventName, MapConfigurationEditor $mapEditor, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $revision = $this->latestRevisionByFilename('cfgeventspawns.xml');
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            Notification::make()->danger()->title('cfgeventspawns.xml nebyl pro tento server nalezen.')->send();
+
+            return;
+        }
+
+        try {
+            $result = $mapEditor->deleteScope('cfgeventspawns.xml', Storage::disk('dayz')->get($revision->storage_path), 'event:'.$eventName);
+        } catch (RuntimeException $exception) {
+            Notification::make()->danger()->title($exception->getMessage())->send();
+
+            return;
+        }
+
+        $saved = $revisionEditor->save(
+            $this->projectQuery()->find($this->projectId),
+            $revision,
+            $result['content'],
+            "Odstraněny pozice eventu {$eventName} (log analyzátor)",
+            auth()->user(),
+        );
+        Notification::make()->success()->title("Pozice eventu {$eventName} odstraněny")->body("Vznikla revize #{$saved->revision_number}.")->send();
+    }
+
+    private function latestRevisionByFilename(string $filename): ?ConfigurationRevision
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project) {
+            return null;
+        }
+
+        return $project->revisions()
+            ->with('configurationImport')
+            ->orderByDesc('revision_number')
+            ->get()
+            ->first(fn (ConfigurationRevision $revision): bool => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === $filename);
     }
 
     private function projectQuery()

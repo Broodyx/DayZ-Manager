@@ -70,13 +70,21 @@
                                 @if ($finding['action'])
                                     <p class="dz-log-finding-action"><strong>Co udělat:</strong> {{ $finding['action'] }}</p>
                                 @endif
-                                @if ($finding['link'] === 'map-editor' && $finding['kind'] === 'missing-event-definition')
-                                    <a class="dz-secondary" href="{{ $this->mapEditorUrl($finding['target']) }}">Otevřít Mapový editor a přidat '{{ $finding['target'] }}' →</a>
-                                @elseif ($finding['link'] === 'map-editor')
-                                    <a class="dz-secondary" href="{{ $this->mapEditorUrl() }}">Otevřít Mapový editor →</a>
-                                @elseif ($finding['link'] === 'types-editor' && $this->typesEditorUrl($finding['target']))
-                                    <a class="dz-secondary" href="{{ $this->typesEditorUrl($finding['target']) }}">Otevřít '{{ $finding['target'] }}' v types.xml editoru →</a>
-                                @endif
+                                <div class="dz-log-finding-actions">
+                                    @if ($finding['link'] === 'map-editor' && $finding['kind'] === 'missing-event-definition')
+                                        <a class="dz-secondary" href="{{ $this->mapEditorUrl($finding['target']) }}">Otevřít Mapový editor a přidat '{{ $finding['target'] }}' →</a>
+                                        @if ($projectId)
+                                            <button type="button" class="dz-danger" wire:click="removeOrphanEventSpawn('{{ $finding['target'] }}')" wire:confirm="Bezpečná oprava: odstranit pozice eventu '{{ $finding['target'] }}' z cfgeventspawns.xml, protože event v events.xml neexistuje (tyto pozice teď stejně nic nedělají). Vytvoří se nová revize. Opravdu pokračovat?">Bezpečně odstranit orphan pozice</button>
+                                        @endif
+                                    @elseif ($finding['link'] === 'map-editor')
+                                        <a class="dz-secondary" href="{{ $this->mapEditorUrl() }}">Otevřít Mapový editor →</a>
+                                    @elseif ($finding['link'] === 'types-editor' && $this->typesEditorUrl($finding['target']))
+                                        <a class="dz-secondary" href="{{ $this->typesEditorUrl($finding['target']) }}">Otevřít '{{ $finding['target'] }}' v types.xml editoru →</a>
+                                        @if ($projectId)
+                                            <button type="button" class="dz-danger" wire:click="removeTypeEntry('{{ $finding['target'] }}')" wire:confirm="Bezpečná oprava: odebrat položku '{{ $finding['target'] }}' z types.xml. Hra ji stejně už teď nespawnuje, takže se chování serveru nezmění — jen zmizí tahle chyba z logu. Vytvoří se nová revize. Opravdu pokračovat?">Bezpečně odebrat z types.xml</button>
+                                        @endif
+                                    @endif
+                                </div>
                                 <details class="dz-log-example">
                                     <summary>Příklad řádku{{ $finding['first_timestamp'] ? ' · '.$finding['first_timestamp'] : '' }}</summary>
                                     <code>{{ $finding['example'] }}</code>

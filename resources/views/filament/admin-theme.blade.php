@@ -709,6 +709,8 @@
     .dz-log-finding p { margin:0; color:#b8c4b3; font-size:.82rem; line-height:1.5; }
     .dz-log-finding-action { color:#e7f7d2 !important; }
     .dz-log-finding > a.dz-secondary { justify-self:start; }
+    .dz-log-finding-actions { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+    .dz-log-finding-actions .dz-danger { font-size:.75rem; padding:.45rem .75rem; }
     .dz-log-example { color:#8c9b8c; font-size:.75rem; }
     .dz-log-example summary { cursor:pointer; color:#aab6a4; }
     .dz-log-example code { display:block; margin-top:.4rem; padding:.5rem .65rem; border-radius:.35rem; background:#080d09; color:#cddac8; overflow-wrap:anywhere; font-size:.72rem; }
