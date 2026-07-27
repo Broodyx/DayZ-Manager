@@ -243,4 +243,13 @@ class MapConfigurationReaderTest extends TestCase
         $this->assertStringContainsString('x="3"', $result['content']);
         $this->assertStringContainsString('x="5"', $result['content']);
     }
+
+    public function test_editor_bulk_delete_removes_now_empty_player_spawn_groups(): void
+    {
+        $xml = '<playerspawnpoints><fresh><generator_posbubbles><group name="Coast"><pos x="1" z="2"/><pos x="3" z="4"/></group><group name="Town"><pos x="5" z="6"/></group></generator_posbubbles></fresh></playerspawnpoints>';
+        $result = (new MapConfigurationEditor())->deleteScope('cfgplayerspawnpoints.xml', $xml, 'all');
+
+        $this->assertSame(3, $result['deleted']);
+        $this->assertStringNotContainsString('<group', $result['content']);
+    }
 }

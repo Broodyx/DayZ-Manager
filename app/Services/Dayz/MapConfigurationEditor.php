@@ -48,14 +48,25 @@ final class MapConfigurationEditor
         }
 
         $deleted = 0;
+        $groupsToPrune = [];
         foreach ($nodes as $node) {
             if ($node instanceof DOMElement && $node->parentNode) {
-                $node->parentNode->removeChild($node);
+                $parent = $node->parentNode;
+                if ($filename === 'cfgplayerspawnpoints.xml' && $parent instanceof DOMElement && $parent->tagName === 'group') {
+                    $groupsToPrune[spl_object_id($parent)] = $parent;
+                }
+                $parent->removeChild($node);
                 $deleted++;
             }
         }
         if ($deleted === 0) {
             throw new RuntimeException('Ve vybrané skupině nebyly nalezeny žádné body.');
+        }
+        // A group with no remaining <pos> children is not a valid spawn area, so drop it too.
+        foreach ($groupsToPrune as $group) {
+            if ($group->parentNode && $xpath->query('./pos', $group)->length === 0) {
+                $group->parentNode->removeChild($group);
+            }
         }
 
         return ['content' => $this->save($document), 'deleted' => $deleted];
