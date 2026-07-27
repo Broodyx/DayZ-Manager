@@ -346,6 +346,7 @@
     .dz-event-catalog[hidden] { display:none; }
     .dz-event-catalog label { color:#d8f57b; font-weight:700; }
     .dz-event-catalog select, .dz-event-catalog input { width:100%; min-height:2.8rem; border:1px solid #496b31; border-radius:.45rem; background:#0b120d; color:#e7f7d2; padding:.65rem .75rem; color-scheme:dark; }
+    .dz-event-catalog select { appearance:none; -webkit-appearance:none; padding-right:2.2rem; cursor:pointer; background-image:linear-gradient(45deg,transparent 50%,#b8ed55 50%),linear-gradient(135deg,#b8ed55 50%,transparent 50%); background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat; }
     .dz-event-catalog select:focus, .dz-event-catalog input:focus { outline:2px solid #b8ed55; outline-offset:1px; }
     .dz-event-catalog select option { background:#111a14; color:#e7f7d2; }
     .dz-event-catalog small { color:#aab6a4; line-height:1.35; }
@@ -369,6 +370,7 @@
     .dz-edit-point-fields label { display:grid; gap:.35rem; min-width:0; color:#d8f57b; font-weight:700; }
     .dz-edit-point-fields label small { color:#aab6a4; font-weight:400; line-height:1.4; }
     .dz-edit-point-fields input, .dz-edit-point-fields select { width:100%; min-height:2.8rem; border:1px solid #496b31; border-radius:.45rem; background:#0b120d; color:#e7f7d2; padding:.65rem .75rem; color-scheme:dark; }
+    .dz-edit-point-fields select { appearance:none; -webkit-appearance:none; padding-right:2.2rem; cursor:pointer; background-image:linear-gradient(45deg,transparent 50%,#b8ed55 50%),linear-gradient(135deg,#b8ed55 50%,transparent 50%); background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat; }
     .dz-edit-point-fields :disabled { opacity:.7; cursor:not-allowed; }
     .dz-event-settings, .dz-related-files { border:1px solid #385326; border-radius:.55rem; background:#111a13; padding:.9rem; }
     .dz-event-settings > p, .dz-related-files > small { display:block; margin:.35rem 0 .75rem; color:#aab6a4; }
