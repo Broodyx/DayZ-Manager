@@ -87,20 +87,20 @@
             </div>
         </div>
         <div class="dz-map-toolbar">
-            <div>
-                <p class="dz-eyebrow">MAPOVÝ WORKSPACE · {{ strtoupper($map) }}</p>
-                <h2>Vrstvy a body serveru</h2>
-                <p class="dz-muted">Porovnejte světové souřadnice X/Z z posledních revizí a upravujte body v jejich zdrojových souborech.</p>
-            </div>
-            <label class="dz-map-server-picker"><span>1. Vyberte server</span><select class="dz-map-select" aria-label="Server" onchange="window.location.href='{{ url('/admin/map-editor') }}?project='+this.value">
+            <label class="dz-map-server-picker"><span>Server</span><select class="dz-map-select" aria-label="Server" onchange="window.location.href='{{ url('/admin/map-editor') }}?project='+this.value">
                 @foreach ($projects as $id => $name)
                     <option value="{{ $id }}" @selected((int) $projectId === (int) $id)>{{ $name }}</option>
                 @endforeach
             </select></label>
-            <div class="dz-map-upload">
-                <a class="dz-map-upload-button" href="{{ url('/admin/configuration-import?area=map&project='.$projectId) }}">Přidat mapový soubor</a>
-                <small>2. Nahrajte jeden soubor nebo celý ZIP balík. Každý soubor dostane vlastní revizi.</small>
-            </div>
+            <a class="dz-map-upload-button" href="{{ url('/admin/configuration-import?area=map&project='.$projectId) }}">+ Přidat mapový soubor</a>
+            <details class="dz-map-help">
+                <summary>Jak mapu číst?</summary>
+                <div>
+                    Kruhy z <code>cfgplayerspawnpoints.xml</code> jsou oblasti, ve kterých server teprve hledá vhodný povrch.
+                    Nejde o přesné místo spawnu. Prototypové soubory se na mapu nekreslí, protože jejich souřadnice nejsou světové X/Z.
+                    Každý soubor nebo ZIP balík nahraný přes „Přidat mapový soubor“ dostane vlastní revizi.
+                </div>
+            </details>
         </div>
         @if (count($spawnPointWarnings))
             <div class="dz-map-alert">
@@ -131,11 +131,6 @@
                 </ul>
             </div>
         @endif
-        <div class="dz-map-info">
-            <strong>Jak mapu číst:</strong>
-            kruhy z <code>cfgplayerspawnpoints.xml</code> jsou oblasti, ve kterých server teprve hledá vhodný povrch.
-            Nejde o přesné místo spawnu. Prototypové soubory se na mapu nekreslí, protože jejich souřadnice nejsou světové X/Z.
-        </div>
         <div class="dz-map-layout">
             <section wire:ignore class="dz-map-canvas" aria-label="Mapa serveru">
                 <div id="dayz-leaflet-map"></div>
