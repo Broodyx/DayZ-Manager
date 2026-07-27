@@ -341,6 +341,7 @@
                         <div class="dz-savebar">
                             <input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny (např. zvýšení lootů AKM)">
                             <x-dz-confirm-button call="saveType()" label="Uložit novou revizi" class="dz-action" />
+                            <button type="button" wire:click="removeType()" wire:confirm="Opravdu odebrat položku '{{ $selectedType }}' z types.xml? Vytvoří se nová revize, originál zůstane zachovaný. Předměty tohoto typu se přestanou spawnovat." class="dz-danger">Smazat položku</button>
                         </div>
                     @else
                         <div class="p-10 text-center">

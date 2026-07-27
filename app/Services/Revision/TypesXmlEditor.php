@@ -170,6 +170,32 @@ final readonly class TypesXmlEditor
         return $output;
     }
 
+    public function remove(string $xml, string $typeName): string
+    {
+        $document = $this->document($xml);
+        $matched = null;
+
+        foreach ($document->getElementsByTagName('type') as $type) {
+            if ($type instanceof DOMElement && $type->getAttribute('name') === $typeName) {
+                $matched = $type;
+                break;
+            }
+        }
+
+        if (! $matched) {
+            throw new RuntimeException("Položka {$typeName} už v XML neexistuje.");
+        }
+
+        $matched->parentNode?->removeChild($matched);
+
+        $output = $document->saveXML();
+        if ($output === false) {
+            throw new RuntimeException('Upravené XML se nepodařilo vytvořit.');
+        }
+
+        return $output;
+    }
+
     public function supports(string $filename, string $content): bool
     {
         try {

@@ -368,6 +368,36 @@ class ConfigurationImporterTest extends TestCase
             ->assertSee('<strong>InfectedArmy</strong>', false);
     }
 
+    public function test_types_xml_entry_can_be_removed_from_the_visual_editor(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Remove type test',
+            'platform' => 'playstation',
+            'map' => 'chernarusplus',
+        ]);
+        $xml = '<?xml version="1.0"?><types><type name="AKM"><nominal>8</nominal></type><type name="Static_FrozenScientist_DE"><nominal>1</nominal></type></types>';
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('types.xml', $xml),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->call('selectType', 'Static_FrozenScientist_DE')
+            ->assertSet('selectedType', 'Static_FrozenScientist_DE')
+            ->call('removeType')
+            ->assertSet('selectedType', null)
+            ->assertDontSee('Static_FrozenScientist_DE');
+
+        $saved = Storage::disk('dayz')->get($project->revisions()->latest('revision_number')->firstOrFail()->storage_path);
+        $this->assertStringNotContainsString('Static_FrozenScientist_DE', $saved);
+        $this->assertStringContainsString('AKM', $saved);
+    }
+
     public function test_events_xml_has_a_searchable_select_and_edit_one_editor(): void
     {
         Storage::fake('dayz');

@@ -667,6 +667,34 @@ class EditConfiguration extends Page
             ->send();
     }
 
+    public function removeType(
+        TypesXmlEditor $typesEditor,
+        ConfigurationRevisionEditor $revisionEditor,
+    ): void {
+        if (! $this->visualSupported || ! $this->selectedType) {
+            return;
+        }
+
+        $removed = $this->selectedType;
+        $content = $typesEditor->remove($this->rawContent, $removed);
+        $revision = $revisionEditor->save(
+            $this->getRecord(),
+            $this->sourceRevision(),
+            $content,
+            "Odebrána položka {$removed}",
+            auth()->user(),
+        );
+
+        $this->loadRevision($revision);
+        $this->selectedType = null;
+
+        Notification::make()
+            ->success()
+            ->title("Revize #{$revision->revision_number} uložena")
+            ->body("Položka {$removed} byla odebrána z types.xml.")
+            ->send();
+    }
+
     /** @return list<string> */
     private function commaSeparatedValues(string $value, string $field): array
     {
