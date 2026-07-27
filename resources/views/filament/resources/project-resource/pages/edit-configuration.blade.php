@@ -299,15 +299,44 @@
                                 'quantmax' => ['Maximální naplnění (%)', 100, 'Rozsah −1 až 100 %. −1 = výchozí chování hry.'],
                                 'cost' => ['Priorita ekonomiky', 1000, 'Relativní váha v ekonomice. Editor povoluje 0–1000; DayZ pevné maximum nepublikuje.'],
                             ] as $field => [$label, $max, $help])
+                                @php
+                                    $sliderMax = max($max, (int) ($typeForm[$field] ?? 0));
+                                @endphp
                                 <label class="dz-field" title="Raw: &lt;{{ $field }}&gt;{{ $typeForm[$field] ?? '' }}&lt;/{{ $field }}&gt;">
                                     <span class="dz-field-top">
                                         <span><strong>{{ $label }}</strong><br><small class="dz-muted">{{ $help }}</small></span>
                                         <input type="number" wire:model="typeForm.{{ $field }}" min="{{ str_starts_with($field, 'quant') ? -1 : 0 }}" max="{{ $max }}">
                                     </span>
-                                    <input type="range" wire:model.live="typeForm.{{ $field }}" min="{{ str_starts_with($field, 'quant') ? -1 : 0 }}" max="{{ $max }}">
+                                    <input type="range" wire:model.live="typeForm.{{ $field }}" min="{{ str_starts_with($field, 'quant') ? -1 : 0 }}" max="{{ $sliderMax }}">
                                     @error("typeForm.$field") <div class="dz-error">{{ $message }}</div> @enderror
                                 </label>
                             @endforeach
+                        </div>
+                        <div class="dz-types-advanced">
+                            <details class="dz-group" open>
+                                <summary><span>Počítání položky v ekonomice · flags</span><small>6 přepínačů</small></summary>
+                                <div class="dz-types-flags">
+                                    @foreach ([
+                                        'count_in_cargo' => ['Počítat v nákladu', '1 = kusy uvnitř cargo kontejnerů se započítají do limitu CE.'],
+                                        'count_in_hoarder' => ['Počítat ve skrýších', '1 = kusy v hoarder úložištích se započítají do limitu.'],
+                                        'count_in_map' => ['Počítat na mapě', '1 = kusy ležící ve světě se započítají; pro běžný loot obvykle zapnuto.'],
+                                        'count_in_player' => ['Počítat u hráčů', '1 = kusy v inventáři hráčů se započítají do limitu CE.'],
+                                        'crafted' => ['Vyráběná položka', '1 = položka vzniká craftingem a CE s ní zachází jako s crafted typem.'],
+                                        'deloot' => ['Dynamic Event Loot', '1 = položka patří do loot poolu dynamických eventů.'],
+                                    ] as $flag => [$label, $help])
+                                        <label><span><strong>{{ $label }}</strong><small>{{ $help }}</small></span><select wire:model="typeForm.{{ $flag }}"><option value="0">0 · vypnuto</option><option value="1">1 · zapnuto</option></select></label>
+                                    @endforeach
+                                </div>
+                            </details>
+                            <details class="dz-group">
+                                <summary><span>Zařazení položky · category, usage, tag, value</span><small>seznamy CE</small></summary>
+                                <div class="dz-types-taxonomy">
+                                    <label><span><strong>Category</strong><small>Jedna hlavní kategorie CE, například weapons, clothes nebo food.</small></span><input type="text" wire:model="typeForm.category"></label>
+                                    <label><span><strong>Usage</strong><small>Oblasti výskytu oddělené čárkou, například Military, Police, Town.</small></span><input type="text" wire:model="typeForm.usages_csv"></label>
+                                    <label><span><strong>Tag</strong><small>Volitelné tag limitery oddělené čárkou. Prázdné = žádný tag.</small></span><input type="text" wire:model="typeForm.tags_csv"></label>
+                                    <label><span><strong>Value</strong><small>Tier/value limitery oddělené čárkou, například Tier1, Tier2.</small></span><input type="text" wire:model="typeForm.values_csv"></label>
+                                </div>
+                            </details>
                         </div>
                         <div class="dz-savebar">
                             <input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny (např. zvýšení lootů AKM)">
@@ -512,8 +541,8 @@
                 <section class="dz-panel dz-server-settings">
                     <div class="dz-panel-head"><strong>{{ $currentFilename }} · vizuální editor</strong><p class="dz-muted text-sm mt-1">Nastavení je rozdělené podle sekcí JSON. Pole jsou odvozena přímo z importovaného souboru.</p></div>
                     <div class="p-3">
-                        @foreach (collect($jsonFields)->groupBy('section') as $section => $fields)
-                            <details class="dz-group" open>
+                        @foreach (collect($jsonFields)->groupBy(fn ($field) => $field['group'] ?? $field['section']) as $section => $fields)
+                            <details class="dz-group" @if ($loop->first) open @endif>
                                 <summary><span>{{ $section }}</span><span class="dz-badge dz-server-badge">{{ count($fields) }} nastavení</span></summary>
                                 <div class="dz-fields">
                                     @foreach ($fields as $field)
@@ -683,12 +712,31 @@
                 @error('xmlValues') <div class="dz-error">{{ $message }}</div> @enderror
                 <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Např. upraveno pořadí a natočení vagónů"><button type="button" wire:click="saveEventGroups" wire:loading.attr="disabled" class="dz-action">Validovat a uložit novou revizi</button></div>
             </section>
+        @elseif ($visualKind === 'map-file')
+            <section class="dz-panel dz-map-file-panel">
+                <div class="dz-panel-head">
+                    <strong>{{ $currentFilename }} · mapový datový soubor</strong>
+                    <p class="dz-muted text-sm mt-1">{{ $this->configurationDescription() }}</p>
+                </div>
+                <div class="dz-map-file-guide">
+                    <div>
+                        <strong>Proč zde není tabulka tisíců polí?</strong>
+                        <p>Jde o generovaný mapový export s velkým množstvím souřadnic a prototypů. Vykreslení každého atributu jako samostatného formuláře by zablokovalo prohlížeč, zejména na mobilu.</p>
+                    </div>
+                    <div>
+                        <strong>Jak soubor bezpečně upravit</strong>
+                        <p>Pro souřadnice a body použijte Mapový editor. Přesný XML obsah zůstává dostupný v režimu Raw data a při uložení se vždy vytvoří nová revize.</p>
+                    </div>
+                    <a class="dz-action" href="{{ url('/admin/map-editor?project='.$this->getRecord()->id) }}">Otevřít mapový editor</a>
+                    <button type="button" wire:click="$set('mode', 'raw')" class="dz-secondary">Zobrazit raw XML</button>
+                </div>
+            </section>
         @elseif ($visualKind === 'xml')
             <section class="dz-panel dz-server-settings">
-                <div class="dz-panel-head"><strong>{{ $currentFilename }} · vizuální editor</strong><p class="dz-muted text-sm mt-1">Parametry XML jsou rozdělené podle sekcí a u každého pole je uveden raw XPath zápis.</p></div>
+                <div class="dz-panel-head"><strong>{{ $currentFilename }} · vizuální editor</strong><p class="dz-muted text-sm mt-1">Opakované záznamy jsou seskupené podle konkrétního eventu, typu nebo skupiny. U každého pole je uveden přesný raw XPath zápis.</p></div>
                 <div class="p-3">
-                    @foreach (collect($xmlFields)->groupBy('section') as $section => $fields)
-                        <details class="dz-group" open><summary><span>{{ $section }}</span><span class="dz-badge dz-server-badge">{{ count($fields) }} parametrů</span></summary>
+                    @foreach (collect($xmlFields)->groupBy(fn ($field) => $field['group'] ?? $field['section']) as $section => $fields)
+                        <details class="dz-group" @if ($loop->first) open @endif><summary><span>{{ $section }}</span><span class="dz-badge dz-server-badge">{{ count($fields) }} parametrů</span></summary>
                             <div class="dz-fields">
                                 @foreach ($fields as $field)
                                     <label class="dz-field" data-tooltip="Raw XML: {{ $field['raw'] }}">

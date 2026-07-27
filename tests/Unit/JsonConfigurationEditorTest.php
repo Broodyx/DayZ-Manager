@@ -14,10 +14,13 @@ class JsonConfigurationEditorTest extends TestCase
 
         $this->assertTrue($editor->supports($content));
         $fields = collect($editor->fields($content));
-        $this->assertTrue($fields->contains(fn (array $field) => $field['path'] === 'Areas' && $field['type'] === 'json'));
+        $this->assertTrue($fields->contains(fn (array $field) => $field['path'] === 'Areas.0.AreaName' && $field['value'] === 'NWAF'));
+        $this->assertTrue($fields->contains(fn (array $field) => $field['path'] === 'Areas.0.Data.Radius' && $field['value'] === 150));
+        $this->assertSame(['Areas · NWAF'], $fields->pluck('group')->unique()->values()->all());
 
         $updated = $editor->update($content, [
-            'Areas' => '[{"AreaName":"Cherno","Data":{"Pos":[100,0,200],"Radius":75}}]',
+            'Areas.0.AreaName' => 'Cherno',
+            'Areas.0.Data.Radius' => 75,
         ]);
         $this->assertSame('Cherno', json_decode($updated, true, flags: JSON_THROW_ON_ERROR)['Areas'][0]['AreaName']);
     }

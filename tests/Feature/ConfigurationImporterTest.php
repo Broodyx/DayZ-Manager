@@ -341,6 +341,33 @@ class ConfigurationImporterTest extends TestCase
         $this->assertStringContainsString('a="90"', $saved);
     }
 
+    public function test_large_generated_map_xml_uses_safe_map_mode_instead_of_thousands_of_inputs(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Generated map file test',
+            'platform' => 'playstation',
+            'map' => 'chernarusplus',
+        ]);
+        $xml = '<?xml version="1.0"?><map><group name="Town"><pos x="100" z="200" a="90"/></group></map>';
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('mapgrouppos.xml', $xml),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->assertSet('visualKind', 'map-file')
+            ->assertSet('xmlFields', [])
+            ->assertSee('mapový datový soubor')
+            ->assertSee('Otevřít mapový editor')
+            ->set('mode', 'raw')
+            ->assertSet('rawContent', $xml);
+    }
+
     public function test_editor_save_creates_a_new_revision_without_overwriting_the_source(): void
     {
         Storage::fake('dayz');

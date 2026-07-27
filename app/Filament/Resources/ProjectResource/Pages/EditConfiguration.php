@@ -53,7 +53,7 @@ class EditConfiguration extends Page
 
     public ?string $selectedType = null;
 
-    /** @var array<string, int> */
+    /** @var array<string, mixed> */
     public array $typeForm = [];
 
     /** @var list<array<string, mixed>> */
@@ -350,7 +350,18 @@ class EditConfiguration extends Page
             'quantmin',
             'quantmax',
             'cost',
-        ])->map(static fn ($value): int => (int) $value)->all();
+            'category',
+            'count_in_cargo',
+            'count_in_hoarder',
+            'count_in_map',
+            'count_in_player',
+            'crafted',
+            'deloot',
+        ])->all();
+        $this->typeForm['category'] = (string) ($entry['category'] ?? 'other');
+        $this->typeForm['usages_csv'] = implode(', ', $entry['usages'] ?? []);
+        $this->typeForm['tags_csv'] = implode(', ', $entry['tags'] ?? []);
+        $this->typeForm['values_csv'] = implode(', ', $entry['values'] ?? []);
         $this->showAddForm = false;
     }
 
@@ -487,17 +498,47 @@ class EditConfiguration extends Page
         }
 
         $validated = $this->validate([
-            'typeForm.nominal' => ['required', 'integer', 'min:0', 'max:100000'],
-            'typeForm.lifetime' => ['required', 'integer', 'min:0', 'max:3888000'],
-            'typeForm.restock' => ['required', 'integer', 'min:0', 'max:3888000'],
-            'typeForm.min' => ['required', 'integer', 'min:0', 'max:100000'],
+            'typeForm.nominal' => ['required', 'integer', 'min:0', 'max:2147483647'],
+            'typeForm.lifetime' => ['required', 'integer', 'min:0', 'max:2147483647'],
+            'typeForm.restock' => ['required', 'integer', 'min:0', 'max:2147483647'],
+            'typeForm.min' => ['required', 'integer', 'min:0', 'max:2147483647'],
             'typeForm.quantmin' => ['required', 'integer', 'min:-1', 'max:100'],
             'typeForm.quantmax' => ['required', 'integer', 'min:-1', 'max:100'],
             'typeForm.cost' => ['required', 'integer', 'min:0', 'max:1000'],
+            'typeForm.category' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9_.-]+$/'],
+            'typeForm.usages_csv' => ['nullable', 'string', 'max:1000'],
+            'typeForm.tags_csv' => ['nullable', 'string', 'max:1000'],
+            'typeForm.values_csv' => ['nullable', 'string', 'max:1000'],
+            'typeForm.count_in_cargo' => ['required', 'integer', 'in:0,1'],
+            'typeForm.count_in_hoarder' => ['required', 'integer', 'in:0,1'],
+            'typeForm.count_in_map' => ['required', 'integer', 'in:0,1'],
+            'typeForm.count_in_player' => ['required', 'integer', 'in:0,1'],
+            'typeForm.crafted' => ['required', 'integer', 'in:0,1'],
+            'typeForm.deloot' => ['required', 'integer', 'in:0,1'],
             'changeSummary' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $content = $typesEditor->update($this->rawContent, $this->selectedType, $validated['typeForm']);
+        $values = $validated['typeForm'];
+        if ((int) $values['min'] > (int) $values['nominal']) {
+            throw ValidationException::withMessages([
+                'typeForm.min' => 'Minimum nesmí být vyšší než cílové množství.',
+            ]);
+        }
+        if ((int) $values['quantmin'] !== -1
+            && (int) $values['quantmax'] !== -1
+            && (int) $values['quantmin'] > (int) $values['quantmax']) {
+            throw ValidationException::withMessages([
+                'typeForm.quantmax' => 'Maximální naplnění nesmí být nižší než minimální naplnění.',
+            ]);
+        }
+        foreach (['usages', 'tags', 'values'] as $key) {
+            $values[$key] = $this->commaSeparatedValues(
+                (string) ($values[$key.'_csv'] ?? ''),
+                "typeForm.{$key}_csv",
+            );
+            unset($values[$key.'_csv']);
+        }
+        $content = $typesEditor->update($this->rawContent, $this->selectedType, $values);
         $compatibility->assertEditable($this->getRecord(), $content, ['types.xml']);
         $revision = $revisionEditor->save(
             $this->getRecord(),
@@ -515,6 +556,22 @@ class EditConfiguration extends Page
             ->title("Revize #{$revision->revision_number} uložena")
             ->body("Položka {$this->selectedType} byla upravena.")
             ->send();
+    }
+
+    /** @return list<string> */
+    private function commaSeparatedValues(string $value, string $field): array
+    {
+        $items = array_values(array_unique(array_filter(array_map(
+            static fn (string $item): string => trim($item),
+            explode(',', $value),
+        ))));
+        if (collect($items)->contains(static fn (string $item): bool => preg_match('/^[A-Za-z0-9_.-]+$/', $item) !== 1)) {
+            throw ValidationException::withMessages([
+                $field => 'Použijte názvy oddělené čárkou; povolena jsou písmena, čísla, tečka, podtržítko a pomlčka.',
+            ]);
+        }
+
+        return $items;
     }
 
     public function saveRaw(
@@ -940,6 +997,7 @@ class EditConfiguration extends Page
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
             $jsonEditor->supports($this->rawContent) => 'json',
             $eventGroupsEditor->supports($filename, $this->rawContent) => 'event-groups',
+            $this->isGeneratedMapExport($filename) => 'map-file',
             $xmlEditor->supports($this->rawContent) => 'xml',
             default => null,
         };
@@ -976,6 +1034,19 @@ class EditConfiguration extends Page
         $this->platformReasons = $detection->platform === 'steam' ? $detection->reasons : [];
         $this->platformWarnings = $detection->warnings;
         $this->dependencyWarnings = $this->detectDependencyWarnings($filename);
+    }
+
+    private function isGeneratedMapExport(string $filename): bool
+    {
+        $filename = strtolower(basename($filename));
+
+        return $filename === 'mapclusterproto.xml'
+            || $filename === 'mapgroupproto.xml'
+            || $filename === 'mapgroupdirt.xml'
+            || $filename === 'mapgrouppos.xml'
+            || $filename === 'cfgplayerspawnpoints.xml'
+            || str_ends_with($filename, '_territories.xml')
+            || preg_match('/^mapgroupcluster(?:\d+)?\.xml$/', $filename) === 1;
     }
 
     /** @return list<array{name:string,name_path:string,positions:list<array{x_path:string,z_path:string,a_path:string}>}> */

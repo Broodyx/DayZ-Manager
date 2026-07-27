@@ -19,8 +19,12 @@ class TypesXmlEditorTest extends TestCase
         <quantmin>-1</quantmin>
         <quantmax>-1</quantmax>
         <cost>100</cost>
-        <flags count_in_cargo="0"/>
+        <flags count_in_cargo="0" count_in_hoarder="1" count_in_map="1" count_in_player="0" crafted="0" deloot="0"/>
         <category name="weapons"/>
+        <usage name="Military"/>
+        <usage name="Police"/>
+        <tag name="shelves"/>
+        <value name="Tier3"/>
     </type>
 </types>
 XML;
@@ -33,6 +37,10 @@ XML;
         $this->assertSame('AKM', $entries[0]['name']);
         $this->assertSame(8, $entries[0]['nominal']);
         $this->assertSame(28800, $entries[0]['lifetime']);
+        $this->assertSame(1, $entries[0]['count_in_hoarder']);
+        $this->assertSame(['Military', 'Police'], $entries[0]['usages']);
+        $this->assertSame(['shelves'], $entries[0]['tags']);
+        $this->assertSame(['Tier3'], $entries[0]['values']);
     }
 
     public function test_it_updates_values_without_removing_unknown_xml_elements(): void
@@ -40,12 +48,23 @@ XML;
         $updated = app(TypesXmlEditor::class)->update($this->xml, 'AKM', [
             'nominal' => 20,
             'min' => 10,
+            'count_in_cargo' => 1,
+            'count_in_hoarder' => 0,
+            'category' => 'rifles',
+            'usages' => ['Military'],
+            'tags' => ['floor'],
+            'values' => ['Tier4'],
         ]);
 
         $this->assertStringContainsString('<nominal>20</nominal>', $updated);
         $this->assertStringContainsString('<min>10</min>', $updated);
-        $this->assertStringContainsString('<flags count_in_cargo="0"/>', $updated);
-        $this->assertStringContainsString('<category name="weapons"/>', $updated);
+        $this->assertStringContainsString('count_in_cargo="1"', $updated);
+        $this->assertStringContainsString('count_in_hoarder="0"', $updated);
+        $this->assertStringContainsString('<category name="rifles"/>', $updated);
+        $this->assertStringContainsString('<usage name="Military"/>', $updated);
+        $this->assertStringNotContainsString('<usage name="Police"/>', $updated);
+        $this->assertStringContainsString('<tag name="floor"/>', $updated);
+        $this->assertStringContainsString('<value name="Tier4"/>', $updated);
     }
 
     public function test_it_adds_a_new_item_with_category_usage_and_safe_defaults(): void

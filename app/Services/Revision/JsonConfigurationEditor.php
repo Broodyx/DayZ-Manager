@@ -111,17 +111,27 @@ final class JsonConfigurationEditor
         }
     }
 
-    private function flatten(array $data, string $prefix, array &$fields): void
+    private function flatten(array $data, string $prefix, array &$fields, ?string $group = null): void
     {
         foreach ($data as $key => $value) {
             $path = $prefix === '' ? (string) $key : $prefix.'.'.$key;
             if (is_array($value)) {
                 if ($value !== [] && ! array_is_list($value)) {
-                    $this->flatten($value, $path, $fields);
+                    $this->flatten($value, $path, $fields, $group);
+                } elseif ($this->isObjectList($value)) {
+                    foreach ($value as $index => $item) {
+                        $itemName = collect(['name', 'Name', 'areaName', 'AreaName', 'triggerName', 'TriggerName'])
+                            ->map(fn (string $name) => $item[$name] ?? null)
+                            ->first(fn ($name) => is_scalar($name) && (string) $name !== '');
+                        $itemGroup = str((string) $key)->headline()->toString()
+                            .' · '.($itemName !== null ? (string) $itemName : '#'.($index + 1));
+                        $this->flatten($item, $path.'.'.$index, $fields, $itemGroup);
+                    }
                 } else {
                     $fields[] = [
                         'path' => $path,
                         'section' => explode('.', $path)[0],
+                        'group' => $group ?? explode('.', $path)[0],
                         'label' => str($key)->headline()->toString(),
                         'type' => 'json',
                         'value' => json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
@@ -129,7 +139,21 @@ final class JsonConfigurationEditor
                 }
                 continue;
             }
-            $fields[] = ['path' => $path, 'section' => explode('.', $path)[0], 'label' => str($key)->headline()->toString(), 'type' => is_bool($value) ? 'boolean' : (is_numeric($value) ? 'number' : 'text'), 'value' => $value];
+            $fields[] = [
+                'path' => $path,
+                'section' => explode('.', $path)[0],
+                'group' => $group ?? explode('.', $path)[0],
+                'label' => str($key)->headline()->toString(),
+                'type' => is_bool($value) ? 'boolean' : (is_numeric($value) ? 'number' : 'text'),
+                'value' => $value,
+            ];
         }
+    }
+
+    private function isObjectList(array $value): bool
+    {
+        return $value !== []
+            && array_is_list($value)
+            && collect($value)->every(static fn ($item): bool => is_array($item) && ! array_is_list($item));
     }
 }

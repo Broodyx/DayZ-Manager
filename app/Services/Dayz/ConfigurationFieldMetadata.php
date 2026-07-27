@@ -32,6 +32,23 @@ final class ConfigurationFieldMetadata
     {
         $path = strtolower((string) ($field['path'] ?? ''));
         $name = strtolower((string) ($field['label'] ?? ''));
+        $filename = strtolower(basename($filename));
+
+        if (str_ends_with($path, '@name')) {
+            return match ($filename) {
+                'events.xml' => 'Jedinečný název eventu. Propojuje pravidla v events.xml s pozicemi v cfgeventspawns.xml a případně se skupinou v cfgeventgroups.xml.',
+                'globals.xml' => 'Název globální proměnné Central Economy. Název neměňte; upravujte pouze její atribut value.',
+                'cfgspawnabletypes.xml' => 'Název DayZ třídy předmětu. Určuje, pro který předmět platí následující cargo a attachment pravidla.',
+                'cfgeconomycore.xml', 'economycore.xml' => 'Identifikátor kořenové třídy nebo připojeného souboru ekonomiky. Změna názvu může přerušit vazbu na soubor.',
+                'cfglimitsdefinition.xml', 'cfglimitsdefinitionuser.xml' => 'Název definice používaný v types.xml. Musí přesně odpovídat hodnotě category, usage, tag nebo value.',
+                default => 'Identifikátor tohoto XML záznamu. Změňte jej jen tehdy, když současně upravíte všechny související odkazy.',
+            };
+        }
+        if (str_ends_with($path, '@value')) {
+            return $filename === 'globals.xml'
+                ? 'Hodnota globální proměnné Central Economy. Jednotka a bezpečný rozsah závisí na konkrétním názvu proměnné.'
+                : 'Hodnota XML atributu. Povolený formát závisí na nadřazeném záznamu.';
+        }
 
         foreach (self::XML as $needle => $description) {
             if (str_contains($name, $needle) || str_contains($path, str_replace(' ', '_', $needle))) {
@@ -234,5 +251,20 @@ final class ConfigurationFieldMetadata
         'restock' => 'Prodleva doplnění v sekundách. Nezáporné celé číslo.',
         'quantmin' => 'Minimální naplnění v procentech. Rozsah -1 až 100; -1 používá výchozí chování.',
         'quantmax' => 'Maximální naplnění v procentech. Rozsah -1 až 100 a musí být ≥ quantmin.',
+        'lifetime' => 'Životnost záznamu v sekundách. Nezáporné číslo; 3600 znamená jednu hodinu.',
+        'saferadius' => 'Minimální bezpečná vzdálenost od hráče při vytvoření eventu v metrech. Nezáporné číslo.',
+        'distanceradius' => 'Vzdálenost používaná eventem při kontrole dalších instancí nebo hráčů, v metrech. Nezáporné číslo.',
+        'cleanupradius' => 'Poloměr úklidu objektů eventu v metrech. Nezáporné číslo.',
+        'deletable' => 'Smí Central Economy záznam odstranit: 0 = ne, 1 = ano. Pouze 0/1.',
+        'init random' => 'Náhodná počáteční inicializace počtu: 0 = vypnuta, 1 = zapnuta. Pouze 0/1.',
+        'remove damaged' => 'Odstranění poškozených instancí při inicializaci: 0 = ponechat, 1 = odstranit. Pouze 0/1.',
+        'active' => 'Aktivace eventu: 0 = vypnutý, 1 = zapnutý. Pouze 0/1.',
+        'position' => 'Strategie výběru pozice eventu. Jde o interní hodnotu DayZ; zachovejte hodnotu z oficiální konfigurace, pokud přesně neznáte odpovídající režim.',
+        'limit' => 'Způsob aplikace limitu eventu. Povolené názvy závisejí na dané verzi DayZ; bezpečné je zachovat hodnotu z výchozí konfigurace.',
+        'chance' => 'Pravděpodobnost výběru záznamu. Desetinná hodnota 0–1; 0 = nikdy, 1 = vždy.',
+        'damage' => 'Počáteční poškození předmětu. Desetinná hodnota 0–1; 0 = nepoškozený, 1 = zničený.',
+        'cost' => 'Relativní priorita či náklad záznamu v Central Economy. Nezáporné celé číslo; vyšší hodnota znamená vyšší prioritu.',
+        'min' => 'Minimální počet instancí. Nezáporné celé číslo a nesmí být vyšší než max.',
+        'max' => 'Maximální počet instancí. Nezáporné celé číslo a nesmí být nižší než min.',
     ];
 }

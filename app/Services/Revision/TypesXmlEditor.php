@@ -11,12 +11,11 @@ use RuntimeException;
 final readonly class TypesXmlEditor
 {
     private const FIELDS = ['nominal', 'lifetime', 'restock', 'min', 'quantmin', 'quantmax', 'cost'];
+    private const FLAGS = ['count_in_cargo', 'count_in_hoarder', 'count_in_map', 'count_in_player', 'crafted', 'deloot'];
 
     public function __construct(private XmlValidator $xmlValidator) {}
 
-    /**
-     * @return list<array{name: string, category: string, usages: list<string>, pc_only: bool, nominal: int, lifetime: int, restock: int, min: int, quantmin: int, quantmax: int, cost: int}>
-     */
+    /** @return list<array<string, mixed>> */
     public function entries(string $xml): array
     {
         $document = $this->document($xml);
@@ -36,15 +35,19 @@ final readonly class TypesXmlEditor
             foreach (self::FIELDS as $field) {
                 $entry[$field] = $this->childInteger($type, $field);
             }
+            $flags = $type->getElementsByTagName('flags')->item(0);
+            foreach (self::FLAGS as $flag) {
+                $entry[$flag] = $flags instanceof DOMElement ? (int) $flags->getAttribute($flag) : 0;
+            }
+            $entry['tags'] = $this->childAttributes($type, 'tag', 'name');
+            $entry['values'] = $this->childAttributes($type, 'value', 'name');
             $entries[] = $entry;
         }
 
         return $entries;
     }
 
-    /**
-     * @param  array<string, int>  $values
-     */
+    /** @param array<string, mixed> $values */
     public function update(string $xml, string $typeName, array $values): string
     {
         $document = $this->document($xml);
@@ -72,6 +75,24 @@ final readonly class TypesXmlEditor
                 $matched->appendChild($element);
             }
             $element->nodeValue = (string) $values[$field];
+        }
+        $flags = $matched->getElementsByTagName('flags')->item(0);
+        if (! $flags instanceof DOMElement) {
+            $flags = $document->createElement('flags');
+            $matched->appendChild($flags);
+        }
+        foreach (self::FLAGS as $flag) {
+            if (array_key_exists($flag, $values)) {
+                $flags->setAttribute($flag, (string) ((int) $values[$flag]));
+            }
+        }
+        if (isset($values['category'])) {
+            $this->replaceNamedChildren($document, $matched, 'category', [(string) $values['category']]);
+        }
+        foreach (['usages' => 'usage', 'tags' => 'tag', 'values' => 'value'] as $key => $elementName) {
+            if (array_key_exists($key, $values) && is_array($values[$key])) {
+                $this->replaceNamedChildren($document, $matched, $elementName, $values[$key]);
+            }
         }
 
         $output = $document->saveXML();
@@ -223,5 +244,24 @@ final readonly class TypesXmlEditor
             || preg_match('/(?:^|[\s"\'])-mod\s*=/i', $content) === 1
             || preg_match('/(?:^|[\/\\\\])@[a-z0-9_.-]+/i', $content) === 1
             || preg_match('/\b(cftools|community framework|dayz expansion)\b/i', $content) === 1;
+    }
+
+    /** @param list<string> $values */
+    private function replaceNamedChildren(DOMDocument $document, DOMElement $parent, string $elementName, array $values): void
+    {
+        $remove = [];
+        foreach ($parent->childNodes as $child) {
+            if ($child instanceof DOMElement && $child->tagName === $elementName) {
+                $remove[] = $child;
+            }
+        }
+        foreach ($remove as $child) {
+            $parent->removeChild($child);
+        }
+        foreach (array_values(array_unique(array_filter(array_map('trim', $values)))) as $value) {
+            $element = $document->createElement($elementName);
+            $element->setAttribute('name', $value);
+            $parent->appendChild($element);
+        }
     }
 }
