@@ -134,6 +134,14 @@
                             <article class="dz-map-layer-card">
                                 <label><input class="map-layer-toggle" type="checkbox" @checked($source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="background:{{ $source['color'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
                                 <p>{{ $source['description'] }}</p>
+                                <div class="dz-layer-actions">
+                                    <a href="{{ url('/admin/projects/'.$projectId.'/configuration?revision='.$source['revision_id']) }}">Upravit</a>
+                                    <a href="{{ route('configuration-revision.download', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Stáhnout</a>
+                                    <button type="button" class="dz-source-raw"
+                                        data-filename="{{ $source['filename'] }}"
+                                        data-url="{{ route('configuration-revision.raw', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Raw data</button>
+                                    <label class="dz-layer-label-toggle"><input type="checkbox" class="map-layer-label-toggle" data-layer="{{ $source['filename'] }}"> Popisky</label>
+                                </div>
                                 @if (in_array($source['filename'], ['cfgeventspawns.xml', 'cfgplayerspawnpoints.xml'], true))
                                     <div class="dz-layer-cleanup">
                                         <select aria-label="Rozsah bodů k odstranění">
@@ -552,11 +560,41 @@
             };
             modal.querySelectorAll('[data-point]').forEach((button) => button.onclick = () => placePoint(button));
             modal.querySelector('.dz-point-confirm').onclick = () => { if (pendingButton) placePoint(pendingButton); };
+            const hexToHsl = (hex) => {
+                const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+                const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                let h = 0, s = 0; const l = (max + min) / 2;
+                if (max !== min) {
+                    const d = max - min;
+                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+                    else if (max === g) h = (b - r) / d + 2;
+                    else h = (r - g) / d + 4;
+                    h /= 6;
+                }
+                return [h * 360, s * 100, l * 100];
+            };
+            const hashString = (value) => { let hash = 0; for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) | 0; return Math.abs(hash); };
+            const shadeCache = {};
+            const shadeFor = (baseHex, key) => {
+                const cacheKey = baseHex + '|' + key;
+                if (shadeCache[cacheKey]) return shadeCache[cacheKey];
+                const [h, s, l] = hexToHsl(baseHex);
+                const hash = hashString(key || '');
+                const hueShift = (hash % 21) - 10;
+                const lightShift = ((hash >> 5) % 31) - 15;
+                const newHue = (h + hueShift + 360) % 360;
+                const newLight = Math.min(78, Math.max(28, l + lightShift));
+                const newSat = Math.min(90, Math.max(35, s));
+                return shadeCache[cacheKey] = `hsl(${newHue.toFixed(1)}, ${newSat.toFixed(0)}%, ${newLight.toFixed(1)}%)`;
+            };
             const markers = @js($markers);
             const layerGroups = {};
             const markerRecords = [];
             markers.forEach((marker) => {
-                const color = marker.color || '#b8ed55';
+                const baseColor = marker.color || '#b8ed55';
+                const groupKey = marker.parameters?.group_name || marker.parameters?.zone_type || marker.label || marker.filename;
+                const color = shadeFor(baseColor, groupKey);
                 const layers = layerGroups[marker.filename] ||= [];
                 const visualLayers = [];
                 if (marker.radius) {
@@ -720,10 +758,47 @@
                     }
                 });
             });
+            const layerPrefsKey = 'dz-map-layer-prefs-' + @js($projectId);
+            const layerPrefs = (() => {
+                try { return JSON.parse(localStorage.getItem(layerPrefsKey) || '{}'); } catch { return {}; }
+            })();
+            const saveLayerPrefs = () => { try { localStorage.setItem(layerPrefsKey, JSON.stringify(layerPrefs)); } catch {} };
             document.querySelectorAll('.map-layer-toggle').forEach((toggle) => {
-                const syncLayer = () => (layerGroups[toggle.dataset.layer] || []).forEach((layer) => toggle.checked ? layer.addTo(map) : map.removeLayer(layer));
+                const filename = toggle.dataset.layer;
+                if (layerPrefs.visible && Object.prototype.hasOwnProperty.call(layerPrefs.visible, filename)) {
+                    toggle.checked = layerPrefs.visible[filename];
+                }
+                const syncLayer = () => {
+                    (layerGroups[filename] || []).forEach((layer) => toggle.checked ? layer.addTo(map) : map.removeLayer(layer));
+                    layerPrefs.visible = layerPrefs.visible || {};
+                    layerPrefs.visible[filename] = toggle.checked;
+                    saveLayerPrefs();
+                };
                 toggle.addEventListener('change', syncLayer);
                 syncLayer();
+            });
+            document.querySelectorAll('.map-layer-label-toggle').forEach((toggle) => {
+                const filename = toggle.dataset.layer;
+                if (layerPrefs.labels && Object.prototype.hasOwnProperty.call(layerPrefs.labels, filename)) {
+                    toggle.checked = layerPrefs.labels[filename];
+                }
+                const syncLabels = () => {
+                    markerRecords.filter((record) => record.marker.filename === filename).forEach(({ marker, visualLayers }) => {
+                        visualLayers.forEach(({ layer, kind }) => {
+                            if (kind !== 'point') return;
+                            if (toggle.checked) {
+                                if (!layer.getTooltip()) layer.bindTooltip(marker.label, { permanent: true, direction: 'top', offset: [0, -8], className: 'dz-map-label' });
+                            } else if (layer.getTooltip()) {
+                                layer.unbindTooltip();
+                            }
+                        });
+                    });
+                    layerPrefs.labels = layerPrefs.labels || {};
+                    layerPrefs.labels[filename] = toggle.checked;
+                    saveLayerPrefs();
+                };
+                toggle.addEventListener('change', syncLabels);
+                syncLabels();
             });
         });
         </script>

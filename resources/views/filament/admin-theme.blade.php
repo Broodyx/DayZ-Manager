@@ -459,6 +459,13 @@
     .dz-layer-delete { padding:.4rem .55rem; border:1px solid #9b463f; border-radius:.4rem; color:#ffd4cf; background:#2b1715; font-size:.62rem; font-weight:850; cursor:pointer; }
     .dz-layer-delete:hover { border-color:#ef776d; background:#4a211e; }.dz-layer-delete:disabled { opacity:.55; cursor:wait; }
     .dz-layer-warning { color:#b77c74 !important; font-size:.58rem !important; line-height:1.35; }
+    .dz-layer-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.3rem; width:100%; margin-top:.15rem; padding-top:.4rem; border-top:1px solid rgba(190,209,175,.12); }
+    .dz-layer-actions a,.dz-layer-actions button { min-height:2rem; padding:.38rem .48rem; border:1px solid #42583a; border-radius:.35rem; color:#cddac8; background:#111914; font-size:.58rem; font-weight:800; line-height:1.1; text-decoration:none; cursor:pointer; white-space:nowrap; display:grid; place-items:center; text-align:center; }
+    .dz-layer-actions a:hover,.dz-layer-actions button:hover { border-color:var(--dz-lime); color:#11180e; background:var(--dz-lime); }
+    .dz-layer-label-toggle { grid-column:1/-1; display:flex; align-items:center; gap:.4rem; margin-top:.1rem; color:#aab6a4; font-size:.66rem; font-weight:700; cursor:pointer; }
+    .dz-layer-label-toggle input { accent-color:#b8ed55; cursor:pointer; }
+    .dz-map-label { border:0 !important; box-shadow:none !important; background:transparent !important; padding:0 !important; color:#f0f8e8; font:800 .68rem/1.15 ui-monospace,monospace; text-shadow:0 1px 2px #000,0 0 4px #000; white-space:nowrap; }
+    .dz-map-label::before { display:none !important; }
     .dz-load-dense { display:flex; align-items:flex-start; gap:.45rem; margin:.35rem 0; padding:.55rem; border:1px dashed #506d2b; border-radius:.4rem; color:#d8f57b; text-decoration:none; font-size:.75rem; } .dz-load-dense span { display:grid; gap:.05rem; } .dz-load-dense small { color:#879987; }
     .dz-layer-dot { width:.65rem; height:.65rem; border-radius:50%; display:inline-block; }
     .layer-0 { background:#b8ed55; } .layer-1 { background:#80b8ff; } .layer-2 { background:#f1b44c; } .layer-3 { background:#e96a5f; } .layer-4 { background:#d58cff; } .layer-5 { background:#55e0c1; } .layer-6 { background:#ff82b2; } .layer-7 { background:#f6d365; }
