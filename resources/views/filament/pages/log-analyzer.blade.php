@@ -25,7 +25,7 @@
                                     <small>{{ $item['matched_lines'] }}/{{ $item['total_lines'] }} řádků</small>
                                 </span>
                             </button>
-                            <button type="button" wire:click="deleteHistory({{ $item['id'] }})" wire:confirm="Opravdu odstranit tuto uloženou analýzu z historie?" class="dz-danger">Smazat</button>
+                            <button type="button" class="dz-danger" x-on:click="dzConfirm('Opravdu odstranit tuto uloženou analýzu z historie?').then((ok) => { if (ok) $wire.deleteHistory({{ $item['id'] }}); })">Smazat</button>
                         </div>
                     @endforeach
                 </div>
@@ -74,14 +74,16 @@
                                     @if ($finding['link'] === 'map-editor' && $finding['kind'] === 'missing-event-definition')
                                         <a class="dz-secondary" href="{{ $this->mapEditorUrl($finding['target']) }}">Otevřít Mapový editor a přidat '{{ $finding['target'] }}' →</a>
                                         @if ($projectId)
-                                            <button type="button" class="dz-danger" wire:click="removeOrphanEventSpawn('{{ $finding['target'] }}')" wire:confirm="Bezpečná oprava: odstranit pozice eventu '{{ $finding['target'] }}' z cfgeventspawns.xml, protože event v events.xml neexistuje (tyto pozice teď stejně nic nedělají). Vytvoří se nová revize. Opravdu pokračovat?">Bezpečně odstranit orphan pozice</button>
+                                            @php $removeOrphanConfirm = "Bezpečná oprava: odstranit pozice eventu '{$finding['target']}' z cfgeventspawns.xml, protože event v events.xml neexistuje (tyto pozice teď stejně nic nedělají). Vytvoří se nová revize. Opravdu pokračovat?"; @endphp
+                                            <button type="button" class="dz-danger" x-on:click="dzConfirm(@js($removeOrphanConfirm)).then((ok) => { if (ok) $wire.removeOrphanEventSpawn(@js($finding['target'])); })">Bezpečně odstranit orphan pozice</button>
                                         @endif
                                     @elseif ($finding['link'] === 'map-editor')
                                         <a class="dz-secondary" href="{{ $this->mapEditorUrl() }}">Otevřít Mapový editor →</a>
                                     @elseif ($finding['link'] === 'types-editor' && $this->typesEditorUrl($finding['target']))
                                         <a class="dz-secondary" href="{{ $this->typesEditorUrl($finding['target']) }}">Otevřít '{{ $finding['target'] }}' v types.xml editoru →</a>
                                         @if ($projectId)
-                                            <button type="button" class="dz-danger" wire:click="removeTypeEntry('{{ $finding['target'] }}')" wire:confirm="Bezpečná oprava: odebrat položku '{{ $finding['target'] }}' z types.xml. Hra ji stejně už teď nespawnuje, takže se chování serveru nezmění — jen zmizí tahle chyba z logu. Vytvoří se nová revize. Opravdu pokračovat?">Bezpečně odebrat z types.xml</button>
+                                            @php $removeTypeLogConfirm = "Bezpečná oprava: odebrat položku '{$finding['target']}' z types.xml. Hra ji stejně už teď nespawnuje, takže se chování serveru nezmění — jen zmizí tahle chyba z logu. Vytvoří se nová revize. Opravdu pokračovat?"; @endphp
+                                            <button type="button" class="dz-danger" x-on:click="dzConfirm(@js($removeTypeLogConfirm)).then((ok) => { if (ok) $wire.removeTypeEntry(@js($finding['target'])); })">Bezpečně odebrat z types.xml</button>
                                         @endif
                                     @endif
                                 </div>

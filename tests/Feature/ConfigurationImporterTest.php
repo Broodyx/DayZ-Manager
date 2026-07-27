@@ -271,6 +271,131 @@ class ConfigurationImporterTest extends TestCase
             ->assertSet('rawContent', $xml);
     }
 
+    public function test_messages_xml_infers_the_message_type_from_onconnect_and_shutdown_flags(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Messages type test', 'platform' => 'playstation', 'map' => 'chernarusplus',
+        ]);
+        $xml = '<?xml version="1.0"?><messages>'
+            .'<message><repeat>5</repeat><text>Broadcast</text></message>'
+            .'<message><onconnect>1</onconnect><text>Welcome</text></message>'
+            .'<message><shutdown>1</shutdown><deadline>30</deadline><repeat>5</repeat><text>Shutting down in #tmin</text></message>'
+            .'</messages>';
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('messages.xml', $xml),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->assertSet('messagesEntries.0.type', 'broadcast')
+            ->assertSet('messagesEntries.1.type', 'onconnect')
+            ->assertSet('messagesEntries.2.type', 'shutdown');
+    }
+
+    public function test_changing_message_type_syncs_onconnect_and_shutdown_flags_and_clears_irrelevant_fields(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Messages type test', 'platform' => 'playstation', 'map' => 'chernarusplus',
+        ]);
+        $xml = '<?xml version="1.0"?><messages><message><repeat>5</repeat><delay>10</delay><text>Broadcast</text></message></messages>';
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('messages.xml', $xml),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->assertSet('messagesEntries.0.type', 'broadcast')
+            ->set('messagesEntries.0.type', 'onconnect')
+            ->assertSet('messagesEntries.0.onconnect', '1')
+            ->assertSet('messagesEntries.0.shutdown', '0')
+            ->assertSet('messagesEntries.0.repeat', '')
+            ->assertSet('messagesEntries.0.delay', '')
+            ->set('messagesEntries.0.type', 'shutdown')
+            ->assertSet('messagesEntries.0.onconnect', '0')
+            ->assertSet('messagesEntries.0.shutdown', '1');
+    }
+
+    public function test_whitelist_txt_editor_splits_id_and_comment_and_round_trips_them(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Whitelist test', 'platform' => 'playstation', 'map' => 'chernarusplus',
+        ]);
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('whitelist.txt', "1111111111112222222222222333333333XXXXXXAAAA\t//Example of a character ID\n"),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->assertSet('whitelistEntries.0.id', '1111111111112222222222222333333333XXXXXXAAAA')
+            ->assertSet('whitelistEntries.0.comment', 'Example of a character ID')
+            ->set('newWhitelistId', '9999999999999999999999999999999999999999999AA')
+            ->set('newWhitelistComment', 'Nový hráč')
+            ->call('addWhitelistEntry')
+            ->call('saveWhitelist')
+            ->assertHasNoErrors();
+
+        $saved = Storage::disk('dayz')->get($project->revisions()->latest('revision_number')->firstOrFail()->storage_path);
+        $this->assertStringContainsString("1111111111112222222222222333333333XXXXXXAAAA\t//Example of a character ID", $saved);
+        $this->assertStringContainsString("9999999999999999999999999999999999999999999AA\t//Nový hráč", $saved);
+    }
+
+    public function test_ban_txt_editor_saves_entries_without_a_comment_as_a_plain_id(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Ban test', 'platform' => 'playstation', 'map' => 'chernarusplus',
+        ]);
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('ban.txt', ''),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->set('newBanId', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+            ->call('addBanEntry')
+            ->assertSet('banEntries.0.id', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+            ->assertSet('banEntries.0.comment', '')
+            ->call('saveBan')
+            ->assertHasNoErrors();
+
+        $saved = Storage::disk('dayz')->get($project->revisions()->latest('revision_number')->firstOrFail()->storage_path);
+        $this->assertSame("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n", $saved);
+    }
+
+    public function test_priority_txt_editor_splits_id_and_comment(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Priority test', 'platform' => 'playstation', 'map' => 'chernarusplus',
+        ]);
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('priority.txt', "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB //VIP hráč\n"),
+            $user,
+        );
+
+        $this->actingAs($user);
+        Livewire::test(EditConfiguration::class, ['record' => $project->id])
+            ->assertSet('priorityEntries.0.id', 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')
+            ->assertSet('priorityEntries.0.comment', 'VIP hráč');
+    }
+
     public function test_event_groups_xml_has_a_structured_editor_and_saves_relative_object_settings(): void
     {
         Storage::fake('dayz');

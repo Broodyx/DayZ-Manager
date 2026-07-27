@@ -41,6 +41,8 @@
         .dz-toggle-button:hover { filter:brightness(1.12) }
         .dz-field input[type=range] { width:100%; accent-color:#a3e635 }
         .dz-field textarea { width:100%; min-height:5rem; box-sizing:border-box; resize:vertical; border:1px solid rgba(190,209,175,.2); border-radius:.25rem; padding:.55rem .65rem; color:#edf2e9; background:#090d0a; font:inherit }
+        .dz-message-type { display:grid; gap:.4rem }
+        .dz-message-type-select { width:100%; min-height:2.7rem; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; padding:.5rem .6rem; color:#edf2e9; background:#090d0a; font:inherit; cursor:pointer }
         .dz-field-wide { grid-column:1 / -1 }
         .dz-empty-state { margin:1rem; padding:1rem; border:1px dashed rgba(182,233,79,.35); border-radius:.4rem; background:rgba(182,233,79,.04) }
         .dz-field[data-tooltip] { position:relative }
@@ -352,7 +354,8 @@
                         <div class="dz-savebar">
                             <input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny (např. zvýšení lootů AKM)">
                             <x-dz-confirm-button call="saveType()" label="Uložit novou revizi" class="dz-action" />
-                            <button type="button" wire:click="removeType()" wire:confirm="Opravdu odebrat položku '{{ $selectedType }}' z types.xml? Vytvoří se nová revize, originál zůstane zachovaný. Předměty tohoto typu se přestanou spawnovat." class="dz-danger">Smazat položku</button>
+                            @php $removeTypeConfirm = "Opravdu odebrat položku '{$selectedType}' z types.xml? Vytvoří se nová revize, originál zůstane zachovaný. Předměty tohoto typu se přestanou spawnovat."; @endphp
+                            <button type="button" class="dz-danger" x-on:click="dzConfirm(@js($removeTypeConfirm)).then((ok) => { if (ok) $wire.removeType(); })">Smazat položku</button>
                         </div>
                     @else
                         <div class="p-10 text-center">
@@ -476,21 +479,60 @@
                     @endforeach
                 </div><x-dz-confirm-button call="saveServerConfig()" label="Uložit serverDZ.cfg jako novou revizi" class="dz-save-button" /></section>
             @elseif ($visualKind === 'whitelist')
-                <section class="dz-editor-card"><h3>Whitelist hráčů · whitelist.txt</h3><p class="dz-muted">Jeden řádek = jedno UID hráče. Používejte přesné UID z platformy (Steam/Xbox/PlayStation), bez mezer a bez komentářů. Duplicitní, prázdné a neplatné hodnoty se nepřidají. Editor ověřuje délku 3–64 znaků; zapnutí vyžaduje <code>enableWhitelist = 1</code> v serverDZ.cfg.</p>
-                    <div class="dz-whitelist-add"><input wire:model.defer="newWhitelistUid" placeholder="UID hráče" autocomplete="off"><button type="button" wire:click="addWhitelistEntry" class="dz-save-button">Přidat hráče</button></div>
-                    <div class="dz-whitelist-list">@forelse($whitelistEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removeWhitelistEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Whitelist je zatím prázdný.</p>@endforelse</div>
+                <section class="dz-editor-card"><h3>Whitelist hráčů · whitelist.txt</h3><p class="dz-muted">Jeden řádek = jedno UID hráče, volitelně s popisem (server ho čte jako komentář za <code>//</code>, např. jméno hráče). Používejte přesné UID z platformy (Steam/Xbox/PlayStation). Duplicitní, prázdné a neplatné hodnoty se nepřidají. Editor ověřuje délku 3–64 znaků; zapnutí vyžaduje <code>enableWhitelist = 1</code> v serverDZ.cfg.</p>
+                    <div class="dz-whitelist-add">
+                        <input wire:model.defer="newWhitelistId" placeholder="UID hráče" autocomplete="off">
+                        <input wire:model.defer="newWhitelistComment" placeholder="Popis (nepovinné, např. jméno hráče)" autocomplete="off">
+                        <button type="button" wire:click="addWhitelistEntry" class="dz-save-button">Přidat hráče</button>
+                    </div>
+                    <div class="dz-whitelist-list">
+                        @forelse($whitelistEntries as $index => $entry)
+                            <div class="dz-whitelist-row">
+                                <span class="dz-whitelist-row-id"><code>{{ $entry['id'] }}</code>@if($entry['comment'] !== '')<span class="dz-whitelist-comment">// {{ $entry['comment'] }}</span>@endif</span>
+                                <button type="button" class="dz-danger" x-on:click="dzConfirm('Opravdu odebrat tento záznam z whitelist.txt?').then((ok) => { if (ok) $wire.removeWhitelistEntry({{ $index }}); })">Odebrat</button>
+                            </div>
+                        @empty
+                            <p class="dz-muted">Whitelist je zatím prázdný.</p>
+                        @endforelse
+                    </div>
                     <x-dz-confirm-button call="saveWhitelist()" label="Uložit whitelist.txt jako novou revizi" class="dz-save-button" />
                 </section>
             @elseif ($visualKind === 'ban')
-                <section class="dz-editor-card"><h3>Banlist hráčů · ban.txt</h3><p class="dz-muted">Jeden řádek = jedno UID hráče, kterému server odmítne připojení. Používejte přesné UID bez mezer a komentářů; editor kontroluje délku 3–64 znaků a duplicitní hodnoty.</p>
-                    <div class="dz-whitelist-add"><input wire:model.defer="newBanUid" placeholder="UID hráče k zablokování" autocomplete="off"><button type="button" wire:click="addBanEntry" class="dz-save-button">Přidat zákaz</button></div>
-                    <div class="dz-whitelist-list">@forelse($banEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removeBanEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Banlist je zatím prázdný.</p>@endforelse</div>
+                <section class="dz-editor-card"><h3>Banlist hráčů · ban.txt</h3><p class="dz-muted">Jeden řádek = jedno UID hráče, kterému server odmítne připojení, volitelně s popisem (server ho čte jako komentář za <code>//</code>, např. důvod banu). Editor kontroluje délku 3–64 znaků a duplicitní hodnoty.</p>
+                    <div class="dz-whitelist-add">
+                        <input wire:model.defer="newBanId" placeholder="UID hráče k zablokování" autocomplete="off">
+                        <input wire:model.defer="newBanComment" placeholder="Popis (nepovinné, např. důvod banu)" autocomplete="off">
+                        <button type="button" wire:click="addBanEntry" class="dz-save-button">Přidat zákaz</button>
+                    </div>
+                    <div class="dz-whitelist-list">
+                        @forelse($banEntries as $index => $entry)
+                            <div class="dz-whitelist-row">
+                                <span class="dz-whitelist-row-id"><code>{{ $entry['id'] }}</code>@if($entry['comment'] !== '')<span class="dz-whitelist-comment">// {{ $entry['comment'] }}</span>@endif</span>
+                                <button type="button" class="dz-danger" x-on:click="dzConfirm('Opravdu odebrat tento záznam z ban.txt?').then((ok) => { if (ok) $wire.removeBanEntry({{ $index }}); })">Odebrat</button>
+                            </div>
+                        @empty
+                            <p class="dz-muted">Banlist je zatím prázdný.</p>
+                        @endforelse
+                    </div>
                     <x-dz-confirm-button call="saveBan()" label="Uložit ban.txt jako novou revizi" class="dz-save-button" />
                 </section>
             @elseif ($visualKind === 'priority')
-                <section class="dz-editor-card"><h3>Prioritní fronta · priority.txt</h3><p class="dz-muted">Každý řádek obsahuje UID nebo dvojici UID ve formátu podporovaném DayZ. Hráči v tomto seznamu dostanou přednost před běžnou přihlašovací frontou. Použití lze vypnout přes <code>disablePrioritylist</code> v serverDZ.cfg.</p>
-                    <div class="dz-whitelist-add"><input wire:model.defer="newPriorityUid" placeholder="Steam/console UID nebo dvojice UID" autocomplete="off"><button type="button" wire:click="addPriorityEntry" class="dz-save-button">Přidat hráče</button></div>
-                    <div class="dz-whitelist-list">@forelse($priorityEntries as $index => $uid)<div class="dz-whitelist-row"><code>{{ $uid }}</code><button type="button" wire:click="removePriorityEntry({{ $index }})" class="dz-danger">Odebrat</button></div>@empty<p class="dz-muted">Priority list je zatím prázdný.</p>@endforelse</div>
+                <section class="dz-editor-card"><h3>Prioritní fronta · priority.txt</h3><p class="dz-muted">Jeden řádek = jedno UID hráče, volitelně s popisem (server ho čte jako komentář za <code>//</code>). Hráči v tomto seznamu dostanou přednost před běžnou přihlašovací frontou. Použití lze vypnout přes <code>disablePrioritylist</code> v serverDZ.cfg.</p>
+                    <div class="dz-whitelist-add">
+                        <input wire:model.defer="newPriorityId" placeholder="Steam/console UID" autocomplete="off">
+                        <input wire:model.defer="newPriorityComment" placeholder="Popis (nepovinné)" autocomplete="off">
+                        <button type="button" wire:click="addPriorityEntry" class="dz-save-button">Přidat hráče</button>
+                    </div>
+                    <div class="dz-whitelist-list">
+                        @forelse($priorityEntries as $index => $entry)
+                            <div class="dz-whitelist-row">
+                                <span class="dz-whitelist-row-id"><code>{{ $entry['id'] }}</code>@if($entry['comment'] !== '')<span class="dz-whitelist-comment">// {{ $entry['comment'] }}</span>@endif</span>
+                                <button type="button" class="dz-danger" x-on:click="dzConfirm('Opravdu odebrat tento záznam z priority.txt?').then((ok) => { if (ok) $wire.removePriorityEntry({{ $index }}); })">Odebrat</button>
+                            </div>
+                        @empty
+                            <p class="dz-muted">Priority list je zatím prázdný.</p>
+                        @endforelse
+                    </div>
                     <x-dz-confirm-button call="savePriority()" label="Uložit priority.txt jako novou revizi" class="dz-save-button" />
                 </section>
             @elseif ($visualKind === 'weather')
@@ -681,16 +723,49 @@
                     <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny JSON konfigurace"><x-dz-confirm-button call="saveJson()" label="Validovat a uložit JSON revizi" class="dz-action" /></div>
                 </section>
             @elseif ($visualKind === 'messages')
+            @php
+                $dzMessageTypes = [
+                    'broadcast' => ['label' => 'Opakovaná zpráva', 'description' => 'Zpráva se pravidelně zobrazuje všem hráčům každých X minut, dokud server běží. Použij pro pravidla, reklamu, upozornění.'],
+                    'onconnect' => ['label' => 'Zpráva při připojení', 'description' => 'Zpráva se zobrazí jednorázově každému hráči hned po připojení na server. Použij pro uvítání nebo důležité info pro nově přihlášené.'],
+                    'shutdown' => ['label' => 'Odpočet do vypnutí serveru', 'description' => 'Zpráva odpočítává čas do vypnutí a server po doběhnutí odpočtu skutečně vypne. Použij text s tokenem #tmin, aby hráči viděli zbývající minuty.'],
+                ];
+            @endphp
             <section class="dz-panel dz-server-settings">
-                <div class="dz-panel-head"><strong>messages.xml · vizuální editor</strong><p class="dz-muted text-sm mt-1">Každá zpráva se zobrazí samostatně. Časy jsou v minutách; <code>onconnect</code> a <code>shutdown</code> používají 0 = vypnuto, 1 = zapnuto.</p><button type="button" wire:click="addMessage" class="dz-save-button">+ Přidat zprávu</button></div>
+                <div class="dz-panel-head">
+                    <strong>messages.xml · vizuální editor</strong>
+                    <p class="dz-muted text-sm mt-1">Každá zpráva je jeden ze tří typů níže — vyber typ a zobrazí se jen pole, která pro něj dávají smysl.</p>
+                    <button type="button" wire:click="addMessage" class="dz-save-button">+ Přidat zprávu</button>
+                </div>
                 <div class="p-3">
                     @forelse ($messagesEntries as $index => $message)
-                        <details class="dz-group" open><summary><span>Zpráva #{{ $index + 1 }}</span><span><span class="dz-badge dz-server-badge">message</span> <button type="button" wire:click.stop="removeMessage({{ $index }})" class="dz-danger">Odebrat</button></span></summary>
+                        @php $dzType = $message['type'] ?? 'broadcast'; @endphp
+                        <details class="dz-group" open>
+                            <summary>
+                                <span>Zpráva #{{ $index + 1 }} <span class="dz-badge dz-server-badge">{{ $dzMessageTypes[$dzType]['label'] ?? $dzType }}</span></span>
+                                <span><button type="button" x-on:click="dzConfirm('Opravdu odebrat tuto zprávu? Vytvoří se nová revize.').then((ok) => { if (ok) $wire.removeMessage({{ $index }}); })" class="dz-danger">Odebrat</button></span>
+                            </summary>
                             <div class="dz-fields">
-                                @foreach ([['repeat','Opakování (min)','Interval opakování zprávy v minutách. Prázdné = neopakovat.'],['delay','Zpoždění po startu (min)','Počet minut od startu serveru nebo připojení, než se zpráva zobrazí.'],['deadline','Odpočet do vypnutí (min)','Odpočet do plánovaného vypnutí serveru. Prázdné = bez vypnutí.'],['onconnect','Po připojení (0/1)','1 = zobrazit po připojení hráče, 0 nebo prázdné = ne.'],['shutdown','Vypnutí po odpočtu (0/1)','1 = po deadline server vypnout, 0 nebo prázdné = nevypínat.']] as [$key, $label, $help])
-                                    <label class="dz-field" data-tooltip="{{ $help }}"><span class="dz-field-top"><span><strong>{{ $label }}</strong><br><small class="dz-muted">{{ $help }}</small></span><input type="number" min="0" wire:model="messagesEntries.{{ $index }}.{{ $key }}"></span></label>
-                                @endforeach
-                                <label class="dz-field dz-field-wide" data-tooltip="Text zprávy podporuje tokeny jako #name a #tmin."><span class="dz-field-top"><span><strong>Text zprávy</strong><br><small class="dz-muted">Text, který se zobrazí hráčům. Podporované tokeny: #name, #tmin, #pos.</small></span><textarea wire:model="messagesEntries.{{ $index }}.text" rows="3"></textarea></span></label>
+                                <div class="dz-field dz-field-wide dz-message-type">
+                                    <strong>Typ zprávy</strong>
+                                    <select wire:model="messagesEntries.{{ $index }}.type" class="dz-message-type-select">
+                                        @foreach ($dzMessageTypes as $value => $meta)
+                                            <option value="{{ $value }}">{{ $meta['label'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="dz-muted">{{ $dzMessageTypes[$dzType]['description'] ?? '' }}</small>
+                                </div>
+
+                                @if ($dzType === 'broadcast')
+                                    <label class="dz-field" data-tooltip="Interval opakování zprávy v minutách."><span class="dz-field-top"><span><strong>Opakování (min)</strong><br><small class="dz-muted">Jak často (v minutách) se zpráva znovu zobrazí. Prázdné = zobrazí se jen jednou.</small></span><input type="number" min="0" wire:model="messagesEntries.{{ $index }}.repeat"></span></label>
+                                    <label class="dz-field" data-tooltip="Zpoždění po startu serveru."><span class="dz-field-top"><span><strong>Zpoždění po startu (min)</strong><br><small class="dz-muted">Kolik minut po startu serveru se má zpráva začít zobrazovat. Prázdné = hned od startu.</small></span><input type="number" min="0" wire:model="messagesEntries.{{ $index }}.delay"></span></label>
+                                @elseif ($dzType === 'shutdown')
+                                    <label class="dz-field" data-tooltip="Kdy odpočet začne, v minutách před vypnutím."><span class="dz-field-top"><span><strong>Odpočet do vypnutí (min)</strong><br><small class="dz-muted">Kolik minut před vypnutím se má odpočet a zpráva začít zobrazovat. Server se vypne, až odpočet doběhne na nulu.</small></span><input type="number" min="0" wire:model="messagesEntries.{{ $index }}.deadline"></span></label>
+                                    <label class="dz-field" data-tooltip="Jak často se zpráva během odpočtu opakuje."><span class="dz-field-top"><span><strong>Opakování odpočtu (min)</strong><br><small class="dz-muted">Jak často (v minutách) se má zpráva s aktuálním zbývajícím časem znovu zobrazit, např. každých 5 minut.</small></span><input type="number" min="0" wire:model="messagesEntries.{{ $index }}.repeat"></span></label>
+                                @else
+                                    <div class="dz-field dz-field-wide"><span class="dz-muted text-sm">Zpráva při připojení nepoužívá opakování ani zpoždění — zobrazí se hráči jen jednou, ihned po připojení.</span></div>
+                                @endif
+
+                                <label class="dz-field dz-field-wide" data-tooltip="Text zprávy podporuje tokeny jako #name a #tmin."><span class="dz-field-top"><span><strong>Text zprávy</strong><br><small class="dz-muted">Text, který se zobrazí hráčům. Podporované tokeny: #name (jméno hráče), #tmin (zbývající minuty do vypnutí, jen u typu „Odpočet do vypnutí“), #pos (pozice hráče).</small></span><textarea wire:model="messagesEntries.{{ $index }}.text" rows="3"></textarea></span></label>
                             </div>
                         </details>
                     @empty
@@ -787,7 +862,7 @@
                                         <article class="dz-event-child">
                                             <header>
                                                 <span><small>OBJEKT {{ $childIndex + 1 }}</small><strong>{{ $xmlValues[$child['type']['path']] ?? $child['type']['value'] }}</strong></span>
-                                                <span class="dz-event-child-actions"><code>&lt;child … /&gt;</code><button type="button" wire:click="removeEventGroupChild({{ $groupIndex }}, {{ $childIndex }})" wire:confirm="Opravdu odebrat tento objekt ze skupiny? Vytvoří se nová revize.">Odebrat</button></span>
+                                                <span class="dz-event-child-actions"><code>&lt;child … /&gt;</code><button type="button" x-on:click="dzConfirm('Opravdu odebrat tento objekt ze skupiny? Vytvoří se nová revize.').then((ok) => { if (ok) $wire.removeEventGroupChild({{ $groupIndex }}, {{ $childIndex }}); })">Odebrat</button></span>
                                             </header>
                                             <label class="wide">
                                                 <span><strong>Třída objektu</strong><small>Přesný DayZ classname objektu. Neexistující třída způsobí, že se daná část eventu nevytvoří.</small></span>

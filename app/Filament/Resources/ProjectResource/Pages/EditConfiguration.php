@@ -79,11 +79,14 @@ class EditConfiguration extends Page
 
     public array $serverConfig = [];
     public array $whitelistEntries = [];
-    public string $newWhitelistUid = '';
+    public string $newWhitelistId = '';
+    public string $newWhitelistComment = '';
     public array $banEntries = [];
-    public string $newBanUid = '';
+    public string $newBanId = '';
+    public string $newBanComment = '';
     public array $priorityEntries = [];
-    public string $newPriorityUid = '';
+    public string $newPriorityId = '';
+    public string $newPriorityComment = '';
     public array $messagesEntries = [];
 
     public array $jsonFields = [];
@@ -778,12 +781,13 @@ class EditConfiguration extends Page
 
     public function addWhitelistEntry(): void
     {
-        $uid = trim($this->newWhitelistUid);
-        if ($uid === '' || ! preg_match('/^[A-Za-z0-9_-]{3,64}$/', $uid) || in_array($uid, $this->whitelistEntries, true)) {
+        $id = trim($this->newWhitelistId);
+        if ($id === '' || ! preg_match('/^[A-Za-z0-9_-]{3,64}$/', $id) || $this->idListContains($this->whitelistEntries, $id)) {
             return;
         }
-        $this->whitelistEntries[] = $uid;
-        $this->newWhitelistUid = '';
+        $this->whitelistEntries[] = ['id' => $id, 'comment' => trim($this->newWhitelistComment)];
+        $this->newWhitelistId = '';
+        $this->newWhitelistComment = '';
     }
 
     public function removeWhitelistEntry(int $index): void
@@ -794,18 +798,20 @@ class EditConfiguration extends Page
 
     public function saveWhitelist(ConfigurationRevisionEditor $revisionEditor): void
     {
-        $entries = array_values(array_unique(array_filter(array_map('trim', $this->whitelistEntries))));
-        $content = $entries === [] ? "" : implode("\n", $entries)."\n";
+        $content = $this->serializeIdCommentLines($this->whitelistEntries);
         $saved = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, 'Úprava whitelist.txt ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
     }
 
     public function addBanEntry(): void
     {
-        $uid = trim($this->newBanUid);
-        if ($uid === '' || ! preg_match('/^[A-Za-z0-9_-]{3,64}$/', $uid) || in_array($uid, $this->banEntries, true)) return;
-        $this->banEntries[] = $uid;
-        $this->newBanUid = '';
+        $id = trim($this->newBanId);
+        if ($id === '' || ! preg_match('/^[A-Za-z0-9_-]{3,64}$/', $id) || $this->idListContains($this->banEntries, $id)) {
+            return;
+        }
+        $this->banEntries[] = ['id' => $id, 'comment' => trim($this->newBanComment)];
+        $this->newBanId = '';
+        $this->newBanComment = '';
     }
 
     public function removeBanEntry(int $index): void
@@ -816,18 +822,20 @@ class EditConfiguration extends Page
 
     public function saveBan(ConfigurationRevisionEditor $revisionEditor): void
     {
-        $entries = array_values(array_unique(array_filter(array_map('trim', $this->banEntries))));
-        $content = $entries === [] ? '' : implode("\n", $entries)."\n";
+        $content = $this->serializeIdCommentLines($this->banEntries);
         $saved = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, 'Úprava ban.txt ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
     }
 
     public function addPriorityEntry(): void
     {
-        $uid = trim($this->newPriorityUid);
-        if ($uid === '' || ! preg_match('/^[A-Za-z0-9 _;-]{3,128}$/', $uid) || in_array($uid, $this->priorityEntries, true)) return;
-        $this->priorityEntries[] = $uid;
-        $this->newPriorityUid = '';
+        $id = trim($this->newPriorityId);
+        if ($id === '' || ! preg_match('/^[A-Za-z0-9 _;-]{3,128}$/', $id) || $this->idListContains($this->priorityEntries, $id)) {
+            return;
+        }
+        $this->priorityEntries[] = ['id' => $id, 'comment' => trim($this->newPriorityComment)];
+        $this->newPriorityId = '';
+        $this->newPriorityComment = '';
     }
 
     public function removePriorityEntry(int $index): void
@@ -838,10 +846,54 @@ class EditConfiguration extends Page
 
     public function savePriority(ConfigurationRevisionEditor $revisionEditor): void
     {
-        $entries = array_values(array_unique(array_filter(array_map('trim', $this->priorityEntries))));
-        $content = $entries === [] ? '' : implode("\n", $entries)."\n";
+        $content = $this->serializeIdCommentLines($this->priorityEntries);
         $saved = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, 'Úprava priority.txt ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
+    }
+
+    /** @param list<array{id: string, comment: string}> $entries */
+    private function idListContains(array $entries, string $id): bool
+    {
+        foreach ($entries as $entry) {
+            if (($entry['id'] ?? '') === $id) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Parses "ID" or "ID // comment" (any whitespace, e.g. a real tab, before the //) lines used by whitelist.txt/ban.txt/priority.txt. */
+    private function parseIdCommentLines(string $content): array
+    {
+        $lines = array_values(array_filter(array_map('trim', preg_split('/\R/', $content) ?: []), fn (string $line): bool => $line !== ''));
+
+        return array_map(function (string $line): array {
+            $pos = strpos($line, '//');
+            if ($pos === false) {
+                return ['id' => $line, 'comment' => ''];
+            }
+
+            return ['id' => trim(substr($line, 0, $pos)), 'comment' => trim(substr($line, $pos + 2))];
+        }, $lines);
+    }
+
+    /** @param list<array{id: string, comment: string}> $entries */
+    private function serializeIdCommentLines(array $entries): string
+    {
+        $lines = [];
+        $seen = [];
+        foreach ($entries as $entry) {
+            $id = trim((string) ($entry['id'] ?? ''));
+            if ($id === '' || isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $comment = trim((string) ($entry['comment'] ?? ''));
+            $lines[] = $comment !== '' ? "{$id}\t//{$comment}" : $id;
+        }
+
+        return $lines === [] ? '' : implode("\n", $lines)."\n";
     }
 
     public function saveMessages(ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
@@ -907,7 +959,7 @@ class EditConfiguration extends Page
 
     public function addMessage(): void
     {
-        $this->messagesEntries[] = ['deadline' => '', 'shutdown' => '', 'repeat' => '', 'delay' => '', 'onconnect' => '', 'text' => ''];
+        $this->messagesEntries[] = ['deadline' => '', 'shutdown' => '', 'repeat' => '', 'delay' => '', 'onconnect' => '', 'text' => '', 'type' => 'broadcast'];
     }
 
     public function removeMessage(int $index): void
@@ -1180,15 +1232,9 @@ class EditConfiguration extends Page
         $this->eventEntries = $this->visualKind === 'events' ? $eventsEditor->entries($this->rawContent) : [];
         $this->weatherForm = $this->visualKind === 'weather' ? $weatherEditor->values($this->rawContent) : [];
         $this->serverConfig = $this->visualKind === 'server' ? app(ServerConfigEditor::class)->parse($this->rawContent) : [];
-        $this->whitelistEntries = $this->visualKind === 'whitelist'
-            ? array_values(array_filter(array_map('trim', preg_split('/\R/', $this->rawContent) ?: [])))
-            : [];
-        $this->banEntries = $this->visualKind === 'ban'
-            ? array_values(array_filter(array_map('trim', preg_split('/\R/', $this->rawContent) ?: [])))
-            : [];
-        $this->priorityEntries = $this->visualKind === 'priority'
-            ? array_values(array_filter(array_map('trim', preg_split('/\R/', $this->rawContent) ?: [])))
-            : [];
+        $this->whitelistEntries = $this->visualKind === 'whitelist' ? $this->parseIdCommentLines($this->rawContent) : [];
+        $this->banEntries = $this->visualKind === 'ban' ? $this->parseIdCommentLines($this->rawContent) : [];
+        $this->priorityEntries = $this->visualKind === 'priority' ? $this->parseIdCommentLines($this->rawContent) : [];
         $this->jsonFields = $this->visualKind === 'json' ? $jsonEditor->fields($this->rawContent) : [];
         $this->jsonValues = [];
         foreach ($this->jsonFields as $field) {
@@ -1305,9 +1351,42 @@ class EditConfiguration extends Page
                     $entry[$child->tagName] = trim($child->textContent);
                 }
             }
+            $entry['type'] = $this->messageType($entry);
             $entries[] = $entry;
         }
         return $entries;
+    }
+
+    private function messageType(array $entry): string
+    {
+        return match (true) {
+            (string) ($entry['onconnect'] ?? '') === '1' => 'onconnect',
+            (string) ($entry['shutdown'] ?? '') === '1' => 'shutdown',
+            default => 'broadcast',
+        };
+    }
+
+    /** Keeps onconnect/shutdown flags (the real XML fields) in sync with the friendlier "Typ zprávy" picker. */
+    public function updated($name, $value): void
+    {
+        if (! preg_match('/^messagesEntries\.(\d+)\.type$/', (string) $name, $matches)) {
+            return;
+        }
+        $index = (int) $matches[1];
+        if (! isset($this->messagesEntries[$index])) {
+            return;
+        }
+        $type = $this->messagesEntries[$index]['type'] ?? 'broadcast';
+        $this->messagesEntries[$index]['onconnect'] = $type === 'onconnect' ? '1' : '0';
+        $this->messagesEntries[$index]['shutdown'] = $type === 'shutdown' ? '1' : '0';
+        if ($type === 'onconnect') {
+            $this->messagesEntries[$index]['repeat'] = '';
+            $this->messagesEntries[$index]['delay'] = '';
+            $this->messagesEntries[$index]['deadline'] = '';
+        }
+        if ($type === 'broadcast') {
+            $this->messagesEntries[$index]['deadline'] = '';
+        }
     }
 
     private function sourceRevision(): ConfigurationRevision

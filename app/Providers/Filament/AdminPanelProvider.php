@@ -83,6 +83,10 @@ class AdminPanelProvider extends PanelProvider
                 fn (): string => "<script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));}</script>",
             )
             ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): string => view('filament.global-confirm-dialog')->render(),
+            )
+            ->renderHook(
                 PanelsRenderHook::PAGE_START,
                 fn (): string => auth()->check() ? view('filament.server-workspace-nav')->render() : '',
             )

@@ -296,6 +296,8 @@
     .dz-whitelist-list { display:grid; gap:.5rem; margin-bottom:1rem; }
     .dz-whitelist-row { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.7rem .85rem; border:1px solid #34472d; border-radius:.45rem; background:#111a14; }
     .dz-whitelist-row code { color:#d8f57b; overflow-wrap:anywhere; }
+    .dz-whitelist-row-id { display:flex; flex-wrap:wrap; align-items:baseline; gap:.5rem; min-width:0; }
+    .dz-whitelist-comment { color:#8c9b8c; font-size:.8rem; overflow-wrap:anywhere; }
     .dz-danger { border:1px solid #8b4b43; border-radius:.35rem; background:#281614; color:#ffb3a8; padding:.4rem .6rem; cursor:pointer; }
     .dz-map-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:.65rem; margin-bottom:.85rem; }
     .dz-eyebrow { color:#a9df42; font-size:.7rem; letter-spacing:.16em; font-weight:700; margin:0; }
