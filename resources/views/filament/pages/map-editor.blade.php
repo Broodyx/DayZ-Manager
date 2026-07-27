@@ -337,7 +337,7 @@
                 feedback.classList.toggle('error', isError);
                 feedback.hidden = false;
             };
-            const el = (tag, props = {}, children = []) => {
+            const mkEl = (tag, props = {}, children = []) => {
                 const node = document.createElement(tag);
                 Object.entries(props).forEach(([key, value]) => {
                     if (key === 'text') node.textContent = value;
@@ -435,26 +435,26 @@
                 eventRoot.hidden = Object.keys(settings).length === 0;
                 if (!eventRoot.hidden) {
                     const labels = {nominal:'Cílový počet eventů',min:'Minimum současně',max:'Maximum současně',lifetime:'Životnost (s)',restock:'Doplnění (s)',saferadius:'Bezpečný poloměr (m)',distanceradius:'Vzdálenost od hráče (m)',cleanupradius:'Poloměr úklidu (m)',position:'Režim pozice',limit:'Způsob limitu',active:'Aktivní',deletable:'Lze odstranit',init_random:'Náhodný start',remove_damaged:'Odstranit poškozené'};
-                    const grid = el('div', {class:'dz-event-setting-grid'}, Object.entries(settings).map(([key,value]) => el('span', {}, [el('small', {text:labels[key] || key}), el('b', {text:String(value)})])));
+                    const grid = mkEl('div', {class:'dz-event-setting-grid'}, Object.entries(settings).map(([key,value]) => mkEl('span', {}, [mkEl('small', {text:labels[key] || key}), mkEl('b', {text:String(value)})])));
                     const nodes = [
-                        el('strong', {text:'Související pravidla z events.xml'}),
-                        el('p', {text:'Tato nastavení platí pro celý event, ne jen pro právě přidávaný bod.'}),
+                        mkEl('strong', {text:'Související pravidla z events.xml'}),
+                        mkEl('p', {text:'Tato nastavení platí pro celý event, ne jen pro právě přidávaný bod.'}),
                         grid,
                     ];
                     if (children.length) {
-                        const list = el('ul', {}, children.map((child) => el('li', {}, [el('code', {text:child.type}), ' · min '+child.min+', max '+child.max+', loot '+child.lootmin+'–'+child.lootmax])));
-                        nodes.push(el('details', {}, [el('summary', {text:'Varianty / children ('+children.length+')'}), list]));
+                        const list = mkEl('ul', {}, children.map((child) => mkEl('li', {}, [mkEl('code', {text:child.type}), ' · min '+child.min+', max '+child.max+', loot '+child.lootmin+'–'+child.lootmax])));
+                        nodes.push(mkEl('details', {}, [mkEl('summary', {text:'Varianty / children ('+children.length+')'}), list]));
                     }
                     eventRoot.replaceChildren(...nodes);
                 }
                 const related = definition.related || {};
                 relatedRoot.hidden = Object.keys(related).length === 0;
                 if (!relatedRoot.hidden) {
-                    const list = el('ul', {}, Object.entries(related).map(([file,description]) => el('li', {}, [el('code', {text:file}), ' – '+description])));
+                    const list = mkEl('ul', {}, Object.entries(related).map(([file,description]) => mkEl('li', {}, [mkEl('code', {text:file}), ' – '+description])));
                     relatedRoot.replaceChildren(
-                        el('strong', {text:'Další nastavení nejsou vlastností bodu'}),
+                        mkEl('strong', {text:'Další nastavení nejsou vlastností bodu'}),
                         list,
-                        el('small', {text:'Změňte je v editoru příslušného souboru. Editor je záměrně nezapisuje do cfgeventspawns.xml, protože by vznikla neplatná konfigurace.'}),
+                        mkEl('small', {text:'Změňte je v editoru příslušného souboru. Editor je záměrně nezapisuje do cfgeventspawns.xml, protože by vznikla neplatná konfigurace.'}),
                     );
                 }
             };
@@ -473,17 +473,17 @@
                 if (available) {
                     status.className = 'dz-point-target-status ready';
                     status.replaceChildren(
-                        el('strong', {}, ['Zapíše se do: ', el('code', {text:target})]),
-                        el('span', {text:'Uložení vytvoří novou revizi tohoto souboru; původní revize zůstane zachována.'}),
+                        mkEl('strong', {}, ['Zapíše se do: ', mkEl('code', {text:target})]),
+                        mkEl('span', {text:'Uložení vytvoří novou revizi tohoto souboru; původní revize zůstane zachována.'}),
                     );
                 } else {
                     const names = missing.length ? missing.join(', ') : (definition.target_label || 'požadovaná konfigurace');
                     status.className = 'dz-point-target-status missing';
                     const nodes = [
-                        el('strong', {text:'Chybí aktuální soubor: ' + names}),
-                        el('span', {text:'Bez něj bod nelze bezpečně uložit do DayZ konfigurace.'}),
+                        mkEl('strong', {text:'Chybí aktuální soubor: ' + names}),
+                        mkEl('span', {text:'Bez něj bod nelze bezpečně uložit do DayZ konfigurace.'}),
                     ];
-                    if (uploadUrl) nodes.push(el('a', {href:uploadUrl, text:'Nahrát aktuální konfiguraci →'}));
+                    if (uploadUrl) nodes.push(mkEl('a', {href:uploadUrl, text:'Nahrát aktuální konfiguraci →'}));
                     status.replaceChildren(...nodes);
                 }
                 const confirm = catalogRoot.querySelector('.dz-point-confirm');
@@ -526,10 +526,10 @@
                 const newX = Math.round(Number(modal.dataset.lng));
                 const newZ = Math.round(Number(modal.dataset.lat));
                 fetch('{{ route('map-editor.points.store') }}', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'}, body: JSON.stringify({project_id: @js($projectId), type: button.dataset.point, label: chosen || label, target_filename: targetState.target, x: newX, z: newZ, parameters}) }).then(async (response) => { if (!response.ok) throw new Error((await response.json().catch(()=>({}))).message || 'Uložení bodu selhalo'); window.location.reload(); }).catch((error) => { map.removeLayer(marker); modal.hidden = false; showFeedback(modal, error.message); });
-                const popup = () => el('span', {}, [
-                    el('strong', {text:chosen || label}),
-                    el('br'),
-                    el('small', {}, ['Typ: ' + label, el('br'), 'DayZ X/Z: ' + newX + ' / ' + newZ]),
+                const popup = () => mkEl('span', {}, [
+                    mkEl('strong', {text:chosen || label}),
+                    mkEl('br'),
+                    mkEl('small', {}, ['Typ: ' + label, mkEl('br'), 'DayZ X/Z: ' + newX + ' / ' + newZ]),
                 ]);
                 marker.bindPopup(popup()).openPopup();
                 pendingButton = null;
@@ -554,12 +554,12 @@
                 visualLayers.push({ layer:imported, kind:'point' });
                 markerRecords.push({ marker, color, visualLayers });
                 const markerActions = marker.editable
-                    ? [el('br'), el('button', {class:'dz-map-edit', type:'button', text:'Upravit souřadnice'}), ' ', el('button', {class:'dz-map-delete', type:'button', text:'Smazat bod a vytvořit revizi'})]
-                    : [el('br'), el('a', {href:'{{ url('/admin/projects/'.$projectId.'/configuration') }}?revision=' + marker.revision_id, text:'Otevřít příslušný editor'})];
-                imported.bindPopup(el('span', {}, [
-                    el('strong', {text:marker.label}),
-                    el('br'),
-                    el('small', {}, [marker.help, el('br'), 'DayZ X/Z: ' + Math.round(marker.worldX) + ' / ' + Math.round(marker.worldZ)]),
+                    ? [mkEl('br'), mkEl('button', {class:'dz-map-edit', type:'button', text:'Upravit souřadnice'}), ' ', mkEl('button', {class:'dz-map-delete', type:'button', text:'Smazat bod a vytvořit revizi'})]
+                    : [mkEl('br'), mkEl('a', {href:'{{ url('/admin/projects/'.$projectId.'/configuration') }}?revision=' + marker.revision_id, text:'Otevřít příslušný editor'})];
+                imported.bindPopup(mkEl('span', {}, [
+                    mkEl('strong', {text:marker.label}),
+                    mkEl('br'),
+                    mkEl('small', {}, [marker.help, mkEl('br'), 'DayZ X/Z: ' + Math.round(marker.worldX) + ' / ' + Math.round(marker.worldZ)]),
                     ...markerActions,
                 ]));
                 imported.on('popupopen', (event) => {
