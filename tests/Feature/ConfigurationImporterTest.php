@@ -429,4 +429,35 @@ class ConfigurationImporterTest extends TestCase
         );
         $this->assertNotSame($source->sha256, $revision->sha256);
     }
+
+    public function test_editable_files_list_only_shows_the_latest_revision_per_filename(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Dedup test',
+            'platform' => 'playstation',
+            'map' => 'chernarusplus',
+        ]);
+        // Two separate imports of the same filename (e.g. re-uploaded instead of edited in place)
+        // must still collapse to a single dropdown entry showing only the newest revision.
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('globals.xml', '<globals><var name="AnimalMaxCount" value="100"/></globals>'),
+            $user,
+        );
+        app(ConfigurationImporter::class)->import(
+            $project,
+            UploadedFile::fake()->createWithContent('globals.xml', '<globals><var name="AnimalMaxCount" value="200"/></globals>'),
+            $user,
+        );
+
+        $this->actingAs($user);
+        $files = Livewire::test(EditConfiguration::class, ['record' => $project->id])->instance()->editableFiles();
+
+        $globalsEntries = array_filter($files, fn ($label) => str_starts_with($label, 'globals.xml'));
+        $this->assertCount(1, $globalsEntries);
+        $this->assertStringContainsString('revize #2', reset($globalsEntries));
+    }
 }

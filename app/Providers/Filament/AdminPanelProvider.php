@@ -75,6 +75,10 @@ class AdminPanelProvider extends PanelProvider
                 fn (): string => '<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#84cc16"><link rel="apple-touch-icon" href="/icon-192.png">',
             )
             ->renderHook(
+                PanelsRenderHook::SIDEBAR_FOOTER,
+                fn (): string => view('filament.sidebar-user-menu')->render(),
+            )
+            ->renderHook(
                 PanelsRenderHook::SCRIPTS_AFTER,
                 fn (): string => "<script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('/sw.js'));}</script>",
             )

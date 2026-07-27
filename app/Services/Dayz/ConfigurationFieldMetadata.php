@@ -45,9 +45,18 @@ final class ConfigurationFieldMetadata
             };
         }
         if (str_ends_with($path, '@value')) {
-            return $filename === 'globals.xml'
-                ? 'Hodnota globální proměnné Central Economy. Jednotka a bezpečný rozsah závisí na konkrétním názvu proměnné.'
-                : 'Hodnota XML atributu. Povolený formát závisí na nadřazeném záznamu.';
+            if ($filename === 'globals.xml') {
+                $variable = (string) str($field['group'] ?? '')->after('·')->trim();
+                foreach (self::GLOBALS as $needle => $description) {
+                    if (strcasecmp($variable, $needle) === 0) {
+                        return $description;
+                    }
+                }
+
+                return 'Hodnota globální proměnné Central Economy. Konkrétní jednotka a bezpečný rozsah nejsou pro tento název proměnné v editoru zatím popsané.';
+            }
+
+            return 'Hodnota XML atributu. Povolený formát závisí na nadřazeném záznamu.';
         }
 
         foreach (self::XML as $needle => $description) {
@@ -138,6 +147,21 @@ final class ConfigurationFieldMetadata
         'shotValidation' => 'Validace střelby: 0 = vypnuta, 1 = zapnuta. Pouze 0/1.',
         'networkObjectBatchSend' => 'Počet síťových objektů odeslaných v dávce. Kladné celé číslo; oficiální limit není publikován.',
         'networkObjectBatchCompute' => 'Počet síťových objektů zpracovaných v dávce. Kladné celé číslo; oficiální limit není publikován.',
+    ];
+
+    private const GLOBALS = [
+        'AnimalMaxCount' => 'Maximální počet zvířat (jelen, kanec, kráva…) živých najednou na celé mapě, součet přes všechny druhy. Nezáporné celé číslo; příliš nízká hodnota omezí lov a maso pro hráče.',
+        'AnimalMinCount' => 'Minimální počet zvířat, který se server snaží na mapě udržovat. Nezáporné celé číslo, nemělo by přesáhnout AnimalMaxCount.',
+        'ZombieMaxCount' => 'Maximální počet infikovaných (zombie) živých najednou na celé mapě. Nezáporné celé číslo; vyšší hodnota znamená víc infikovaných, ale i větší zátěž serveru.',
+        'ZombieMinCount' => 'Minimální počet infikovaných, který se server snaží udržovat na mapě. Nezáporné celé číslo.',
+        'LootMaxCount' => 'Maximální počet loot položek (Central Economy) existujících najednou na celé mapě, součet přes všechny typy z types.xml. Nezáporné celé číslo; nízká hodnota omezí i typy s vysokým nominal.',
+        'CleanupLifetimeDeadAnimal' => 'Kolik sekund zůstane mrtvola zvířete ve světě, než ji server automaticky smaže. Nezáporné celé číslo.',
+        'CleanupLifetimeDeadInfected' => 'Kolik sekund zůstane tělo infikovaného ve světě, než ho server automaticky smaže. Nezáporné celé číslo.',
+        'CleanupLifetimeDeadPlayer' => 'Kolik sekund zůstane tělo zemřelého hráče (a jeho vybavení) ve světě, než ho server automaticky smaže. Nezáporné celé číslo.',
+        'CleanupAvoidance' => 'Zda úklid mrtvol/předmětů vynechává místa poblíž aktivních hráčů, aby jim nezmizelo tělo/loot přímo před nosem. 0 = vypnuto, 1 = zapnuto.',
+        'IdleModeStartTime' => 'Za kolik sekund bez připojeného hráče přejde server do úsporného idle režimu. Nezáporné celé číslo.',
+        'IdleModeLifetime' => 'Jak dlouho (v sekundách) smí server zůstat v idle režimu, než se chování economy vrátí k normálu (nebo dojde k restartu podle nastavení hostingu). Nezáporné celé číslo.',
+        'IdleModeLootRespawn' => 'Zda se loot doplňuje i v idle režimu, když na serveru nikdo nehraje. 0 = vypnuto (loot čeká na hráče), 1 = zapnuto.',
     ];
 
     private const GAMEPLAY = [

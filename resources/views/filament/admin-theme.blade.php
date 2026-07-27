@@ -110,6 +110,33 @@
         backdrop-filter: blur(14px);
     }
 
+    /* User menu now lives at the bottom of the sidebar, so the topbar is just
+       dead space on wide screens. Desktop hides it; mobile keeps it for the
+       sidebar-open button, since there's no other trigger for that. */
+    @media (min-width: 1024px) {
+        .fi-topbar {
+            display: none;
+        }
+    }
+
+    .dz-sidebar-user {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.85rem 1rem;
+        border-top: 1px solid var(--dayz-border);
+        background: #0e1410;
+    }
+
+    .dz-sidebar-user-name {
+        overflow: hidden;
+        color: #c8d1c3;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .fi-main {
         position: relative;
     }
@@ -579,6 +606,17 @@
     .dz-form-step { display:grid !important; place-items:center; width:2rem; height:2rem; border:1px solid #425046; border-radius:50%; color:#839085; font-size:.62rem; font-weight:900; }
     .dz-form-section:focus-within .dz-form-step { border-color:var(--dz-lime); color:#11180e; background:var(--dz-lime); }
     .dz-form-section label { gap:.35rem; }.dz-form-section label strong { color:var(--dz-white); }.dz-form-section label small { color:#758278; line-height:1.4; }
+    .dz-area-field { display:grid; gap:.35rem; min-width:0; }
+    .dz-area-field > strong { color:var(--dz-white); }
+    .dz-area-field > small { color:#758278; line-height:1.4; }
+    .dz-area-picker { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; margin-top:.5rem; }
+    .dz-area-card { display:grid; gap:.25rem; padding:.65rem .75rem; border:1px solid var(--dz-line); border-radius:.45rem; background:#0d130f; text-decoration:none; min-width:0; }
+    .dz-area-card strong { color:#cbd5c0; font-size:.8rem; overflow-wrap:anywhere; }
+    .dz-area-card small { color:#7d8c7e; font-size:.66rem; line-height:1.4; overflow-wrap:anywhere; }
+    .dz-area-card:hover { border-color:var(--dz-lime); }
+    .dz-area-card.active { border-color:var(--dz-lime); background:rgba(182,233,79,.08); }
+    .dz-area-card.active strong { color:var(--dz-lime); }
+    @media (max-width:640px) { .dz-area-picker { grid-template-columns:1fr; } }
     .dz-import-form-new select { appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--dz-lime) 50%),linear-gradient(135deg,var(--dz-lime) 50%,transparent 50%); background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%; background-size:5px 5px; background-repeat:no-repeat; }
     .dz-upload-drop { padding:.9rem; border:1px dashed #526348; border-radius:.6rem; background:#0a100c; }.dz-upload-drop input { padding:0 !important; border:0 !important; min-height:auto !important; }.dz-upload-drop > span { color:#748178 !important; font-size:.67rem; }.dz-upload-drop b { width:max-content; padding:.35rem .45rem; border-radius:.35rem; color:#ffe0c2; background:#362113; font-size:.66rem; }
     .dz-import-form-new .dz-import-submit { display:flex; justify-content:center; gap:.5rem; align-items:center; margin:1rem; border-radius:.5rem; }

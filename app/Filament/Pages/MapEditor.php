@@ -570,7 +570,7 @@ class MapEditor extends Page
                 $count = count($event->pos ?? []);
                 if ($count > 0) {
                     $name = (string) ($event['name'] ?? '');
-                    $scopes[] = ['value' => 'event:'.$name, 'label' => $name, 'count' => $count];
+                    $scopes[] = ['value' => 'event:'.$name, 'label' => $name.' · '.$this->eventSpawnCategory($name), 'count' => $count];
                 }
             }
         }
@@ -597,6 +597,20 @@ class MapEditor extends Page
         }
 
         return $scopes;
+    }
+
+    /** cfgeventspawns.xml has no fresh/hop/travel concept (that's specific to player spawns) — classify by name instead. */
+    private function eventSpawnCategory(string $name): string
+    {
+        $lower = Str::lower($name);
+
+        return match (true) {
+            Str::contains($lower, 'heli') => 'Heli crash',
+            Str::contains($lower, ['convoy', 'train']) => 'Konvoj/vlak',
+            Str::startsWith($name, 'Vehicle') => 'Vozidlo',
+            Str::contains($lower, ['air', 'plane']) => 'Letecký event',
+            default => 'Ostatní event',
+        };
     }
 
     private function projectQuery()

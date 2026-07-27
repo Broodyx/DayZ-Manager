@@ -23,15 +23,21 @@
                 @csrf
                 <div class="dz-form-section">
                     <span class="dz-form-step">01</span>
-                    <label>
+                    <div class="dz-area-field">
                         <strong>Oblast konfigurace</strong>
-                        <select name="area" required onchange="window.location.href='{{ url('/admin/configuration-import') }}?area='+this.value+'&project={{ request()->integer('project') }}'">
-                            @foreach($catalog->options() as $key => $label)
-                                <option value="{{ $key }}" @selected($areaKey === $key)>{{ $catalog->areas()[$key]['label'] }}</option>
-                            @endforeach
-                        </select>
                         <small>{{ $area['description'] }}</small>
-                    </label>
+                        <input type="hidden" name="area" value="{{ $areaKey }}">
+                        <div class="dz-area-picker" role="radiogroup" aria-label="Oblast konfigurace">
+                            @foreach ($catalog->areas() as $key => $areaOption)
+                                <a href="{{ url('/admin/configuration-import') }}?area={{ $key }}&project={{ request()->integer('project') }}"
+                                    class="dz-area-card {{ $areaKey === $key ? 'active' : '' }}"
+                                    role="radio" aria-checked="{{ $areaKey === $key ? 'true' : 'false' }}">
+                                    <strong>{{ $areaOption['label'] }}</strong>
+                                    <small>{{ $areaOption['files'] }}</small>
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
                 </div>
                 <div class="dz-form-section">
                     <span class="dz-form-step">02</span>
