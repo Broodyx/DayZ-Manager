@@ -35,6 +35,7 @@ class MapEditor extends Page
     public array $loadedSources = [];
     public array $layerScopes = [];
     public bool $showDenseLayers = false;
+    public array $spawnPointWarnings = [];
 
     public function mount(): void
     {
@@ -45,6 +46,7 @@ class MapEditor extends Page
         $this->loadMapSources();
         $this->loadEventCatalog();
         $this->loadPointTypeCatalog();
+        $this->loadSpawnPointWarnings();
     }
 
     public function updatedProjectId(): void
@@ -53,6 +55,40 @@ class MapEditor extends Page
         $this->loadEventCatalog();
         $this->loadMapSources();
         $this->loadPointTypeCatalog();
+        $this->loadSpawnPointWarnings();
+    }
+
+    /** Flags fresh/hop/travel modes that have zero player spawn positions. */
+    public function loadSpawnPointWarnings(): void
+    {
+        $this->spawnPointWarnings = [];
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project) {
+            return;
+        }
+        $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'cfgplayerspawnpoints.xml');
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            return;
+        }
+        $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
+        if (! $xml) {
+            return;
+        }
+        $labels = [
+            'fresh' => 'FRESH · nová postava',
+            'hop' => 'HOP · změna serveru',
+            'travel' => 'TRAVEL · cestovní přesun',
+        ];
+        foreach ($labels as $mode => $label) {
+            $modeNode = $xml->{$mode} ?? null;
+            $count = 0;
+            foreach ($modeNode?->generator_posbubbles->group ?? [] as $group) {
+                $count += count($group->pos ?? []);
+            }
+            if ($modeNode && $count === 0) {
+                $this->spawnPointWarnings[] = ['mode' => $mode, 'label' => $label];
+            }
+        }
     }
 
     public function loadMapSources(): void
@@ -499,6 +535,7 @@ class MapEditor extends Page
         $this->reset('mapFile');
         $this->loadMarkers();
         $this->loadMapSources();
+        $this->loadSpawnPointWarnings();
     }
 
     public function getTitle(): string

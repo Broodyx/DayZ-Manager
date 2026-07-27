@@ -284,6 +284,10 @@
     .dz-map-upload small { width:100%; color:#879987; }
     .dz-map-info { margin:0 0 1rem; padding:.8rem 1rem; border-left:3px solid #80b8ff; background:rgba(128,184,255,.08); color:#c9d7c5; font-size:.82rem; line-height:1.5; }
     .dz-map-info strong { color:#e7f7d2; } .dz-map-info code { color:#b8ed55; }
+    .dz-map-alert { margin:0 0 1rem; padding:.85rem 1rem; border-left:3px solid #d97738; background:rgba(217,119,56,.09); color:#e8c8b3; font-size:.85rem; line-height:1.55; }
+    .dz-map-alert strong { color:#f3d9c4; }
+    .dz-map-alert ul { margin:.5rem 0 0; padding-left:1.1rem; display:grid; gap:.4rem; }
+    .dz-map-alert li::marker { color:#d97738; }
     .dz-map-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,360px); gap:1rem; align-items:start; }
     .dz-map-canvas { height:min(72vh,760px); min-height:560px; position:relative; overflow:hidden; border:1px solid #3e5c28; border-radius:.7rem; background:#1c2b20; }
     #dayz-leaflet-map { width:100%; height:100%; background:#1c2b20; }

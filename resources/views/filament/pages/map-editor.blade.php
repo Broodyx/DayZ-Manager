@@ -102,6 +102,21 @@
                 <small>2. Nahrajte jeden soubor nebo celý ZIP balík. Každý soubor dostane vlastní revizi.</small>
             </div>
         </div>
+        @if (count($spawnPointWarnings))
+            <div class="dz-map-alert">
+                <strong>Chybí spawn body hráčů.</strong>
+                cfgplayerspawnpoints.xml neobsahuje ani jeden bod pro následující režim{{ count($spawnPointWarnings) > 1 ? 'y' : '' }} — hráči v něm nemají kam se objevit.
+                <ul>
+                    @foreach ($spawnPointWarnings as $warning)
+                        <li>
+                            <strong>{{ $warning['label'] }}:</strong>
+                            Podržte <code>Ctrl</code> a klikněte na mapě na vhodné místo, zvolte „Spawn hráče“, v poli „Režim spawnu“ vyberte
+                            <code>{{ $warning['mode'] }}</code> a uložte — vytvoří se nová revize cfgplayerspawnpoints.xml.
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         <div class="dz-map-info">
             <strong>Jak mapu číst:</strong>
             kruhy z <code>cfgplayerspawnpoints.xml</code> jsou oblasti, ve kterých server teprve hledá vhodný povrch.
