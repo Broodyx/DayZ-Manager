@@ -301,6 +301,11 @@ class EditConfiguration extends Page
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color(fn (): string => in_array($this->revisionId, $this->undeployedRevisionIds(), true) ? 'danger' : 'gray')
                 ->url(fn (): string => route('configuration-revision.download', ['project' => $this->getRecord()->id, 'revision' => $this->revisionId])),
+            Actions\Action::make('downloadAllConfiguration')
+                ->label('Stáhnout vše (ZIP)')
+                ->icon('heroicon-o-archive-box-arrow-down')
+                ->color('gray')
+                ->url(fn (): string => route('project.configuration.download-all', ['project' => $this->getRecord()->id])),
         ];
     }
 

@@ -26,6 +26,9 @@
                         <i><b style="width:{{ $progress }}%"></b></i>
                         <small>{{ $progress }} % pokrytí katalogu. Není nutné nahrávat soubory, které váš hosting nepoužívá.</small>
                     </div>
+                    @if ($readyFiles > 0)
+                        <a class="dz-secondary" href="{{ route('project.configuration.download-all', ['project' => $projectId]) }}">Stáhnout všechny soubory (ZIP) →</a>
+                    @endif
                 @else
                     <div class="dz-empty-state">
                         <strong>Zatím nemáte žádný server</strong>

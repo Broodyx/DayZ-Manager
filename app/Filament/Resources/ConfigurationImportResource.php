@@ -83,10 +83,14 @@ class ConfigurationImportResource extends Resource
             Tables\Actions\Action::make('download')
                 ->label('Stáhnout')
                 ->icon('heroicon-o-arrow-down-tray')
-                ->action(fn (ConfigurationImport $record) => Storage::disk('dayz')->download(
-                    $record->storage_path,
-                    $record->original_filename,
-                )),
+                ->action(function (ConfigurationImport $record) {
+                    $record->revisions()->orderBy('revision_number')->first()?->forceFill(['downloaded_at' => now()])->save();
+
+                    return Storage::disk('dayz')->download(
+                        $record->storage_path,
+                        $record->original_filename,
+                    );
+                }),
             Tables\Actions\EditAction::make()->label('Detail')->icon('heroicon-o-eye'),
         ])
         ->emptyStateHeading('Zatím nebyla nahrána žádná konfigurace')

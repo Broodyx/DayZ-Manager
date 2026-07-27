@@ -90,6 +90,10 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::PAGE_START,
                 fn (): string => auth()->check() ? view('filament.server-workspace-nav')->render() : '',
             )
+            ->renderHook(
+                PanelsRenderHook::CONTENT_START,
+                fn (): string => (session('status') || session('status_warning')) ? view('filament.flash-status')->render() : '',
+            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->navigationItems($serverItems)

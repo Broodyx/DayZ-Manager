@@ -299,6 +299,8 @@
     .dz-whitelist-row-id { display:flex; flex-wrap:wrap; align-items:baseline; gap:.5rem; min-width:0; }
     .dz-whitelist-comment { color:#8c9b8c; font-size:.8rem; overflow-wrap:anywhere; }
     .dz-danger { border:1px solid #8b4b43; border-radius:.35rem; background:#281614; color:#ffb3a8; padding:.4rem .6rem; cursor:pointer; }
+    .dz-flash-success { padding:.85rem 1rem; margin:0 0 1rem; border-left:3px solid #91c52b; border-radius:.3rem; color:#dbeacb; background:rgba(145,197,43,.07); }
+    .dz-flash-warning { padding:.85rem 1rem; margin:0 0 1rem; border-left:3px solid #d97738; border-radius:.3rem; color:#e8c8b3; background:rgba(217,119,56,.08); }
     .dz-map-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:.65rem; margin-bottom:.85rem; }
     .dz-eyebrow { color:#a9df42; font-size:.7rem; letter-spacing:.16em; font-weight:700; margin:0; }
     .dz-muted { color:#9aa99b; font-size:.9rem; }

@@ -68,9 +68,9 @@
                 <div class="dz-form-section">
                     <span class="dz-form-step">04</span>
                     <label class="dz-upload-drop">
-                        <strong>Vyberte soubor nebo ZIP balík</strong>
-                        <input type="file" name="file" required accept=".cfg,.txt,.xml,.json,.zip,.c">
-                        <span>XML, JSON, CFG, TXT, init.c nebo ZIP · maximálně 100 MB</span>
+                        <strong>Vyberte jeden nebo víc souborů, případně ZIP balík</strong>
+                        <input type="file" name="files[]" multiple required accept=".cfg,.txt,.xml,.json,.zip,.c">
+                        <span>XML, JSON, CFG, TXT, init.c nebo ZIP · každý soubor se zařadí podle svého jména automaticky · maximálně 100 MB na soubor</span>
                         @if (request('expected'))
                             <b>Průvodce očekává: {{ request('expected') }}</b>
                         @endif

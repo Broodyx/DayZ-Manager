@@ -90,10 +90,14 @@ class ConfigurationRevisionResource extends Resource
             Tables\Actions\Action::make('download')
                 ->label('Stáhnout')
                 ->icon('heroicon-o-arrow-down-tray')
-                ->action(fn (ConfigurationRevision $record) => Storage::disk('dayz')->download(
-                    $record->storage_path,
-                    app(ConfigurationRevisionEditor::class)->downloadName($record),
-                )),
+                ->action(function (ConfigurationRevision $record) {
+                    $record->forceFill(['downloaded_at' => now()])->save();
+
+                    return Storage::disk('dayz')->download(
+                        $record->storage_path,
+                        app(ConfigurationRevisionEditor::class)->downloadName($record),
+                    );
+                }),
             Tables\Actions\EditAction::make()->label('Detail')->icon('heroicon-o-eye'),
         ])
         ->emptyStateHeading('Zatím neexistuje žádná revize')

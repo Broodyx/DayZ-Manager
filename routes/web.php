@@ -192,6 +192,19 @@ Route::get('/admin/projects/{project}/configuration/{revision}/download', functi
     return $disk->download($revision->storage_path, $name, ['Content-Type' => 'application/octet-stream']);
 })->middleware('auth')->name('configuration-revision.download');
 
+Route::get('/admin/projects/{project}/configuration/download-all', function (Project $project, \App\Services\Storage\ProjectConfigurationZipBuilder $zipBuilder) {
+    abort_unless((int) $project->user_id === (int) auth()->id() || auth()->user()?->is_admin, 403);
+    try {
+        $result = $zipBuilder->build($project);
+    } catch (\RuntimeException $exception) {
+        return redirect(\App\Filament\Pages\ConfigurationWizard::getUrl(['project' => $project->id]))
+            ->with('status_warning', $exception->getMessage());
+    }
+    $filename = \Illuminate\Support\Str::slug($project->name).'-configuration.zip';
+
+    return response()->download($result['path'], $filename)->deleteFileAfterSend(true);
+})->middleware('auth')->name('project.configuration.download-all');
+
 Route::get('/admin/projects/{project}/configuration/{revision}/raw', function (Project $project, \App\Models\ConfigurationRevision $revision) {
     abort_unless(((int) $project->user_id === (int) auth()->id() || auth()->user()?->is_admin) && (int) $revision->project_id === (int) $project->id, 403);
     $disk = Storage::disk('dayz');
@@ -205,15 +218,48 @@ Route::get('/admin/projects/{project}/configuration/{revision}/raw', function (P
 })->middleware('auth')->name('configuration-revision.raw');
 
 Route::post('/admin/configuration-import/upload', function (ConfigurationImporter $importer) {
-    request()->validate(['area' => ['nullable', 'string', 'max:40'], 'project_id' => ['required', 'integer'], 'platform' => ['required', 'in:playstation,xbox,steam'], 'file' => ['required', 'file', 'max:102400']]);
+    request()->validate([
+        'area' => ['nullable', 'string', 'max:40'],
+        'project_id' => ['required', 'integer'],
+        'platform' => ['required', 'in:playstation,xbox,steam'],
+        'files' => ['required', 'array', 'min:1'],
+        'files.*' => ['required', 'file', 'max:102400'],
+    ]);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail(request('project_id'));
-    $import = $importer->import($project, request()->file('file'), auth()->user());
+
+    $files = request()->file('files');
+    $importedNames = [];
+    $failed = [];
+    $lastImport = null;
+    foreach ($files as $file) {
+        try {
+            $lastImport = $importer->import($project, $file, auth()->user());
+            $importedNames[] = $lastImport->original_filename;
+        } catch (\Throwable $exception) {
+            $failed[] = ($file->getClientOriginalName() ?: 'soubor').': '.$exception->getMessage();
+        }
+    }
     $project->update(['platform' => request('platform'), 'platform_confidence' => 100]);
-    $revision = $import->revisions()->latest('id')->firstOrFail();
 
-    $destination = request('area') === 'map'
-        ? '/admin/map-editor?project='.$project->id
-        : '/admin/projects/'.$project->id.'/configuration?revision='.$revision->id;
+    $redirectResponse = null;
+    if (count($files) === 1 && $failed === [] && $lastImport) {
+        $revision = $lastImport->revisions()->latest('id')->firstOrFail();
+        $destination = request('area') === 'map'
+            ? '/admin/map-editor?project='.$project->id
+            : '/admin/projects/'.$project->id.'/configuration?revision='.$revision->id;
+        $redirectResponse = redirect($destination);
+    } else {
+        $redirectResponse = redirect(\App\Filament\Pages\ConfigurationWizard::getUrl(['project' => $project->id]));
+    }
 
-    return redirect($destination)->with('status', "Importováno: {$import->original_filename}");
+    if ($importedNames !== []) {
+        $redirectResponse->with('status', count($importedNames) === 1
+            ? "Importováno: {$importedNames[0]}"
+            : count($importedNames).'× importováno: '.implode(', ', $importedNames));
+    }
+    if ($failed !== []) {
+        $redirectResponse->with('status_warning', count($failed).'× se nepodařilo importovat: '.implode(' | ', $failed));
+    }
+
+    return $redirectResponse;
 })->middleware('auth')->name('configuration-import.upload');
