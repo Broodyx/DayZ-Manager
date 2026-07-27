@@ -11,7 +11,7 @@ class ConfigurationFieldMetadataTest extends TestCase
 {
     public function test_every_server_setting_in_reference_file_has_specific_metadata(): void
     {
-        $content = file_get_contents(base_path('dokumenty/serverDZ.cfg'));
+        $content = file_get_contents(base_path('dokumenty/PC/serverDZ.cfg'));
         $values = app(ServerConfigEditor::class)->parse($content);
         $metadata = app(ConfigurationFieldMetadata::class);
 
@@ -33,7 +33,7 @@ class ConfigurationFieldMetadataTest extends TestCase
 
     public function test_every_reference_gameplay_field_has_a_type_or_range_description(): void
     {
-        $content = file_get_contents(base_path('dokumenty/dayzOffline.chernarusplus/cfggameplay.json'));
+        $content = file_get_contents(base_path('dokumenty/PC/dayzOffline.chernarusplus/cfggameplay.json'));
         $fields = app(JsonConfigurationEditor::class)->fields($content);
         $metadata = app(ConfigurationFieldMetadata::class);
 

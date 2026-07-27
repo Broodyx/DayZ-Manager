@@ -273,6 +273,7 @@ class EditConfiguration extends Page
             'init.c' => 'Inicializační skript mise. Pokročilá PC konfigurace vyžadující Enforce Script.',
             'cfggameplay.json' => 'Gameplay nastavení: stamina, damage, respawn, UI, svět a pohyb hráče.',
             'cfgenvironment.xml' => 'Teploty, prostředí a chování okolního světa.',
+            'cfgweather.xml' => 'Počáteční a mezní hodnoty počasí: oblačnost, mlha, déšť, sníh, vítr a bouřky.',
             'cfgplayerspawnpoints.xml' => 'Spawnovací body hráčů a jejich orientace.',
             'territory-type' => 'Teritoria zvířat; souřadnice a hustota výskytu druhu.',
             default => 'Pokročilá konfigurace serveru. Před uložením se ověří syntaxe XML nebo JSON.',

@@ -10,7 +10,7 @@ class JsonConfigurationEditorValidationTest extends TestCase
 {
     public function test_it_preserves_boolean_values_and_accepts_documented_ranges(): void
     {
-        $content = file_get_contents(base_path('dokumenty/dayzOffline.chernarusplus/cfggameplay.json'));
+        $content = file_get_contents(base_path('dokumenty/PC/dayzOffline.chernarusplus/cfggameplay.json'));
         $updated = app(JsonConfigurationEditor::class)->update($content, [
             'GeneralData.disableBaseDamage' => true,
             'PlayerData.StaminaData.staminaMinCap' => '5',
@@ -26,7 +26,7 @@ class JsonConfigurationEditorValidationTest extends TestCase
     public function test_it_rejects_invalid_documented_gameplay_range(): void
     {
         $this->expectException(ValidationException::class);
-        $content = file_get_contents(base_path('dokumenty/dayzOffline.chernarusplus/cfggameplay.json'));
+        $content = file_get_contents(base_path('dokumenty/PC/dayzOffline.chernarusplus/cfggameplay.json'));
 
         app(JsonConfigurationEditor::class)->update($content, [
             'PlayerData.MovementData.timeToSprint' => 0,
