@@ -688,6 +688,7 @@
     .dz-info { padding:.85rem 1rem; border-left:3px solid #91c52b; color:#dbeacb; background:rgba(145,197,43,.07); }
     .dz-log-page { display:grid; gap:1.25rem; }
     .dz-log-server-picker { display:grid; gap:.35rem; max-width:24rem; color:#d8f57b; font-size:.78rem; font-weight:800; }
+    .dz-log-server-picker select { min-height:2.8rem; border:1px solid #496b31; border-radius:.45rem; background:#0b120d; color:#e7f7d2; padding:.6rem 2.2rem .6rem .75rem; color-scheme:dark; appearance:none; -webkit-appearance:none; cursor:pointer; background-image:linear-gradient(45deg,transparent 50%,#b8ed55 50%),linear-gradient(135deg,#b8ed55 50%,transparent 50%); background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat; }
     .dz-log-input { display:grid; gap:.6rem; }
     .dz-log-input label { color:#d8f57b; font-weight:700; font-size:.85rem; }
     .dz-log-input textarea { width:100%; border:1px solid #486a2c; border-radius:.5rem; background:#0b110d; color:#e7f7d2; padding:.85rem 1rem; font:.8rem/1.5 ui-monospace,SFMono-Regular,monospace; resize:vertical; }

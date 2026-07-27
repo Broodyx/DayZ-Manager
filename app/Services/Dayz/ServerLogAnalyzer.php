@@ -24,11 +24,13 @@ final class ServerLogAnalyzer
                 $key = $rule['key'].($captured !== null ? '|'.$captured : '');
                 if (! isset($findings[$key])) {
                     $findings[$key] = [
+                        'kind' => $rule['key'],
                         'severity' => $rule['severity'],
                         'title' => is_callable($rule['title']) ? $rule['title']($captured) : $rule['title'],
                         'detail' => is_callable($rule['detail']) ? $rule['detail']($captured) : $rule['detail'],
                         'action' => isset($rule['action']) && is_callable($rule['action']) ? $rule['action']($captured) : ($rule['action'] ?? null),
                         'link' => $rule['link'] ?? null,
+                        'target' => $captured,
                         'count' => 0,
                         'example' => trim($line),
                         'first_timestamp' => $this->extractTimestamp($line),
@@ -94,6 +96,7 @@ final class ServerLogAnalyzer
                 'title' => fn ($n) => "{$n}× skupina objektů nemá žádné pozice",
                 'detail' => 'mapgroupproto.xml definuje skupiny/prototypy, pro které mapgrouppos.xml neobsahuje žádnou pozici (nebo naopak).',
                 'action' => 'Zkontrolovat soulad mapgrouppos.xml a mapgroupproto.xml — jde obvykle jen o neškodné duplicity ve stock datech.',
+                'link' => 'map-editor',
             ],
             [
                 'pattern' => '/\[CE\]\[LoadPrototype\]\s+(\d+)\s+Errors? during XML parse/i',
@@ -102,6 +105,7 @@ final class ServerLogAnalyzer
                 'title' => fn ($n) => "{$n}× chyba při parsování mapového XML",
                 'detail' => 'Herní engine narazil na syntakticky neplatné XML při načítání mapových prototypů/clusterů (mapgroupproto.xml, mapgroupcluster*.xml).',
                 'action' => 'Zkontrolovat raw obsah těchto souborů v editoru — často jde o poškozený export z nástroje třetí strany.',
+                'link' => 'map-editor',
             ],
             [
                 'pattern' => "/Type '([^']+)' will be ignored\\. \\(Not spawnable/i",
@@ -110,6 +114,7 @@ final class ServerLogAnalyzer
                 'title' => fn ($t) => "Položka '{$t}' se nespawnuje (Not spawnable)",
                 'detail' => 'Položka je v types.xml, ale hra ji považuje za nespawnovatelnou (scope není public, nebo chybí mod, který ji definuje).',
                 'action' => 'Ověřit, že odpovídající mod je nahraný na serveru, případně položku z types.xml odebrat.',
+                'link' => 'types-editor',
             ],
             [
                 'pattern' => "/Type '([^']+)' will be ignored\\. \\(Type does not exist/i",
@@ -118,6 +123,7 @@ final class ServerLogAnalyzer
                 'title' => fn ($t) => "Položka '{$t}' v types.xml neexistuje ve hře",
                 'detail' => 'Class name pravděpodobně obsahuje překlep, nebo patří k modu, který na serveru chybí.',
                 'action' => fn ($t) => "Otevřít types.xml editor a opravit nebo odebrat položku '{$t}'.",
+                'link' => 'types-editor',
             ],
             [
                 'pattern' => "/Skipping entry for non-existing event '([^']+)'/i",

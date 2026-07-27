@@ -56,9 +56,26 @@ class LogAnalyzer extends Page
         $this->reset(['logContent', 'findings', 'totalLines', 'matchedLines', 'analyzed']);
     }
 
-    public function mapEditorUrl(): string
+    public function mapEditorUrl(?string $openEvent = null): string
     {
-        return url('/admin/map-editor').($this->projectId ? '?project='.$this->projectId : '');
+        $query = [];
+        if ($this->projectId) {
+            $query['project'] = $this->projectId;
+        }
+        if ($openEvent !== null && $openEvent !== '') {
+            $query['open_event'] = $openEvent;
+        }
+
+        return url('/admin/map-editor').($query ? '?'.http_build_query($query) : '');
+    }
+
+    public function typesEditorUrl(?string $typeName): ?string
+    {
+        if (! $this->projectId || ! $typeName) {
+            return null;
+        }
+
+        return url('/admin/projects/'.$this->projectId.'/configuration').'?'.http_build_query(['type' => $typeName]);
     }
 
     private function projectQuery()

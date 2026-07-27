@@ -46,8 +46,12 @@
                                 @if ($finding['action'])
                                     <p class="dz-log-finding-action"><strong>Co udělat:</strong> {{ $finding['action'] }}</p>
                                 @endif
-                                @if ($finding['link'] === 'map-editor')
+                                @if ($finding['link'] === 'map-editor' && $finding['kind'] === 'missing-event-definition')
+                                    <a class="dz-secondary" href="{{ $this->mapEditorUrl($finding['target']) }}">Otevřít Mapový editor a přidat '{{ $finding['target'] }}' →</a>
+                                @elseif ($finding['link'] === 'map-editor')
                                     <a class="dz-secondary" href="{{ $this->mapEditorUrl() }}">Otevřít Mapový editor →</a>
+                                @elseif ($finding['link'] === 'types-editor' && $this->typesEditorUrl($finding['target']))
+                                    <a class="dz-secondary" href="{{ $this->typesEditorUrl($finding['target']) }}">Otevřít '{{ $finding['target'] }}' v types.xml editoru →</a>
                                 @endif
                                 <details class="dz-log-example">
                                     <summary>Příklad řádku{{ $finding['first_timestamp'] ? ' · '.$finding['first_timestamp'] : '' }}</summary>

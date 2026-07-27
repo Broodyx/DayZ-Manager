@@ -76,6 +76,11 @@ class MapEditor extends Page
         $this->loadPointTypeCatalog();
         $this->loadSpawnPointWarnings();
         $this->loadEventSpawnWarnings();
+
+        $requestedEvent = trim((string) request()->string('open_event'));
+        if ($requestedEvent !== '' && in_array($requestedEvent, $this->eventSpawnWarnings, true)) {
+            $this->openAddEventModal($requestedEvent);
+        }
     }
 
     public function updatedProjectId(): void

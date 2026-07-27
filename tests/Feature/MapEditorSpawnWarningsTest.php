@@ -179,6 +179,22 @@ XML);
         $this->assertStringNotContainsString('GhostEvent', Storage::disk('dayz')->get($latest->storage_path));
     }
 
+    public function test_open_event_query_parameter_opens_the_add_event_modal(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEvents($project, $user, '<events><event name="StaticHeliCrash"><nominal>1</nominal></event></events>');
+        $this->seedEventSpawns($project, $user, '<eventposdef><event name="StaticHeliCrash"><pos x="1" z="2" a="0"/></event><event name="VehicleTransitBus"><pos x="3" z="4" a="0"/></event></eventposdef>');
+
+        $this->actingAs($user)
+            ->get("/admin/map-editor?project={$project->id}&open_event=VehicleTransitBus")
+            ->assertOk()
+            ->assertSee('Přidat event „VehicleTransitBus“ do events.xml');
+    }
+
     public function test_adding_missing_event_clears_the_warning_and_creates_a_valid_event(): void
     {
         Storage::fake('dayz');

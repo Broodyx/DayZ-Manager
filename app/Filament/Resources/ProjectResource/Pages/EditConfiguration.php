@@ -138,14 +138,40 @@ class EditConfiguration extends Page
     {
         $this->record = $this->resolveRecord($record);
         $requestedRevision = request()->integer('revision');
+        $requestedType = trim((string) request()->string('type'));
+        $requestedEvent = trim((string) request()->string('event'));
+
         $requested = $requestedRevision
             ? $this->getRecord()->revisions()->whereKey($requestedRevision)->first()
             : null;
+        if (! $requested && $requestedType !== '') {
+            $requested = $this->latestRevisionByFilename('types.xml');
+        }
+        if (! $requested && $requestedEvent !== '') {
+            $requested = $this->latestRevisionByFilename('events.xml');
+        }
+
         if ($requested) {
             $this->loadRevision($requested);
         } else {
             $this->loadLatestRevision();
         }
+
+        if ($requestedType !== '') {
+            $this->selectType($requestedType);
+        }
+        if ($requestedEvent !== '') {
+            $this->selectEvent($requestedEvent, app(EventsXmlEditor::class));
+        }
+    }
+
+    private function latestRevisionByFilename(string $filename): ?ConfigurationRevision
+    {
+        return $this->getRecord()->revisions()
+            ->with('configurationImport')
+            ->orderByDesc('revision_number')
+            ->get()
+            ->first(fn (ConfigurationRevision $revision): bool => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === $filename);
     }
 
     public function getTitle(): string|Htmlable

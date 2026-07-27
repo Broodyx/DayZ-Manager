@@ -341,6 +341,33 @@ class ConfigurationImporterTest extends TestCase
         $this->assertStringContainsString('a="90"', $saved);
     }
 
+    public function test_type_query_parameter_opens_editor_with_the_matching_entry_selected(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        app(DayzDemoSeeder::class)->seedFor($user);
+        $project = Project::query()->where('user_id', $user->id)->where('name', 'Chernarus Survival')->firstOrFail();
+
+        $this->actingAs($user)
+            ->get("/admin/projects/{$project->id}/configuration?type=AKM")
+            ->assertOk()
+            ->assertSee('<strong>AKM</strong>', false)
+            ->assertSee('Výskyt: Military');
+    }
+
+    public function test_event_query_parameter_opens_editor_with_the_matching_entry_selected(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        app(DayzDemoSeeder::class)->seedFor($user);
+        $project = Project::query()->where('user_id', $user->id)->where('name', 'Chernarus Survival')->firstOrFail();
+
+        $this->actingAs($user)
+            ->get("/admin/projects/{$project->id}/configuration?event=InfectedArmy")
+            ->assertOk()
+            ->assertSee('<strong>InfectedArmy</strong>', false);
+    }
+
     public function test_events_xml_has_a_searchable_select_and_edit_one_editor(): void
     {
         Storage::fake('dayz');

@@ -27,6 +27,13 @@ LOG;
         $this->assertNotNull($missingEvent);
         $this->assertStringContainsString('VehicleTransitBus', $missingEvent['action']);
         $this->assertSame('map-editor', $missingEvent['link']);
+        $this->assertSame('missing-event-definition', $missingEvent['kind']);
+        $this->assertSame('VehicleTransitBus', $missingEvent['target']);
+
+        $missingType = collect($result['findings'])->firstWhere('title', "Položka 'Static_FrozenScientist_DE' v types.xml neexistuje ve hře");
+        $this->assertNotNull($missingType);
+        $this->assertSame('types-editor', $missingType['link']);
+        $this->assertSame('Static_FrozenScientist_DE', $missingType['target']);
     }
 
     public function test_it_detects_restart_loop_stop(): void
