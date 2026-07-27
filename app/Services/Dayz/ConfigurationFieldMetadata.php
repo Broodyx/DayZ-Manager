@@ -147,6 +147,11 @@ final class ConfigurationFieldMetadata
         'shotValidation' => 'Validace střelby: 0 = vypnuta, 1 = zapnuta. Pouze 0/1.',
         'networkObjectBatchSend' => 'Počet síťových objektů odeslaných v dávce. Kladné celé číslo; oficiální limit není publikován.',
         'networkObjectBatchCompute' => 'Počet síťových objektů zpracovaných v dávce. Kladné celé číslo; oficiální limit není publikován.',
+        'networkRangeClose' => 'Dosah síťové aktualizace pro blízké objekty, v metrech. Kladné číslo; nižší hodnota šetří výkon na úkor plynulosti blízkého okolí.',
+        'networkRangeNear' => 'Dosah síťové aktualizace pro objekty ve střední vzdálenosti, v metrech. Kladné číslo, obvykle vyšší než networkRangeClose.',
+        'networkRangeFar' => 'Dosah síťové aktualizace pro vzdálené objekty, v metrech. Kladné číslo, obvykle vyšší než networkRangeNear.',
+        'networkRangeDistantEffect' => 'Dosah síťové aktualizace vzdálených efektů (např. výstřely, exploze), v metrech. Kladné číslo.',
+        'enableMouseAndKeyboard' => 'Podpora myši a klávesnice na konzoli (PlayStation/Xbox): 0 = zakázáno, 1 = povoleno. Na PC nemá význam, hráči M+K používají vždy.',
     ];
 
     private const GLOBALS = [

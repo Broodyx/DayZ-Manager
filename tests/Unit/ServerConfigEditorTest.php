@@ -46,4 +46,19 @@ class ServerConfigEditorTest extends TestCase
         $this->expectException(\RuntimeException::class);
         app(ServerConfigEditor::class)->validate(['verifySignatures' => '1']);
     }
+
+    public function test_it_validates_console_mouse_and_keyboard_flag_and_network_ranges(): void
+    {
+        $editor = app(ServerConfigEditor::class);
+        $editor->validate(['enableMouseAndKeyboard' => '1', 'networkRangeClose' => '20', 'networkRangeFar' => '1000']);
+
+        $this->expectException(\RuntimeException::class);
+        $editor->validate(['enableMouseAndKeyboard' => '2']);
+    }
+
+    public function test_it_rejects_negative_network_range(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        app(ServerConfigEditor::class)->validate(['networkRangeFar' => -1]);
+    }
 }

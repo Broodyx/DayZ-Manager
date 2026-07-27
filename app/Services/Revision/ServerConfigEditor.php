@@ -62,7 +62,7 @@ final class ServerConfigEditor
             'disableContainerDamage', 'disableRespawnDialog', 'disableRespawnInUnconsciousness',
             'enableCfgGameplayFile', 'shotValidation', 'adminLogPlayerHitsOnly', 'adminLogPlacement',
             'adminLogBuildActions', 'adminLogPlayerList', 'enableDebugMonitor', 'allowFilePatching',
-            'multithreadedReplication'] as $key) {
+            'multithreadedReplication', 'enableMouseAndKeyboard'] as $key) {
             if (isset($values[$key]) && ! in_array((string) $values[$key], ['0', '1'], true)) {
                 throw new RuntimeException($key.' musí být 0 nebo 1.');
             }
@@ -100,7 +100,8 @@ final class ServerConfigEditor
         }
         foreach (['respawnTime', 'motdInterval', 'loginQueueConcurrentPlayers', 'loginQueueMaxPlayers',
             'instanceId', 'simulatedPlayersBatch', 'defaultVisibility', 'defaultObjectViewDistance',
-            'pingWarning', 'pingCritical', 'MaxPing', 'networkObjectBatchSend', 'networkObjectBatchCompute'] as $key) {
+            'pingWarning', 'pingCritical', 'MaxPing', 'networkObjectBatchSend', 'networkObjectBatchCompute',
+            'networkRangeClose', 'networkRangeNear', 'networkRangeFar', 'networkRangeDistantEffect'] as $key) {
             if (isset($values[$key]) && (! is_numeric($values[$key]) || (float) $values[$key] < 0)) {
                 throw new RuntimeException($key.' musí být nezáporné číslo.');
             }
