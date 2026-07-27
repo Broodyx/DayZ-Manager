@@ -13,38 +13,25 @@ final class MapConfigurationEditor
     /** @return array{content:string,deleted:int} */
     public function deleteScope(string $filename, string $content, string $scope): array
     {
+        return $this->deleteScopes($filename, $content, [$scope]);
+    }
+
+    /**
+     * Deletes every node matched by any of the given scopes in a single pass, producing one revision.
+     *
+     * @param  list<string>  $scopes
+     * @return array{content:string,deleted:int}
+     */
+    public function deleteScopes(string $filename, string $content, array $scopes): array
+    {
         $filename = strtolower(basename(str_replace('\\', '/', $filename)));
         $document = $this->document($content);
         $xpath = new DOMXPath($document);
         $nodes = [];
-
-        if ($filename === 'cfgeventspawns.xml') {
-            if ($scope === 'all') {
-                $nodes = iterator_to_array($xpath->query('/eventposdef/event/pos') ?: []);
-            } elseif (str_starts_with($scope, 'event:')) {
-                $eventName = substr($scope, 6);
-                foreach ($xpath->query('/eventposdef/event') ?: [] as $event) {
-                    if ($event instanceof DOMElement && hash_equals($event->getAttribute('name'), $eventName)) {
-                        $nodes = iterator_to_array($xpath->query('./pos', $event) ?: []);
-                        break;
-                    }
-                }
+        foreach ($scopes as $scope) {
+            foreach ($this->resolveScopeNodes($xpath, $filename, $scope) as $node) {
+                $nodes[spl_object_id($node)] = $node;
             }
-        } elseif ($filename === 'cfgplayerspawnpoints.xml') {
-            if ($scope === 'all') {
-                $nodes = iterator_to_array($xpath->query('/playerspawnpoints/*/generator_posbubbles/group/pos') ?: []);
-            } elseif (preg_match('/^mode:(fresh|hop|travel)$/', $scope, $matches)) {
-                $nodes = iterator_to_array($xpath->query('/playerspawnpoints/'.$matches[1].'/generator_posbubbles/group/pos') ?: []);
-            } elseif (preg_match('/^group:(fresh|hop|travel)\|(.+)$/', $scope, $matches)) {
-                foreach ($xpath->query('/playerspawnpoints/'.$matches[1].'/generator_posbubbles/group') ?: [] as $group) {
-                    if ($group instanceof DOMElement && hash_equals($group->getAttribute('name'), $matches[2])) {
-                        $nodes = iterator_to_array($xpath->query('./pos', $group) ?: []);
-                        break;
-                    }
-                }
-            }
-        } else {
-            throw new RuntimeException('Hromadné mazání pro tento mapový soubor není podporováno.');
         }
 
         $deleted = 0;
@@ -60,7 +47,7 @@ final class MapConfigurationEditor
             }
         }
         if ($deleted === 0) {
-            throw new RuntimeException('Ve vybrané skupině nebyly nalezeny žádné body.');
+            throw new RuntimeException('Ve vybraných skupinách nebyly nalezeny žádné body.');
         }
         // A group/event with no remaining <pos> children is an orphaned, non-functional entry, so drop it too.
         foreach ($parentsToPrune as $parent) {
@@ -70,6 +57,46 @@ final class MapConfigurationEditor
         }
 
         return ['content' => $this->save($document), 'deleted' => $deleted];
+    }
+
+    /** @return list<DOMElement> */
+    private function resolveScopeNodes(DOMXPath $xpath, string $filename, string $scope): array
+    {
+        if ($filename === 'cfgeventspawns.xml') {
+            if ($scope === 'all') {
+                return iterator_to_array($xpath->query('/eventposdef/event/pos') ?: []);
+            }
+            if (str_starts_with($scope, 'event:')) {
+                $eventName = substr($scope, 6);
+                foreach ($xpath->query('/eventposdef/event') ?: [] as $event) {
+                    if ($event instanceof DOMElement && hash_equals($event->getAttribute('name'), $eventName)) {
+                        return iterator_to_array($xpath->query('./pos', $event) ?: []);
+                    }
+                }
+            }
+
+            return [];
+        }
+
+        if ($filename === 'cfgplayerspawnpoints.xml') {
+            if ($scope === 'all') {
+                return iterator_to_array($xpath->query('/playerspawnpoints/*/generator_posbubbles/group/pos') ?: []);
+            }
+            if (preg_match('/^mode:(fresh|hop|travel)$/', $scope, $matches)) {
+                return iterator_to_array($xpath->query('/playerspawnpoints/'.$matches[1].'/generator_posbubbles/group/pos') ?: []);
+            }
+            if (preg_match('/^group:(fresh|hop|travel)\|(.+)$/', $scope, $matches)) {
+                foreach ($xpath->query('/playerspawnpoints/'.$matches[1].'/generator_posbubbles/group') ?: [] as $group) {
+                    if ($group instanceof DOMElement && hash_equals($group->getAttribute('name'), $matches[2])) {
+                        return iterator_to_array($xpath->query('./pos', $group) ?: []);
+                    }
+                }
+            }
+
+            return [];
+        }
+
+        throw new RuntimeException('Hromadné mazání pro tento mapový soubor není podporováno.');
     }
 
     /** @param array<string, mixed> $parameters */

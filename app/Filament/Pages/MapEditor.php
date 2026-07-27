@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Project;
+use App\Services\Dayz\ClassnameCatalog;
 use App\Services\Dayz\EventsXmlEditor;
 use App\Services\Dayz\MapConfigurationEditor;
 use App\Services\Dayz\MapConfigurationReader;
@@ -42,15 +43,17 @@ class MapEditor extends Page
     public bool $showDenseLayers = false;
     public array $spawnPointWarnings = [];
     public array $eventSpawnWarnings = [];
+    public array $classnameOptions = [];
     public bool $showAddEventModal = false;
     public string $addEventName = '';
     public array $addEventForm = [];
 
-    public function mount(): void
+    public function mount(ClassnameCatalog $classnameCatalog): void
     {
         $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
         $this->projectId = request()->integer('project') ?: array_key_first($this->projects);
         $this->showDenseLayers = request()->boolean('dense');
+        $this->classnameOptions = $classnameCatalog->names();
         $this->loadMarkers();
         $this->loadMapSources();
         $this->loadEventCatalog();

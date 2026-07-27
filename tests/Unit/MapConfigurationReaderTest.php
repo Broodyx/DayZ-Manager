@@ -262,4 +262,26 @@ class MapConfigurationReaderTest extends TestCase
         $this->assertSame(3, $result['deleted']);
         $this->assertStringNotContainsString('<group', $result['content']);
     }
+
+    public function test_editor_deletes_multiple_selected_scopes_in_a_single_revision(): void
+    {
+        $xml = '<playerspawnpoints><fresh><generator_posbubbles><group name="Coast"><pos x="1" z="2"/></group><group name="Town"><pos x="3" z="4"/></group><group name="Hills"><pos x="7" z="8"/></group></generator_posbubbles></fresh></playerspawnpoints>';
+        $result = (new MapConfigurationEditor())->deleteScopes('cfgplayerspawnpoints.xml', $xml, [
+            'group:fresh|Coast',
+            'group:fresh|Town',
+        ]);
+
+        $this->assertSame(2, $result['deleted']);
+        $this->assertStringNotContainsString('x="1"', $result['content']);
+        $this->assertStringNotContainsString('x="3"', $result['content']);
+        $this->assertStringContainsString('x="7"', $result['content']);
+    }
+
+    public function test_editor_deduplicates_overlapping_scopes(): void
+    {
+        $xml = '<eventposdef><event name="VehicleA"><pos x="1" z="2" a="0"/></event></eventposdef>';
+        $result = (new MapConfigurationEditor())->deleteScopes('cfgeventspawns.xml', $xml, ['all', 'event:VehicleA']);
+
+        $this->assertSame(1, $result['deleted']);
+    }
 }

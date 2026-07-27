@@ -465,11 +465,13 @@
     .dz-map-layer-card { display:grid; gap:.45rem; padding:.65rem; border:1px solid #2c3d2e; border-radius:.55rem; background:#0c130e; }
     .dz-map-layers label { display:flex; align-items:flex-start; gap:.4rem; color:#c5d2bf; font-size:.75rem; cursor:pointer; } .dz-map-layers label span { display:grid; gap:.05rem; overflow-wrap:anywhere; } .dz-map-layers label b { color:#dce6d8; } .dz-map-layers label small { color:#8c9b8c; font-size:.65rem; }
     .dz-map-layer-card > p { margin:0; color:#879587; font-size:.65rem; line-height:1.45; }
-    .dz-layer-cleanup { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.4rem; }
-    .dz-layer-cleanup select { min-width:0; min-height:2.2rem; padding:.4rem .5rem; border:1px solid #405a30; border-radius:.4rem; color:#dce8d7; background:#080d09; color-scheme:dark; font-size:.63rem; }
-    .dz-layer-delete { padding:.4rem .55rem; border:1px solid #9b463f; border-radius:.4rem; color:#ffd4cf; background:#2b1715; font-size:.62rem; font-weight:850; cursor:pointer; }
-    .dz-layer-delete:hover { border-color:#ef776d; background:#4a211e; }.dz-layer-delete:disabled { opacity:.55; cursor:wait; }
-    .dz-layer-warning { color:#b77c74 !important; font-size:.58rem !important; line-height:1.35; }
+    .dz-layer-cleanup-open { width:100%; padding:.5rem .6rem; border:1px solid #9b463f; border-radius:.4rem; color:#ffd4cf; background:#2b1715; font-size:.63rem; font-weight:850; cursor:pointer; }
+    .dz-layer-cleanup-open:hover { border-color:#ef776d; background:#4a211e; }
+    .dz-cleanup-list { display:grid; gap:.4rem; max-height:45vh; overflow:auto; margin:1rem 0; padding-right:.25rem; }
+    .dz-cleanup-option { display:flex; align-items:center; gap:.55rem; padding:.6rem .7rem; border:1px solid #2c3d2e; border-radius:.4rem; background:#0c130e; color:#dce6d8; font-size:.8rem; cursor:pointer; }
+    .dz-cleanup-option:hover { border-color:#496b31; }
+    .dz-cleanup-option input { accent-color:#b8ed55; flex:0 0 auto; }
+    .dz-cleanup-option-all { border-style:dashed; color:#e8c8b3; }
     .dz-layer-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.3rem; width:100%; margin-top:.15rem; padding-top:.4rem; border-top:1px solid rgba(190,209,175,.12); }
     .dz-layer-actions a,.dz-layer-actions button { min-height:2rem; padding:.38rem .48rem; border:1px solid #42583a; border-radius:.35rem; color:#cddac8; background:#111914; font-size:.58rem; font-weight:800; line-height:1.1; text-decoration:none; cursor:pointer; white-space:nowrap; display:grid; place-items:center; text-align:center; }
     .dz-layer-actions a:hover,.dz-layer-actions button:hover { border-color:var(--dz-lime); color:#11180e; background:var(--dz-lime); }

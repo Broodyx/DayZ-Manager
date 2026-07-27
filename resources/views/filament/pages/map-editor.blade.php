@@ -86,6 +86,20 @@
                 <pre class="dz-map-raw-content" tabindex="0"><code></code></pre>
             </div>
         </div>
+        <div id="dz-cleanup-modal" class="dz-point-modal" hidden role="dialog" aria-modal="true" aria-labelledby="dz-cleanup-modal-title">
+            <div class="dz-point-modal-card">
+                <button type="button" class="dz-point-close" aria-label="Zavřít">×</button>
+                <p class="dz-eyebrow">HROMADNÉ ODSTRANĚNÍ BODŮ</p>
+                <h3 id="dz-cleanup-modal-title">Vybrat skupiny k odstranění</h3>
+                <p class="dz-muted">Zvol jednu nebo víc skupin. Odstraní se jen vybrané body/pozice, ostatní parametry souboru zůstanou a vznikne jedna nová revize.</p>
+                <div class="dz-cleanup-list"></div>
+                <p class="dz-map-feedback" hidden></p>
+                <div class="dz-edit-actions">
+                    <button type="button" class="dz-cleanup-cancel dz-secondary">Zrušit</button>
+                    <button type="button" class="dz-point-confirm dz-cleanup-confirm">Odstranit vybrané</button>
+                </div>
+            </div>
+        </div>
         <div class="dz-map-toolbar">
             <label class="dz-map-server-picker"><span>Server</span><select class="dz-map-select" aria-label="Server" onchange="window.location.href='{{ url('/admin/map-editor') }}?project='+this.value">
                 @foreach ($projects as $id => $name)
@@ -166,8 +180,8 @@
                             </select>
                         </label>
                         <label class="dz-add-event-span2">Classname objektu ke spawnutí (volitelné)
-                            <input type="text" placeholder="Např. VehicleTransitBus" wire:model="addEventForm.child_type">
-                            <small>Nechte prázdné, pokud event žádný konkrétní objekt nespawnuje (např. loot event).</small>
+                            <input type="text" list="dz-classname-catalog" placeholder="Např. VehicleTransitBus" wire:model="addEventForm.child_type" autocomplete="off">
+                            <small>Našeptávač nabízí classnames ze známého katalogu; klidně zadej i vlastní/modovaný název. Nechte prázdné, pokud event žádný konkrétní objekt nespawnuje (např. loot event).</small>
                         </label>
                     </div>
                     <div class="dz-edit-actions">
@@ -176,6 +190,11 @@
                     </div>
                 </div>
             </div>
+            <datalist id="dz-classname-catalog">
+                @foreach ($classnameOptions as $name)
+                    <option value="{{ $name }}"></option>
+                @endforeach
+            </datalist>
         @endif
         <div class="dz-map-layout">
             <section wire:ignore class="dz-map-canvas" aria-label="Mapa serveru">
@@ -198,19 +217,10 @@
                                     <label class="dz-layer-label-toggle"><input type="checkbox" class="map-layer-label-toggle" data-layer="{{ $source['filename'] }}"> Popisky</label>
                                 </div>
                                 @if (in_array($source['filename'], ['cfgeventspawns.xml', 'cfgplayerspawnpoints.xml'], true))
-                                    <div class="dz-layer-cleanup">
-                                        <select aria-label="Rozsah bodů k odstranění">
-                                            <option value="">Vyberte skupinu k vyčištění…</option>
-                                            @foreach ($layerScopes[$source['filename']] ?? [] as $scope)
-                                                <option value="{{ $scope['value'] }}">{{ $scope['label'] }} · {{ $scope['count'] }} bodů</option>
-                                            @endforeach
-                                            <option value="all">VŠECHNY BODY VRSTVY · {{ $source['marker_count'] }}</option>
-                                        </select>
-                                        <button type="button" class="dz-layer-delete"
-                                            data-filename="{{ $source['filename'] }}"
-                                            data-revision="{{ $source['revision_id'] }}">Odstranit vybrané</button>
-                                    </div>
-                                    <small class="dz-layer-warning">Odstraní pouze body/pozice. Ostatní parametry souboru zachová a vytvoří novou revizi.</small>
+                                    <button type="button" class="dz-layer-cleanup-open"
+                                        data-filename="{{ $source['filename'] }}"
+                                        data-revision="{{ $source['revision_id'] }}"
+                                        data-count="{{ $source['marker_count'] }}">Vybrat skupiny k odstranění…</button>
                                 @endif
                             </article>
                         @elseif ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0)
@@ -738,57 +748,70 @@
                 if (!activeMarker) return;
                 fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ})}).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(()=>({}))).message || 'Bod se nepodařilo odstranit.'); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
             };
-            document.querySelectorAll('.dz-layer-delete').forEach((button) => {
-                button.addEventListener('click', async () => {
-                    const root = button.closest('.dz-layer-cleanup');
-                    const select = root?.querySelector('select');
-                    const scope = select?.value;
-                    if (!scope) {
-                        await showSystemDialog({
-                            title:'Nejdříve vyberte body',
-                            message:'Vyberte konkrétní event, režim, spawn skupinu nebo všechny body vrstvy.',
-                            confirmLabel:'Rozumím',
-                            notice:true
-                        });
-                        return;
-                    }
-                    const label = select.options[select.selectedIndex]?.textContent || scope;
-                    const confirmed = await showSystemDialog({
-                        title:'Odstranit mapové body?',
-                        message:'Opravdu odstranit „' + label + '“? Vznikne nová revize a původní zůstane zachována.',
-                        confirmLabel:'Odstranit body',
-                        danger:true
-                    });
-                    if (!confirmed) return;
-                    button.disabled = true;
-                    button.textContent = 'Odstraňuji…';
-                    try {
-                        const response = await fetch('{{ route('map-editor.points.bulk-delete') }}', {
-                            method:'POST',
-                            headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},
-                            body:JSON.stringify({project_id:@js($projectId),revision_id:Number(button.dataset.revision),filename:button.dataset.filename,scope})
-                        });
-                        const result = await response.json().catch(() => ({}));
-                        if (!response.ok) throw new Error(result.message || 'Body se nepodařilo odstranit.');
-                        window.location.reload();
-                    } catch (error) {
-                        await showSystemDialog({
-                            title:'Body se nepodařilo odstranit',
-                            message:error.message,
-                            confirmLabel:'Zavřít',
-                            danger:true,
-                            notice:true
-                        });
-                        button.disabled = false;
-                        button.textContent = 'Odstranit vybrané';
-                    }
+            const layerScopeData = @js($layerScopes);
+            const cleanupModal = document.getElementById('dz-cleanup-modal');
+            const cleanupList = cleanupModal.querySelector('.dz-cleanup-list');
+            const cleanupConfirm = cleanupModal.querySelector('.dz-cleanup-confirm');
+            let cleanupTarget = null;
+            const closeCleanupModal = () => { cleanupModal.hidden = true; cleanupTarget = null; };
+            cleanupModal.querySelector('.dz-point-close').onclick = closeCleanupModal;
+            cleanupModal.querySelector('.dz-cleanup-cancel').onclick = closeCleanupModal;
+            cleanupModal.addEventListener('click', (event) => { if (event.target === cleanupModal) closeCleanupModal(); });
+            document.querySelectorAll('.dz-layer-cleanup-open').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const filename = button.dataset.filename;
+                    cleanupTarget = { filename, revisionId: Number(button.dataset.revision) };
+                    cleanupModal.querySelector('#dz-cleanup-modal-title').textContent = 'Vybrat skupiny k odstranění · ' + filename;
+                    const scopes = layerScopeData[filename] || [];
+                    const options = scopes.map((scope) => mkEl('label', { class: 'dz-cleanup-option' }, [
+                        mkEl('input', { type: 'checkbox', value: scope.value }),
+                        mkEl('span', {}, [scope.label + ' · ' + scope.count + ' bodů']),
+                    ]));
+                    options.push(mkEl('label', { class: 'dz-cleanup-option dz-cleanup-option-all' }, [
+                        mkEl('input', { type: 'checkbox', value: 'all' }),
+                        mkEl('span', {}, ['VŠECHNY BODY VRSTVY · ' + button.dataset.count]),
+                    ]));
+                    cleanupList.replaceChildren(...options);
+                    cleanupModal.querySelector('.dz-map-feedback').hidden = true;
+                    cleanupModal.hidden = false;
                 });
             });
-            document.querySelectorAll('.dz-layer-cleanup select').forEach((select) => {
-                select.addEventListener('change', () => {
-                    const button = select.closest('.dz-layer-cleanup')?.querySelector('.dz-layer-delete');
-                    if (button) highlightScope(button.dataset.filename, select.value);
+            cleanupConfirm.onclick = async () => {
+                if (!cleanupTarget) return;
+                const checked = Array.from(cleanupList.querySelectorAll('input:checked')).map((input) => input.value);
+                if (checked.length === 0) {
+                    showFeedback(cleanupModal, 'Vyber aspoň jednu skupinu.');
+                    return;
+                }
+                const confirmed = await showSystemDialog({
+                    title: 'Odstranit mapové body?',
+                    message: 'Opravdu odstranit ' + checked.length + ' vybranou/vybrané skupinu/skupiny? Vznikne nová revize a původní zůstane zachována.',
+                    confirmLabel: 'Odstranit body',
+                    danger: true,
                 });
+                if (!confirmed) return;
+                cleanupConfirm.disabled = true;
+                cleanupConfirm.textContent = 'Odstraňuji…';
+                try {
+                    const response = await fetch('{{ route('map-editor.points.bulk-delete') }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json' },
+                        body: JSON.stringify({ project_id: @js($projectId), revision_id: cleanupTarget.revisionId, filename: cleanupTarget.filename, scopes: checked }),
+                    });
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error(result.message || 'Body se nepodařilo odstranit.');
+                    window.location.reload();
+                } catch (error) {
+                    showFeedback(cleanupModal, error.message);
+                    cleanupConfirm.disabled = false;
+                    cleanupConfirm.textContent = 'Odstranit vybrané';
+                }
+            };
+            cleanupList?.addEventListener('change', (event) => {
+                if (event.target.matches('input[type="checkbox"]') && cleanupTarget) {
+                    const checkedValues = Array.from(cleanupList.querySelectorAll('input:checked')).map((input) => input.value);
+                    highlightScope(cleanupTarget.filename, checkedValues.length === 1 ? checkedValues[0] : null);
+                }
             });
             document.querySelectorAll('.dz-source-raw').forEach((button) => {
                 button.addEventListener('click', async () => {

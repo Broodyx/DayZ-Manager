@@ -22,7 +22,6 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -515,12 +514,7 @@ class EditConfiguration extends Page
 
     private function catalogEntries(): array
     {
-        return Cache::remember('dayz.catalog.types.v1', now()->addDay(), function (): array {
-            $path = base_path('database/seeders/fixtures/dayz-types-chernarus.xml');
-            $content = is_file($path) ? file_get_contents($path) : false;
-
-            return $content === false ? [] : app(TypesXmlEditor::class)->entries($content);
-        });
+        return app(\App\Services\Dayz\ClassnameCatalog::class)->entries();
     }
 
     public function addType(

@@ -164,14 +164,15 @@ Route::post('/admin/map-editor/points/bulk-delete', function (Request $request, 
         'project_id' => ['required', 'integer'],
         'revision_id' => ['required', 'integer'],
         'filename' => ['required', 'in:cfgeventspawns.xml,cfgplayerspawnpoints.xml'],
-        'scope' => ['required', 'string', 'max:220'],
+        'scopes' => ['required', 'array', 'min:1'],
+        'scopes.*' => ['string', 'max:220'],
     ]);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
     abort_unless(strtolower(basename($source->configurationImport?->original_filename ?? '')) === $data['filename'], 422, 'Revize nepatří vybranému souboru.');
     abort_unless(Storage::disk('dayz')->exists($source->storage_path), 422, 'Zdrojová revize už není dostupná.');
     try {
-        $result = $mapEditor->deleteScope($data['filename'], Storage::disk('dayz')->get($source->storage_path), $data['scope']);
+        $result = $mapEditor->deleteScopes($data['filename'], Storage::disk('dayz')->get($source->storage_path), $data['scopes']);
     } catch (\RuntimeException $exception) {
         abort(422, $exception->getMessage());
     }
