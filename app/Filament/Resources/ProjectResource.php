@@ -69,17 +69,12 @@ class ProjectResource extends Resource
                         ->searchable()
                         ->native(false)
                         ->required(),
-                    Forms\Components\Select::make('game_version')
-                        ->label('Verze DayZ')
-                        ->options([
-                            '1.28' => '1.28',
-                            '1.27' => '1.27',
-                            '1.26' => '1.26',
-                            'custom' => 'Jiná / vlastní',
-                        ])
-                        ->helperText('Používá se při porovnání konfigurace s katalogem podporované verze.')
-                        ->searchable()
-                        ->native(false),
+                    Forms\Components\TextInput::make('hosting')
+                        ->label('Hosting')
+                        ->placeholder('Např. Nitrado')
+                        ->datalist(['Nitrado', 'GTX Gaming', 'G-Portal', 'Survival Servers', 'Vlastní server (self-hosted)'])
+                        ->helperText('Napiš nebo vyber z nabídky. U Nitrado appka navíc rozpozná jejich specifický export nastavení (dayzps-settings-*.json).')
+                        ->maxLength(100),
                 ])
                 ->columns(2),
             Forms\Components\Section::make('Poznámka pro administrátory')
@@ -104,7 +99,7 @@ class ProjectResource extends Resource
                     'enoch' => 'Livonia',
                     'sakhal' => 'Sakhal',
                     default => ucfirst($record->map ?: 'Mapa neurčena'),
-                }.($record->game_version ? ' · DayZ '.$record->game_version : ''))
+                }.($record->hosting ? ' · '.$record->hosting : ''))
                 ->searchable()
                 ->sortable(),
             Tables\Columns\TextColumn::make('user.name')->label('Založil')->searchable()->sortable()->visible(fn (): bool => (bool) auth()->user()?->is_admin),

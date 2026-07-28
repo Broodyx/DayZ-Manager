@@ -67,16 +67,58 @@
                 </div>
                 <div class="dz-form-section">
                     <span class="dz-form-step">04</span>
-                    <label class="dz-upload-drop">
-                        <strong>Vyberte jeden nebo víc souborů, případně ZIP balík</strong>
-                        <input type="file" name="files[]" multiple required accept=".cfg,.txt,.xml,.json,.zip,.c">
+                    <div class="dz-upload-drop" id="dz-multi-upload">
+                        <label class="dz-upload-browse-button" for="dz-files-input">
+                            <span>📂 Vybrat soubory z počítače…</span>
+                            <small>Podrž Ctrl (Windows) nebo Cmd (Mac) a klikni na víc souborů najednou — nebo přetáhni víc souborů/ZIP sem.</small>
+                        </label>
+                        <input id="dz-files-input" type="file" name="files[]" multiple required accept=".cfg,.txt,.xml,.json,.zip,.c">
                         <span>XML, JSON, CFG, TXT, init.c nebo ZIP · každý soubor se zařadí podle svého jména automaticky · maximálně 100 MB na soubor</span>
                         @if (request('expected'))
                             <b>Průvodce očekává: {{ request('expected') }}</b>
                         @endif
-                    </label>
+                        <ul class="dz-upload-file-list" id="dz-upload-file-list" hidden></ul>
+                    </div>
                 </div>
                 <button type="submit" class="dz-import-submit">Ověřit, importovat a otevřít editor <span>→</span></button>
+                <script>
+                    (function () {
+                        const input = document.getElementById('dz-files-input');
+                        const list = document.getElementById('dz-upload-file-list');
+                        const drop = document.getElementById('dz-multi-upload');
+                        if (!input || !list || !drop) return;
+
+                        const render = () => {
+                            const files = Array.from(input.files || []);
+                            list.replaceChildren();
+                            if (files.length === 0) { list.hidden = true; return; }
+                            const heading = document.createElement('li');
+                            heading.className = 'dz-upload-file-count';
+                            heading.textContent = files.length === 1 ? 'Vybrán 1 soubor:' : `Vybráno ${files.length} souborů:`;
+                            list.appendChild(heading);
+                            files.forEach((file) => {
+                                const item = document.createElement('li');
+                                item.textContent = file.name + ' (' + Math.max(1, Math.round(file.size / 1024)) + ' kB)';
+                                list.appendChild(item);
+                            });
+                            list.hidden = false;
+                        };
+
+                        input.addEventListener('change', render);
+                        ['dragover', 'dragenter'].forEach((eventName) => {
+                            drop.addEventListener(eventName, (event) => { event.preventDefault(); drop.classList.add('dz-upload-drop-active'); });
+                        });
+                        ['dragleave', 'drop'].forEach((eventName) => {
+                            drop.addEventListener(eventName, (event) => { event.preventDefault(); drop.classList.remove('dz-upload-drop-active'); });
+                        });
+                        drop.addEventListener('drop', (event) => {
+                            if (event.dataTransfer?.files?.length) {
+                                input.files = event.dataTransfer.files;
+                                render();
+                            }
+                        });
+                    })();
+                </script>
             </form>
 
             <aside class="dz-import-guide">

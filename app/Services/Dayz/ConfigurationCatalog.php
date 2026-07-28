@@ -10,8 +10,8 @@ final class ConfigurationCatalog
         return [
             'server' => [
                 'label' => 'Server a pravidla',
-                'files' => 'serverDZ.cfg · dayzsettings.xml · BEServer_x64.cfg',
-                'description' => 'Přístup, hesla, hráči, porty, čas, logování, CPU job systém a BattlEye RCon.',
+                'files' => 'serverDZ.cfg · dayzsettings.xml · BEServer_x64.cfg · dayzps-settings-*.json (Nitrado)',
+                'description' => 'Přístup, hesla, hráči, porty, čas, logování, CPU job systém, BattlEye RCon a Nitrado export nastavení.',
                 'icon' => 'heroicon-o-server',
             ],
             'economy' => [
@@ -87,6 +87,7 @@ final class ConfigurationCatalog
                 ['filename' => 'serverDZ.cfg', 'pattern' => 'serverdz.cfg', 'description' => 'Hlavní pravidla serveru: název, hesla, sloty, whitelist, pohled, čas, porty a síťové volby.'],
                 ['filename' => 'dayzsettings.xml', 'pattern' => 'dayzsettings.xml', 'description' => 'Parametry hostingu a procesu DayZ, které poskytovatel zpřístupňuje mimo serverDZ.cfg.'],
                 ['filename' => 'BEServer_x64.cfg', 'pattern' => 'beserver*.cfg', 'description' => 'BattlEye RCon: heslo a port pro vzdálenou administraci PC serveru.'],
+                ['filename' => 'dayzps-settings-*.json', 'pattern' => 'dayzps-settings-*.json', 'description' => 'Export nastavení z Nitrado ovládacího panelu (PlayStation/Xbox). Vlastní formát Nitrada — část polí odpovídá serverDZ.cfg, část (bans, whitelist, priority, spouštěcí parametry) existuje jen v tomto panelu.'],
             ],
             'economy' => [
                 ['filename' => 'types.xml', 'pattern' => 'types.xml', 'description' => 'Každá loot položka: cílové množství, minimum, životnost, restock, kategorie a místa výskytu.'],

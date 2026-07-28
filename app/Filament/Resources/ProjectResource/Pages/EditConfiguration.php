@@ -243,6 +243,9 @@ class EditConfiguration extends Page
         if (str_ends_with(strtolower($filename), '_territories.xml')) {
             return 'Teritoria zvířat; souřadnice a hustota výskytu konkrétního druhu na mapě.';
         }
+        if (str_starts_with(strtolower($filename), 'dayzps-settings-')) {
+            return 'Export nastavení z Nitrado ovládacího panelu (specifický formát, ne přímo serverDZ.cfg). Bezpečně uložen jako revize; pole níže jsou zobrazená obecně.';
+        }
 
         return match (strtolower($filename)) {
             'serverdz.cfg' => 'Hlavní nastavení serveru: přístup, hráči, čas, síť, logování a persistence.',

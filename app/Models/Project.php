@@ -13,7 +13,7 @@ class Project extends Model
 
     protected $fillable = [
         'user_id', 'name', 'platform', 'platform_confidence', 'map',
-        'game_version', 'description',
+        'game_version', 'hosting', 'description',
     ];
 
     protected function casts(): array
