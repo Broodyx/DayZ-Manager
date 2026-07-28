@@ -27,6 +27,9 @@ class FtpExplorer extends Page
 
     public bool $connected = false;
 
+    /** @var array{imported: list<string>, failed: list<string>}|null */
+    public ?array $lastImportSummary = null;
+
     public function mount(): void
     {
         $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
@@ -60,6 +63,7 @@ class FtpExplorer extends Page
 
     public function importFile(string $path, FtpBrowser $browser, ConfigurationImporter $importer): void
     {
+        $this->lastImportSummary = null;
         $project = $this->currentProject();
         if (! $project) {
             return;
@@ -68,17 +72,20 @@ class FtpExplorer extends Page
         try {
             $import = $browser->importFile($project, $path, auth()->user(), $importer);
         } catch (RuntimeException $exception) {
+            $this->lastImportSummary = ['imported' => [], 'failed' => [basename($path).': '.$exception->getMessage()]];
             Notification::make()->danger()->title('Import selhal')->body($exception->getMessage())->send();
 
             return;
         }
 
+        $this->lastImportSummary = ['imported' => [$import->original_filename], 'failed' => []];
         Notification::make()->success()->title('Soubor importován')->body($import->original_filename)->send();
     }
 
     /** Imports every file listed in the current folder (not subfolders) in one go. */
     public function importAllInFolder(FtpBrowser $browser, ConfigurationImporter $importer): void
     {
+        $this->lastImportSummary = null;
         $project = $this->currentProject();
         if (! $project) {
             return;
@@ -99,6 +106,8 @@ class FtpExplorer extends Page
                 $failed[] = $entry['name'].': '.$exception->getMessage();
             }
         }
+
+        $this->lastImportSummary = ['imported' => $importedNames, 'failed' => $failed];
 
         if ($importedNames !== []) {
             Notification::make()->success()->title(count($importedNames).'× importováno')->body(implode(', ', $importedNames))->send();

@@ -86,7 +86,44 @@ class FtpExplorerPageTest extends TestCase
             ->set('projectId', $project->id)
             ->call('loadDirectory')
             ->call('importAllInFolder')
-            ->assertNotified('2× importováno');
+            ->assertNotified('2× importováno')
+            ->assertSet('lastImportSummary.imported', ['types.xml', 'events.xml'])
+            ->assertSet('lastImportSummary.failed', [])
+            ->assertSee('Importováno (2)');
+    }
+
+    public function test_import_all_in_folder_reports_partial_failures_in_the_persistent_summary(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'With FTP', 'platform' => 'playstation', 'map' => 'chernarusplus',
+            'ftp_protocol' => 'ftp', 'ftp_host' => 'ms2321.gamedata.io', 'ftp_username' => 'user', 'ftp_password' => 'secret',
+        ]);
+
+        $this->mock(FtpBrowser::class, function ($mock) use ($project) {
+            $mock->shouldReceive('listDirectory')->andReturn([
+                ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
+                ['name' => 'broken.xml', 'path' => 'broken.xml', 'type' => 'file', 'size' => 100, 'known' => false, 'category' => null],
+            ]);
+            $mock->shouldReceive('importFile')
+                ->with(Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'types.xml', Mockery::any(), Mockery::any())
+                ->once()
+                ->andReturn(new ConfigurationImport(['original_filename' => 'types.xml']));
+            $mock->shouldReceive('importFile')
+                ->with(Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'broken.xml', Mockery::any(), Mockery::any())
+                ->once()
+                ->andThrow(new \RuntimeException('Soubor se nepodařilo načíst.'));
+        });
+
+        $this->actingAs($user);
+        Livewire::test(FtpExplorer::class)
+            ->set('projectId', $project->id)
+            ->call('loadDirectory')
+            ->call('importAllInFolder')
+            ->assertSet('lastImportSummary.imported', ['types.xml'])
+            ->assertSet('lastImportSummary.failed', ['broken.xml: Soubor se nepodařilo načíst.'])
+            ->assertSee('Importováno (1)')
+            ->assertSee('Selhalo (1)');
     }
 
     public function test_up_strips_the_last_path_segment(): void

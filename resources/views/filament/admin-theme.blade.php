@@ -737,6 +737,7 @@
     .dz-log-history-badge-critical { background:rgba(224,85,74,.18); color:#f2a49c; padding:.1rem .5rem; border-radius:999px; font-size:.7rem; font-weight:800; }
     .dz-log-history-badge-warning { background:rgba(217,119,56,.18); color:#f0b280; padding:.1rem .5rem; border-radius:999px; font-size:.7rem; font-weight:800; }
     .dz-log-history-badge-known { background:rgba(145,197,43,.16); color:#c9f67a; padding:.1rem .5rem; border-radius:999px; font-size:.7rem; font-weight:800; }
+    .dz-ftp-busy { opacity:.55; pointer-events:none; transition:opacity .15s; }
     .dz-log-history-row .dz-danger { margin-right:.6rem; }
 
     @media (max-width:1100px) {
