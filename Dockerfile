@@ -1,7 +1,7 @@
 FROM php:8.4-fpm-alpine
 RUN apk add --no-cache nginx libpq-dev libzip-dev libxml2-dev icu-dev linux-headers \
     && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
-    && docker-php-ext-install -j"$(nproc)" pdo_pgsql zip dom intl opcache pcntl \
+    && docker-php-ext-install -j"$(nproc)" pdo_pgsql zip dom intl opcache pcntl ftp \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del .build-deps \
