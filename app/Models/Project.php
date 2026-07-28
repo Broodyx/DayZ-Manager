@@ -14,11 +14,23 @@ class Project extends Model
     protected $fillable = [
         'user_id', 'name', 'platform', 'platform_confidence', 'map',
         'game_version', 'hosting', 'description',
+        'ftp_protocol', 'ftp_host', 'ftp_port', 'ftp_username', 'ftp_password', 'ftp_root_path',
     ];
+
+    protected $hidden = ['ftp_password'];
 
     protected function casts(): array
     {
-        return ['platform_confidence' => 'integer'];
+        return [
+            'platform_confidence' => 'integer',
+            'ftp_port' => 'integer',
+            'ftp_password' => 'encrypted',
+        ];
+    }
+
+    public function hasFtpConnection(): bool
+    {
+        return filled($this->ftp_host) && filled($this->ftp_username) && filled($this->ftp_password);
     }
 
     public function user(): BelongsTo

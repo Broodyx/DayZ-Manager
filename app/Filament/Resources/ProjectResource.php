@@ -86,6 +86,42 @@ class ProjectResource extends Resource
                         ->placeholder('Hosting, účel serveru, kontakt na správce nebo plánované úpravy…')
                         ->rows(4),
                 ]),
+            Forms\Components\Section::make('FTP připojení')
+                ->description('Volitelné — appka se pak umí sama připojit na souborový systém serveru a nabídnout prohlížení/import souborů přímo odtamtud. Heslo se ukládá zašifrované, nikdy se nezobrazuje zpět.')
+                ->icon('heroicon-o-server-stack')
+                ->collapsible()
+                ->schema([
+                    Forms\Components\Select::make('ftp_protocol')
+                        ->label('Protokol')
+                        ->options(['ftp' => 'FTP', 'ftps' => 'FTPS (FTP přes SSL)', 'sftp' => 'SFTP (přes SSH)'])
+                        ->default('ftp')
+                        ->native(false),
+                    Forms\Components\TextInput::make('ftp_host')
+                        ->label('Hostname')
+                        ->placeholder('např. ms2321.gamedata.io')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('ftp_port')
+                        ->label('Port')
+                        ->numeric()
+                        ->placeholder('21 (FTP/FTPS) nebo 22 (SFTP)'),
+                    Forms\Components\TextInput::make('ftp_username')
+                        ->label('Uživatelské jméno')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('ftp_password')
+                        ->label('Heslo')
+                        ->password()
+                        ->revealable()
+                        ->dehydrateStateUsing(fn (?string $state) => filled($state) ? $state : null)
+                        ->dehydrated(fn (?string $state) => filled($state))
+                        ->helperText('Ponech prázdné pro zachování stávajícího hesla.'),
+                    Forms\Components\TextInput::make('ftp_root_path')
+                        ->label('Kořenová cesta')
+                        ->placeholder('např. 1:/dayzps_missions/dayzOffline.chernarusplus/')
+                        ->helperText('U Nitrado to bývá ve tvaru "1:/dayzps_missions/<mise>/" — najdeš ji ve FTP údajích hostingu.')
+                        ->maxLength(255)
+                        ->columnSpanFull(),
+                ])
+                ->columns(2),
         ]);
     }
 

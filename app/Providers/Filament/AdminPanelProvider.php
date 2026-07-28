@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\ConfigurationWizard;
+use App\Filament\Pages\FtpExplorer;
 use App\Filament\Pages\LogAnalyzer;
 use App\Filament\Pages\MapEditor;
 use App\Filament\Resources\ProjectResource;
@@ -60,6 +61,12 @@ class AdminPanelProvider extends PanelProvider
             ->url(fn (): string => LogAnalyzer::getUrl())
             ->sort(4)
             ->group('Diagnostika');
+        $serverItems[] = NavigationItem::make('ftp-explorer')
+            ->label('FTP prohlížeč')
+            ->icon('heroicon-o-folder-open')
+            ->url(fn (): string => FtpExplorer::getUrl())
+            ->sort(5)
+            ->group('Správa serveru');
 
         return $panel->default()->id('admin')->path('admin')->login()
             ->favicon(secure_asset('favicon.svg'))
@@ -103,7 +110,7 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make()->label('Historie a zálohy'),
                 NavigationGroup::make()->label('Administrace'),
             ])
-            ->pages([Pages\Dashboard::class, MapEditor::class, LogAnalyzer::class])
+            ->pages([Pages\Dashboard::class, MapEditor::class, LogAnalyzer::class, FtpExplorer::class])
             ->widgets([
                 ServerCommandCenter::class,
                 DayzOverview::class,
