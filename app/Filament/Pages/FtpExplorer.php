@@ -7,7 +7,8 @@ use App\Services\Ftp\FtpBrowser;
 use App\Services\Import\ConfigurationImporter;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use RuntimeException;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class FtpExplorer extends Page
 {
@@ -71,9 +72,10 @@ class FtpExplorer extends Page
 
         try {
             $import = $browser->importFile($project, $path, auth()->user(), $importer);
-        } catch (RuntimeException $exception) {
-            $this->lastImportSummary = ['imported' => [], 'failed' => [basename($path).': '.$exception->getMessage()]];
-            Notification::make()->danger()->title('Import selhal')->body($exception->getMessage())->send();
+        } catch (Throwable $exception) {
+            $message = $this->readableExceptionMessage($exception);
+            $this->lastImportSummary = ['imported' => [], 'failed' => [basename($path).': '.$message]];
+            Notification::make()->danger()->title('Import selhal')->body($message)->send();
 
             return;
         }
@@ -83,7 +85,10 @@ class FtpExplorer extends Page
         Notification::make()->success()->title('Soubor importován')->body($import->original_filename)->send();
     }
 
-    /** Imports every file listed in the current folder (not subfolders) in one go. */
+    /** Extensions ConfigurationFileStorage actually accepts — kept in sync manually since that class has no public accessor. */
+    private const IMPORTABLE_EXTENSIONS = ['xml', 'json', 'zip', 'cfg', 'txt', 'c'];
+
+    /** Imports every importable file listed in the current folder (not subfolders) in one go. */
     public function importAllInFolder(FtpBrowser $browser, ConfigurationImporter $importer): void
     {
         $this->lastImportSummary = null;
@@ -92,16 +97,33 @@ class FtpExplorer extends Page
             return;
         }
 
-        $files = collect($this->entries)->where('type', 'file');
+        $allFiles = collect($this->entries)->where('type', 'file');
+        if ($allFiles->isEmpty()) {
+            return;
+        }
+
+        // Skip files with an extension the importer would reject outright (e.g. Nitrado's
+        // areaflags.map) instead of downloading them over FTP just to fail — this matters
+        // for real servers where such a file can be tens of megabytes.
+        [$files, $skipped] = $allFiles->partition(
+            fn (array $entry): bool => in_array(strtolower(pathinfo($entry['name'], PATHINFO_EXTENSION)), self::IMPORTABLE_EXTENSIONS, true)
+        );
+
+        $failed = $skipped->map(fn (array $entry): string => $entry['name'].': nepodporovaná přípona, přeskočeno')->values()->all();
+
         if ($files->isEmpty()) {
+            $this->lastImportSummary = ['imported' => [], 'failed' => $failed];
+            Notification::make()->danger()->title('Nic k importu')->body('Žádný soubor v této složce nemá podporovanou příponu.')->send();
+
             return;
         }
 
         try {
             $filesystem = $browser->filesystem($project);
-        } catch (RuntimeException $exception) {
-            $this->lastImportSummary = ['imported' => [], 'failed' => ['Připojení selhalo: '.$exception->getMessage()]];
-            Notification::make()->danger()->title('Připojení selhalo')->body($exception->getMessage())->send();
+        } catch (Throwable $exception) {
+            $message = $this->readableExceptionMessage($exception);
+            $this->lastImportSummary = ['imported' => [], 'failed' => array_merge($failed, ['Připojení selhalo: '.$message])];
+            Notification::make()->danger()->title('Připojení selhalo')->body($message)->send();
 
             return;
         }
@@ -113,13 +135,12 @@ class FtpExplorer extends Page
         @set_time_limit(300);
 
         $importedNames = [];
-        $failed = [];
         foreach ($files as $entry) {
             try {
                 $import = $browser->importFileOn($filesystem, $project, $entry['path'], auth()->user(), $importer);
                 $importedNames[] = $import->original_filename;
-            } catch (RuntimeException $exception) {
-                $failed[] = $entry['name'].': '.$exception->getMessage();
+            } catch (Throwable $exception) {
+                $failed[] = $entry['name'].': '.$this->readableExceptionMessage($exception);
             }
         }
 
@@ -132,8 +153,17 @@ class FtpExplorer extends Page
             Notification::make()->success()->title(count($importedNames).'× importováno')->body(implode(', ', $importedNames))->send();
         }
         if ($failed !== []) {
-            Notification::make()->danger()->title(count($failed).'× se nepodařilo importovat')->body(implode(' | ', $failed))->send();
+            Notification::make()->danger()->title(count($failed).'× se nepodařilo importovat nebo bylo přeskočeno')->body(implode(' | ', $failed))->send();
         }
+    }
+
+    private function readableExceptionMessage(Throwable $exception): string
+    {
+        if ($exception instanceof ValidationException) {
+            return implode(' ', $exception->validator->errors()->all());
+        }
+
+        return $exception->getMessage();
     }
 
     public function loadDirectory(): void
@@ -159,8 +189,8 @@ class FtpExplorer extends Page
                 $project,
             );
             $this->connected = true;
-        } catch (RuntimeException $exception) {
-            $this->errorMessage = $exception->getMessage();
+        } catch (Throwable $exception) {
+            $this->errorMessage = $this->readableExceptionMessage($exception);
         }
     }
 

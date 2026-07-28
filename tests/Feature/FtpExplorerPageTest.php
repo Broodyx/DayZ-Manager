@@ -132,6 +132,37 @@ class FtpExplorerPageTest extends TestCase
             ->assertSee('Selhalo (1)');
     }
 
+    public function test_import_all_in_folder_skips_unsupported_extensions_without_downloading_them(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'With FTP', 'platform' => 'playstation', 'map' => 'chernarusplus',
+            'ftp_protocol' => 'ftp', 'ftp_host' => 'ms2321.gamedata.io', 'ftp_username' => 'user', 'ftp_password' => 'secret',
+        ]);
+
+        $fakeFilesystem = new Filesystem(new LocalFilesystemAdapter(sys_get_temp_dir()));
+        $this->mock(FtpBrowser::class, function ($mock) use ($project, $fakeFilesystem) {
+            $mock->shouldReceive('listDirectory')->andReturn([
+                ['name' => 'areaflags.map', 'path' => 'areaflags.map', 'type' => 'file', 'size' => 81920, 'known' => false, 'category' => null],
+                ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
+            ]);
+            $mock->shouldReceive('filesystem')->once()->andReturn($fakeFilesystem);
+            // areaflags.map must never even be read/imported — only types.xml should reach importFileOn.
+            $mock->shouldReceive('importFileOn')
+                ->with($fakeFilesystem, Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'types.xml', Mockery::any(), Mockery::any())
+                ->once()
+                ->andReturn(new ConfigurationImport(['original_filename' => 'types.xml']));
+        });
+
+        $this->actingAs($user);
+        Livewire::test(FtpExplorer::class)
+            ->set('projectId', $project->id)
+            ->call('loadDirectory')
+            ->call('importAllInFolder')
+            ->assertSet('lastImportSummary.imported', ['types.xml'])
+            ->assertSee('areaflags.map: nepodporovaná přípona, přeskočeno');
+    }
+
     public function test_import_all_in_folder_reports_a_connection_failure_without_a_stale_summary(): void
     {
         $user = User::factory()->create();
