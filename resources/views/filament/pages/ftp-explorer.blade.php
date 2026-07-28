@@ -20,9 +20,13 @@
         @if ($connected)
             <div class="dz-flash-success"><strong>Připojeno.</strong> Cesta: <code>/{{ $currentPath }}</code></div>
 
+            @php $fileCountInFolder = collect($entries)->where('type', 'file')->count(); @endphp
             <div class="dz-log-actions" style="margin-bottom:.85rem">
                 <button type="button" wire:click="up" class="dz-secondary" @disabled($currentPath === '')>← O úroveň výš</button>
                 <button type="button" wire:click="loadDirectory" class="dz-secondary">Obnovit</button>
+                @if ($fileCountInFolder > 0)
+                    <button type="button" class="dz-action" x-on:click="dzConfirm('Importovat všech {{ $fileCountInFolder }} souborů z téhle složky jako nové konfigurační revize? Nesestupuje do podsložek.').then((ok) => { if (ok) $wire.importAllInFolder(); })">Importovat všechny soubory v této složce ({{ $fileCountInFolder }})</button>
+                @endif
             </div>
 
             <div class="dz-whitelist-list">

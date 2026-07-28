@@ -76,6 +76,38 @@ class FtpExplorer extends Page
         Notification::make()->success()->title('Soubor importován')->body($import->original_filename)->send();
     }
 
+    /** Imports every file listed in the current folder (not subfolders) in one go. */
+    public function importAllInFolder(FtpBrowser $browser, ConfigurationImporter $importer): void
+    {
+        $project = $this->currentProject();
+        if (! $project) {
+            return;
+        }
+
+        $files = collect($this->entries)->where('type', 'file');
+        if ($files->isEmpty()) {
+            return;
+        }
+
+        $importedNames = [];
+        $failed = [];
+        foreach ($files as $entry) {
+            try {
+                $import = $browser->importFile($project, $entry['path'], auth()->user(), $importer);
+                $importedNames[] = $import->original_filename;
+            } catch (RuntimeException $exception) {
+                $failed[] = $entry['name'].': '.$exception->getMessage();
+            }
+        }
+
+        if ($importedNames !== []) {
+            Notification::make()->success()->title(count($importedNames).'× importováno')->body(implode(', ', $importedNames))->send();
+        }
+        if ($failed !== []) {
+            Notification::make()->danger()->title(count($failed).'× se nepodařilo importovat')->body(implode(' | ', $failed))->send();
+        }
+    }
+
     public function loadDirectory(): void
     {
         $this->entries = [];

@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Filament\Pages\FtpExplorer;
+use App\Models\ConfigurationImport;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\Ftp\FtpBrowser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Mockery;
 use Tests\TestCase;
 
 class FtpExplorerPageTest extends TestCase
@@ -53,6 +55,38 @@ class FtpExplorerPageTest extends TestCase
             ->assertSee('atypické')
             ->assertSee('types.xml')
             ->assertSee('známý');
+    }
+
+    public function test_import_all_in_folder_imports_every_file_entry_and_skips_folders(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'With FTP', 'platform' => 'playstation', 'map' => 'chernarusplus',
+            'ftp_protocol' => 'ftp', 'ftp_host' => 'ms2321.gamedata.io', 'ftp_username' => 'user', 'ftp_password' => 'secret',
+        ]);
+
+        $this->mock(FtpBrowser::class, function ($mock) use ($project) {
+            $mock->shouldReceive('listDirectory')->andReturn([
+                ['name' => 'custom', 'path' => 'custom', 'type' => 'dir', 'size' => null, 'known' => false, 'category' => null],
+                ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
+                ['name' => 'events.xml', 'path' => 'events.xml', 'type' => 'file', 'size' => 200, 'known' => true, 'category' => 'events'],
+            ]);
+            $mock->shouldReceive('importFile')
+                ->with(Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'types.xml', Mockery::any(), Mockery::any())
+                ->once()
+                ->andReturn(new ConfigurationImport(['original_filename' => 'types.xml']));
+            $mock->shouldReceive('importFile')
+                ->with(Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'events.xml', Mockery::any(), Mockery::any())
+                ->once()
+                ->andReturn(new ConfigurationImport(['original_filename' => 'events.xml']));
+        });
+
+        $this->actingAs($user);
+        Livewire::test(FtpExplorer::class)
+            ->set('projectId', $project->id)
+            ->call('loadDirectory')
+            ->call('importAllInFolder')
+            ->assertNotified('2× importováno');
     }
 
     public function test_up_strips_the_last_path_segment(): void
