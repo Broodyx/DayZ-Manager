@@ -8,6 +8,8 @@ use App\Models\Project;
 use App\Models\User;
 use App\Services\Ftp\FtpBrowser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use League\Flysystem\Filesystem;
+use League\Flysystem\Local\LocalFilesystemAdapter;
 use Livewire\Livewire;
 use Mockery;
 use Tests\TestCase;
@@ -65,18 +67,20 @@ class FtpExplorerPageTest extends TestCase
             'ftp_protocol' => 'ftp', 'ftp_host' => 'ms2321.gamedata.io', 'ftp_username' => 'user', 'ftp_password' => 'secret',
         ]);
 
-        $this->mock(FtpBrowser::class, function ($mock) use ($project) {
+        $fakeFilesystem = new Filesystem(new LocalFilesystemAdapter(sys_get_temp_dir()));
+        $this->mock(FtpBrowser::class, function ($mock) use ($project, $fakeFilesystem) {
             $mock->shouldReceive('listDirectory')->andReturn([
                 ['name' => 'custom', 'path' => 'custom', 'type' => 'dir', 'size' => null, 'known' => false, 'category' => null],
                 ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
                 ['name' => 'events.xml', 'path' => 'events.xml', 'type' => 'file', 'size' => 200, 'known' => true, 'category' => 'events'],
             ]);
-            $mock->shouldReceive('importFile')
-                ->with(Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'types.xml', Mockery::any(), Mockery::any())
+            $mock->shouldReceive('filesystem')->once()->andReturn($fakeFilesystem);
+            $mock->shouldReceive('importFileOn')
+                ->with($fakeFilesystem, Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'types.xml', Mockery::any(), Mockery::any())
                 ->once()
                 ->andReturn(new ConfigurationImport(['original_filename' => 'types.xml']));
-            $mock->shouldReceive('importFile')
-                ->with(Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'events.xml', Mockery::any(), Mockery::any())
+            $mock->shouldReceive('importFileOn')
+                ->with($fakeFilesystem, Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'events.xml', Mockery::any(), Mockery::any())
                 ->once()
                 ->andReturn(new ConfigurationImport(['original_filename' => 'events.xml']));
         });
@@ -100,17 +104,19 @@ class FtpExplorerPageTest extends TestCase
             'ftp_protocol' => 'ftp', 'ftp_host' => 'ms2321.gamedata.io', 'ftp_username' => 'user', 'ftp_password' => 'secret',
         ]);
 
-        $this->mock(FtpBrowser::class, function ($mock) use ($project) {
+        $fakeFilesystem = new Filesystem(new LocalFilesystemAdapter(sys_get_temp_dir()));
+        $this->mock(FtpBrowser::class, function ($mock) use ($project, $fakeFilesystem) {
             $mock->shouldReceive('listDirectory')->andReturn([
                 ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
                 ['name' => 'broken.xml', 'path' => 'broken.xml', 'type' => 'file', 'size' => 100, 'known' => false, 'category' => null],
             ]);
-            $mock->shouldReceive('importFile')
-                ->with(Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'types.xml', Mockery::any(), Mockery::any())
+            $mock->shouldReceive('filesystem')->once()->andReturn($fakeFilesystem);
+            $mock->shouldReceive('importFileOn')
+                ->with($fakeFilesystem, Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'types.xml', Mockery::any(), Mockery::any())
                 ->once()
                 ->andReturn(new ConfigurationImport(['original_filename' => 'types.xml']));
-            $mock->shouldReceive('importFile')
-                ->with(Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'broken.xml', Mockery::any(), Mockery::any())
+            $mock->shouldReceive('importFileOn')
+                ->with($fakeFilesystem, Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'broken.xml', Mockery::any(), Mockery::any())
                 ->once()
                 ->andThrow(new \RuntimeException('Soubor se nepodařilo načíst.'));
         });
@@ -124,6 +130,30 @@ class FtpExplorerPageTest extends TestCase
             ->assertSet('lastImportSummary.failed', ['broken.xml: Soubor se nepodařilo načíst.'])
             ->assertSee('Importováno (1)')
             ->assertSee('Selhalo (1)');
+    }
+
+    public function test_import_all_in_folder_reports_a_connection_failure_without_a_stale_summary(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'With FTP', 'platform' => 'playstation', 'map' => 'chernarusplus',
+            'ftp_protocol' => 'ftp', 'ftp_host' => 'ms2321.gamedata.io', 'ftp_username' => 'user', 'ftp_password' => 'secret',
+        ]);
+
+        $this->mock(FtpBrowser::class, function ($mock) {
+            $mock->shouldReceive('listDirectory')->andReturn([
+                ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
+            ]);
+            $mock->shouldReceive('filesystem')->once()->andThrow(new \RuntimeException('Připojení vypršelo.'));
+        });
+
+        $this->actingAs($user);
+        Livewire::test(FtpExplorer::class)
+            ->set('projectId', $project->id)
+            ->call('loadDirectory')
+            ->call('importAllInFolder')
+            ->assertSet('lastImportSummary.imported', [])
+            ->assertSee('Připojení selhalo');
     }
 
     public function test_listing_shows_when_a_file_was_last_imported(): void

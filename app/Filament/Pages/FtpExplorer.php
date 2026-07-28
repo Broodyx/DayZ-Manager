@@ -97,11 +97,26 @@ class FtpExplorer extends Page
             return;
         }
 
+        try {
+            $filesystem = $browser->filesystem($project);
+        } catch (RuntimeException $exception) {
+            $this->lastImportSummary = ['imported' => [], 'failed' => ['Připojení selhalo: '.$exception->getMessage()]];
+            Notification::make()->danger()->title('Připojení selhalo')->body($exception->getMessage())->send();
+
+            return;
+        }
+
+        // Reuses one FTP/SFTP connection for the whole batch instead of reconnecting per
+        // file — with many files, a fresh connect+login per file is slow enough to risk
+        // hitting the request timeout with no error shown at all. Also give this specific
+        // action more time than the default PHP limit, since it's a known-slow bulk action.
+        @set_time_limit(300);
+
         $importedNames = [];
         $failed = [];
         foreach ($files as $entry) {
             try {
-                $import = $browser->importFile($project, $entry['path'], auth()->user(), $importer);
+                $import = $browser->importFileOn($filesystem, $project, $entry['path'], auth()->user(), $importer);
                 $importedNames[] = $import->original_filename;
             } catch (RuntimeException $exception) {
                 $failed[] = $entry['name'].': '.$exception->getMessage();
