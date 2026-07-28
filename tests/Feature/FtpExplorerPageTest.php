@@ -126,6 +126,39 @@ class FtpExplorerPageTest extends TestCase
             ->assertSee('Selhalo (1)');
     }
 
+    public function test_listing_shows_when_a_file_was_last_imported(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'With FTP', 'platform' => 'playstation', 'map' => 'chernarusplus',
+            'ftp_protocol' => 'ftp', 'ftp_host' => 'ms2321.gamedata.io', 'ftp_username' => 'user', 'ftp_password' => 'secret',
+        ]);
+        ConfigurationImport::query()->create([
+            'project_id' => $project->id,
+            'original_filename' => 'types.xml',
+            'storage_path' => "{$project->id}/imports/existing.xml",
+            'sha256' => hash('sha256', 'x'),
+            'detected_platform' => 'playstation',
+            'detection_confidence' => 65,
+            'validation_status' => 'valid',
+            'imported_at' => now()->subDay(),
+        ]);
+
+        $this->mock(FtpBrowser::class, function ($mock) {
+            $mock->shouldReceive('listDirectory')->andReturn([
+                ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
+                ['name' => 'events.xml', 'path' => 'events.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'events'],
+            ]);
+        });
+
+        $this->actingAs($user);
+        Livewire::test(FtpExplorer::class)
+            ->set('projectId', $project->id)
+            ->call('loadDirectory')
+            ->assertSee('importováno '.now()->subDay()->format('d.m.Y'))
+            ->assertSee('ještě neimportováno');
+    }
+
     public function test_up_strips_the_last_path_segment(): void
     {
         $user = User::factory()->create();

@@ -64,6 +64,13 @@
                             @else
                                 <span class="dz-badge dz-log-history-badge-critical">atypické</span>
                             @endif
+                            @if ($entry['type'] === 'file')
+                                @if (!empty($entry['last_imported_at']))
+                                    <span class="dz-whitelist-comment">✓ importováno {{ $entry['last_imported_at'] }}</span>
+                                @else
+                                    <span class="dz-whitelist-comment">ještě neimportováno</span>
+                                @endif
+                            @endif
                         </span>
                         @if ($entry['type'] === 'file')
                             <button type="button" class="dz-danger" wire:loading.attr="disabled" wire:target="importAllInFolder,importFile"

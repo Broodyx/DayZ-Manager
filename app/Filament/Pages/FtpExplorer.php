@@ -79,6 +79,7 @@ class FtpExplorer extends Page
         }
 
         $this->lastImportSummary = ['imported' => [$import->original_filename], 'failed' => []];
+        $this->entries = $this->withImportHistory($this->entries, $project->fresh());
         Notification::make()->success()->title('Soubor importován')->body($import->original_filename)->send();
     }
 
@@ -108,6 +109,9 @@ class FtpExplorer extends Page
         }
 
         $this->lastImportSummary = ['imported' => $importedNames, 'failed' => $failed];
+        if ($importedNames !== []) {
+            $this->entries = $this->withImportHistory($this->entries, $project->fresh());
+        }
 
         if ($importedNames !== []) {
             Notification::make()->success()->title(count($importedNames).'× importováno')->body(implode(', ', $importedNames))->send();
@@ -135,11 +139,37 @@ class FtpExplorer extends Page
         }
 
         try {
-            $this->entries = app(FtpBrowser::class)->listDirectory($project, $this->currentPath);
+            $this->entries = $this->withImportHistory(
+                app(FtpBrowser::class)->listDirectory($project, $this->currentPath),
+                $project,
+            );
             $this->connected = true;
         } catch (RuntimeException $exception) {
             $this->errorMessage = $exception->getMessage();
         }
+    }
+
+    /**
+     * Attaches "last imported at" to every file entry, matched by filename against this
+     * project's own import history — so it's visible at a glance without importing again.
+     *
+     * @param  list<array<string, mixed>>  $entries
+     * @return list<array<string, mixed>>
+     */
+    private function withImportHistory(array $entries, Project $project): array
+    {
+        $latestByFilename = $project->imports
+            ->groupBy(fn ($import): string => strtolower($import->original_filename))
+            ->map(fn ($group) => $group->sortByDesc('imported_at')->first());
+
+        return array_map(function (array $entry) use ($latestByFilename): array {
+            if ($entry['type'] === 'file') {
+                $match = $latestByFilename->get(strtolower($entry['name']));
+                $entry['last_imported_at'] = $match?->imported_at?->format('d.m.Y H:i');
+            }
+
+            return $entry;
+        }, $entries);
     }
 
     private function currentProject(): ?Project
