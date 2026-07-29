@@ -17,6 +17,8 @@ use App\Services\Dayz\EventsXmlEditor;
 use App\Services\Revision\WeatherXmlEditor;
 use App\Services\Revision\XmlConfigurationEditor;
 use App\Services\Dayz\ConfigurationFieldMetadata;
+use App\Services\Dayz\ServerFileLayout;
+use App\Services\Ftp\FtpBrowser;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -26,6 +28,7 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
+use RuntimeException;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Throwable;
 
@@ -309,7 +312,48 @@ class EditConfiguration extends Page
                 ->icon('heroicon-o-archive-box-arrow-down')
                 ->color('gray')
                 ->url(fn (): string => route('project.configuration.download-all', ['project' => $this->getRecord()->id])),
+            Actions\Action::make('pushToFtp')
+                ->label('Nahrát na server (FTP)')
+                ->icon('heroicon-o-cloud-arrow-up')
+                ->color('success')
+                ->visible(fn (): bool => $this->getRecord()->hasFtpConnection())
+                ->requiresConfirmation()
+                ->modalHeading('Nahrát tuto revizi přímo na server?')
+                ->modalDescription(fn (): string => "Přepíše soubor na živém serveru na cestě „{$this->ftpTargetPath()}“ obsahem aktuální revize ({$this->currentFilename} · revize #{$this->revisionNumber}). Původní soubor na serveru se dá vrátit jen ručním nahráním starší revize.")
+                ->modalSubmitActionLabel('Nahrát na server')
+                ->action('pushToFtp'),
         ];
+    }
+
+    public function ftpTargetPath(): string
+    {
+        return app(ServerFileLayout::class)->relativePath($this->currentFilename, $this->getRecord());
+    }
+
+    public function pushToFtp(FtpBrowser $browser): void
+    {
+        $project = $this->getRecord();
+        if (! $project->hasFtpConnection()) {
+            return;
+        }
+
+        $path = $this->ftpTargetPath();
+
+        try {
+            $browser->write($project, $path, $this->rawContent);
+        } catch (RuntimeException $exception) {
+            Notification::make()->danger()->title('Nahrání na server selhalo')->body($exception->getMessage())->send();
+
+            return;
+        }
+
+        $this->sourceRevision()->forceFill(['downloaded_at' => now()])->save();
+
+        Notification::make()
+            ->success()
+            ->title('Nahráno na server')
+            ->body("{$this->currentFilename} → {$path}")
+            ->send();
     }
 
     /**

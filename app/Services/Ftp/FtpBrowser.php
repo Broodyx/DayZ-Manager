@@ -18,6 +18,7 @@ use League\Flysystem\PhpseclibV3\SftpConnectionProvider;
 use League\Flysystem\StorageAttributes;
 use League\Flysystem\UnableToListContents;
 use League\Flysystem\UnableToReadFile;
+use League\Flysystem\UnableToWriteFile;
 use RuntimeException;
 
 /**
@@ -140,6 +141,21 @@ class FtpBrowser
     public function classifyFolder(string $name): array
     {
         return ['known' => in_array(strtolower($name), self::KNOWN_FOLDER_NAMES, true), 'category' => null];
+    }
+
+    /** Writes content to a path on the remote server, overwriting whatever is there — this is a live, real deploy. */
+    public function write(Project $project, string $path, string $content): void
+    {
+        $this->writeOn($this->filesystem($project), $path, $content);
+    }
+
+    public function writeOn(Filesystem $filesystem, string $path, string $content): void
+    {
+        try {
+            $filesystem->write($path, $content);
+        } catch (UnableToWriteFile $exception) {
+            throw new RuntimeException('Soubor se nepodařilo zapsat na server: '.$exception->getMessage(), previous: $exception);
+        }
     }
 
     /** Fetches a remote file's content and runs it through the normal import pipeline, as if it had been uploaded by hand. */
