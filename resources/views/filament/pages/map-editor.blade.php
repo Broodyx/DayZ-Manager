@@ -226,13 +226,13 @@
         @endif
         @if (count($animalTypeWarnings))
             <div class="dz-map-alert">
-                <strong>{{ count($animalTypeWarnings) }} classname{{ count($animalTypeWarnings) > 1 ? 'ů' : '' }} z cfgenvironment.xml chybí v types.xml.</strong>
-                Central Economy potřebuje pro každou spawnovanou třídu záznam v types.xml, jinak zvíře nejde spořádaně sledovat/spawnovat, i když je teritorium i event v pořádku.
+                <strong>{{ count($animalTypeWarnings) }} spawnovaný classname{{ count($animalTypeWarnings) > 1 ? 'ů' : '' }} chybí v types.xml.</strong>
+                Central Economy potřebuje pro každou třídu spawnovanou přes cfgenvironment.xml nebo events.xml záznam v types.xml — týká se to zvířat, aut i dalších eventových objektů.
                 <ul>
                     @foreach ($animalTypeWarnings as $warning)
                         <li>
                             <div class="dz-map-alert-row">
-                                <span><strong>{{ $warning['classname'] }}</strong> — chybí v types.xml (zvíře {{ $warning['territory'] }}).</span>
+                                <span><strong>{{ $warning['classname'] }}</strong> — chybí v types.xml (zdroj {{ $warning['territory'] }}).</span>
                                 <span class="dz-map-alert-actions">
                                     <x-dz-confirm-button call="addAnimalTypeEntry('{{ $warning['classname'] }}')" label="Doplnit do types.xml" saved-label="Doplněno" class="dz-secondary" />
                                 </span>

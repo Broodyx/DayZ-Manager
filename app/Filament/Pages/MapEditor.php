@@ -166,7 +166,7 @@ class MapEditor extends Page
     }
 
     /**
-     * Flags every classname an animal species actually spawns that has no types.xml entry —
+     * Flags every classname an event/environment actually spawns that has no types.xml entry —
      * the Central Economy needs a types.xml entry to track and persist anything it spawns, so
      * a missing entry is another way an otherwise-correctly-configured animal never appears.
      *
@@ -175,8 +175,10 @@ class MapEditor extends Page
      * list them directly on cfgenvironment.xml's own <agent><spawn configName>. Herd species
      * (deer, wolf, bear, …) have NO <agent> at all in cfgenvironment.xml — their classnames
      * instead live in the matching events.xml event's <children><child type>, the same event
-     * loadAnimalPopulationWarnings() already looks for. Checking only cfgenvironment.xml's
-     * agents (as an earlier version of this method did) silently misses every Herd species.
+     * loadAnimalPopulationWarnings() already looks for. The same event catalogue also contains
+     * vehicles and compound-event objects, so checking all of it is important for map-created
+     * vehicle/train/convoy spawns as well. Checking only cfgenvironment.xml's agents silently
+     * misses every Herd species and every vehicle event.
      */
     public function loadAnimalTypeWarnings(): void
     {
@@ -239,6 +241,26 @@ class MapEditor extends Page
                 $seen[$classname] = true;
                 if (! in_array(strtolower($classname), $definedTypes, true)) {
                     $this->animalTypeWarnings[] = ['territory' => $entry['name'], 'classname' => $classname];
+                }
+            }
+        }
+
+        // Vehicle, train, convoy and other dynamic event points are defined by the child
+        // classes in events.xml (with cfgeventgroups.xml merged into eventCatalog). They are
+        // just as dependent on types.xml as animal children, even though they have no
+        // cfgenvironment.xml territory.
+        foreach ($this->eventCatalog as $event) {
+            foreach ($event['children'] ?? [] as $child) {
+                $classname = trim((string) ($child['type'] ?? ''));
+                if ($classname === '' || isset($seen[$classname])) {
+                    continue;
+                }
+                $seen[$classname] = true;
+                if (! in_array(strtolower($classname), $definedTypes, true)) {
+                    $this->animalTypeWarnings[] = [
+                        'territory' => $event['name'],
+                        'classname' => $classname,
+                    ];
                 }
             }
         }
