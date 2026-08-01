@@ -460,6 +460,10 @@
             mapGroupNameCatalog.id = 'dz-mapgroup-name-catalog';
             (pointTypeCatalog.loot?.options || []).forEach((option) => mapGroupNameCatalog.appendChild(mkEl('option', { value: option.value })));
             document.body.appendChild(mapGroupNameCatalog);
+            const zoneTypeCatalog = document.createElement('datalist');
+            zoneTypeCatalog.id = 'dz-zone-type-catalog';
+            (@js($this->zoneTypeCatalog())).forEach((name) => zoneTypeCatalog.appendChild(mkEl('option', { value: name })));
+            document.body.appendChild(zoneTypeCatalog);
             let selectedCatalogOption = null;
             const editDefinitionForMarker = (marker) => {
                 if (marker.type === 'player-spawn-area') return pointTypeCatalog.player;

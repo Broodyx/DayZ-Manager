@@ -9,6 +9,7 @@ use App\Services\Import\ConfigurationImporter;
 use App\Services\PlatformDetection\PlatformCompatibility;
 use App\Services\PlatformDetection\PlatformDetector;
 use App\Services\Revision\ConfigurationRevisionEditor;
+use App\Services\Revision\EnvironmentXmlEditor;
 use App\Services\Revision\EventGroupsXmlEditor;
 use App\Services\Revision\JsonConfigurationEditor;
 use App\Services\Revision\ServerConfigEditor;
@@ -26,6 +27,7 @@ use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use RuntimeException;
@@ -107,6 +109,30 @@ class EditConfiguration extends Page
     public ?string $expandedEventSpawn = null;
 
     public array $newEventChildTypes = [];
+
+    public string $environmentSearch = '';
+
+    public ?string $selectedEnvironmentTerritory = null;
+
+    /** @var array<string, mixed> */
+    public array $environmentForm = [];
+
+    /** @var list<array<string, mixed>> */
+    public array $environmentEntries = [];
+
+    public bool $showAddAnimalForm = false;
+
+    /** @var array<string, mixed> */
+    public array $newAnimalForm = [
+        'name' => '',
+        'type' => 'Herd',
+        'behavior' => '',
+        'file_mode' => 'existing',
+        'file' => '',
+        'new_file' => '',
+        'agents' => [],
+        'items' => [],
+    ];
 
     public bool $showAddForm = false;
 
@@ -285,7 +311,7 @@ class EditConfiguration extends Page
             'spawnerdata.json' => 'Object Spawner: objekty, jejich pozice, orientace, měřítko a CE persistence.',
             'init.c' => 'Inicializační skript mise. Pokročilá PC konfigurace vyžadující Enforce Script.',
             'cfggameplay.json' => 'Gameplay nastavení: stamina, damage, respawn, UI, svět a pohyb hráče.',
-            'cfgenvironment.xml' => 'Teploty, prostředí a chování okolního světa.',
+            'cfgenvironment.xml' => 'Zvířata a nakažení: chování, napojený soubor teritorií, spawnované třídy a počty.',
             'cfgweather.xml' => 'Počáteční a mezní hodnoty počasí: oblačnost, mlha, déšť, sníh, vítr a bouřky.',
             'cfgplayerspawnpoints.xml' => 'Spawnovací body hráčů a jejich orientace.',
             'territory-type' => 'Teritoria zvířat; souřadnice a hustota výskytu druhu.',
@@ -504,6 +530,8 @@ class EditConfiguration extends Page
         $this->selectedEvent = null;
         $this->expandedEventSpawn = null;
         $this->showAddForm = false;
+        $this->selectedEnvironmentTerritory = null;
+        $this->showAddAnimalForm = false;
         $this->loadRevision($revision);
     }
 
@@ -618,6 +646,226 @@ class EditConfiguration extends Page
     {
         unset($this->eventForm['children'][$index]);
         $this->eventForm['children'] = array_values($this->eventForm['children'] ?? []);
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function filteredEnvironmentEntries(): array
+    {
+        if ($this->environmentSearch === '') {
+            return array_slice($this->environmentEntries, 0, 200);
+        }
+        $search = mb_strtolower($this->environmentSearch);
+
+        return array_slice(array_values(array_filter(
+            $this->environmentEntries,
+            static fn (array $entry): bool => str_contains(mb_strtolower($entry['name']), $search),
+        )), 0, 200);
+    }
+
+    /** Currently uploaded *_territories.xml files, for the "napojený soubor" select. */
+    public function territoryFileOptions(): array
+    {
+        return $this->getRecord()->revisions()
+            ->with('configurationImport')
+            ->orderByDesc('revision_number')
+            ->get()
+            ->map(fn (ConfigurationRevision $revision): string => strtolower(basename(str_replace(
+                '\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path,
+            ))))
+            ->filter(fn (string $name): bool => Str::is('*_territories.xml', $name))
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    public function selectEnvironmentTerritory(string $name, EnvironmentXmlEditor $editor): void
+    {
+        if (! collect($this->environmentEntries)->firstWhere('name', $name)) {
+            return;
+        }
+        $this->selectedEnvironmentTerritory = $name;
+        $this->environmentForm = $editor->values($this->rawContent, $name);
+        $this->showAddAnimalForm = false;
+    }
+
+    public function saveEnvironmentTerritory(
+        EnvironmentXmlEditor $editor,
+        ConfigurationRevisionEditor $revisionEditor,
+        PlatformCompatibility $compatibility,
+    ): void {
+        if (! $this->visualSupported || ! $this->selectedEnvironmentTerritory) {
+            return;
+        }
+
+        $validated = $this->validate($this->environmentValidationRules('environmentForm'))['environmentForm'];
+        if (trim((string) ($validated['file'] ?? '')) !== '' && ! in_array(strtolower($validated['file']), $this->territoryFileOptions(), true)) {
+            throw ValidationException::withMessages(['environmentForm.file' => 'Vyberte platný, už nahraný soubor teritorií.']);
+        }
+
+        try {
+            $content = $editor->update($this->rawContent, $this->selectedEnvironmentTerritory, $validated);
+        } catch (RuntimeException $exception) {
+            throw ValidationException::withMessages(['environmentForm.behavior' => $exception->getMessage()]);
+        }
+        $compatibility->assertEditable($this->getRecord(), $content, ['cfgenvironment.xml']);
+        $revision = $revisionEditor->save(
+            $this->getRecord(),
+            $this->sourceRevision(),
+            $content,
+            $this->changeSummary ?: "Upraveno zvíře {$this->selectedEnvironmentTerritory}",
+            auth()->user(),
+        );
+
+        $name = $this->selectedEnvironmentTerritory;
+        $this->loadRevision($revision);
+        $this->selectEnvironmentTerritory($name, $editor);
+
+        Notification::make()->success()->title("Zvíře {$name} bylo uloženo")->body("Vznikla revize #{$revision->revision_number}.")->send();
+    }
+
+    public function removeEnvironmentTerritory(EnvironmentXmlEditor $editor, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        if (! $this->selectedEnvironmentTerritory) {
+            return;
+        }
+        $name = $this->selectedEnvironmentTerritory;
+        $content = $editor->removeTerritory($this->rawContent, $name);
+        $revision = $revisionEditor->save(
+            $this->getRecord(),
+            $this->sourceRevision(),
+            $content,
+            "Odebráno zvíře {$name}",
+            auth()->user(),
+        );
+        $this->selectedEnvironmentTerritory = null;
+        $this->loadRevision($revision);
+
+        Notification::make()->success()->title("Zvíře {$name} bylo odebráno")->body("Vznikla revize #{$revision->revision_number}.")->send();
+    }
+
+    public function openAddAnimalForm(): void
+    {
+        $this->resetValidation();
+        $this->selectedEnvironmentTerritory = null;
+        $this->newAnimalForm = [
+            'name' => '', 'type' => 'Herd', 'behavior' => '',
+            'file_mode' => 'existing', 'file' => '', 'new_file' => '',
+            'agents' => [], 'items' => [],
+        ];
+        $this->showAddAnimalForm = true;
+    }
+
+    public function closeAddAnimalForm(): void
+    {
+        $this->showAddAnimalForm = false;
+    }
+
+    public function addAnimalTerritory(
+        EnvironmentXmlEditor $editor,
+        ConfigurationImporter $importer,
+        ConfigurationRevisionEditor $revisionEditor,
+        PlatformCompatibility $compatibility,
+    ): void {
+        $rules = $this->environmentValidationRules('newAnimalForm');
+        $rules['newAnimalForm.name'] = ['required', 'string', 'max:60', 'regex:/^[A-Za-z0-9_.-]+$/'];
+        $rules['newAnimalForm.file_mode'] = ['required', 'in:existing,new'];
+        $rules['newAnimalForm.new_file'] = ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9_-]*$/'];
+        $validated = $this->validate($rules)['newAnimalForm'];
+
+        if ($validated['file_mode'] === 'new') {
+            $base = trim((string) $validated['new_file']);
+            if ($base === '') {
+                throw ValidationException::withMessages(['newAnimalForm.new_file' => 'Zadejte název nového souboru teritorií.']);
+            }
+            $filename = str_ends_with(strtolower($base), '_territories.xml') ? $base : $base.'_territories.xml';
+            if (! $this->latestRevisionByFilename(strtolower($filename))) {
+                $importer->importGeneratedFile(
+                    $this->getRecord(),
+                    $filename,
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<territory-type>\n</territory-type>\n",
+                    auth()->user(),
+                );
+            }
+            $validated['file'] = $filename;
+        } elseif (! in_array(strtolower((string) ($validated['file'] ?? '')), $this->territoryFileOptions(), true)) {
+            throw ValidationException::withMessages(['newAnimalForm.file' => 'Vyberte platný, už nahraný soubor teritorií.']);
+        }
+
+        try {
+            $content = $editor->addTerritory($this->rawContent, $validated);
+        } catch (RuntimeException $exception) {
+            throw ValidationException::withMessages(['newAnimalForm.name' => $exception->getMessage()]);
+        }
+        $compatibility->assertEditable($this->getRecord(), $content, ['cfgenvironment.xml']);
+        $revision = $revisionEditor->save(
+            $this->getRecord(),
+            $this->sourceRevision(),
+            $content,
+            "Přidáno zvíře {$validated['name']}",
+            auth()->user(),
+        );
+
+        $this->showAddAnimalForm = false;
+        $this->loadRevision($revision);
+        $this->selectEnvironmentTerritory($validated['name'], $editor);
+
+        Notification::make()->success()->title("Zvíře {$validated['name']} bylo přidáno")->body("Vznikla revize #{$revision->revision_number}.")->send();
+    }
+
+    public function addEnvironmentAgent(string $target = 'environmentForm'): void
+    {
+        $this->{$target}['agents'][] = ['type' => 'Male', 'chance' => '', 'spawns' => [], 'items' => []];
+    }
+
+    public function removeEnvironmentAgent(int $index, string $target = 'environmentForm'): void
+    {
+        unset($this->{$target}['agents'][$index]);
+        $this->{$target}['agents'] = array_values($this->{$target}['agents'] ?? []);
+    }
+
+    public function addEnvironmentAgentSpawn(int $agentIndex, string $target = 'environmentForm'): void
+    {
+        $this->{$target}['agents'][$agentIndex]['spawns'][] = ['configName' => '', 'chance' => ''];
+    }
+
+    public function removeEnvironmentAgentSpawn(int $agentIndex, int $spawnIndex, string $target = 'environmentForm'): void
+    {
+        unset($this->{$target}['agents'][$agentIndex]['spawns'][$spawnIndex]);
+        $this->{$target}['agents'][$agentIndex]['spawns'] = array_values($this->{$target}['agents'][$agentIndex]['spawns'] ?? []);
+    }
+
+    public function addEnvironmentItem(string $target = 'environmentForm'): void
+    {
+        $this->{$target}['items'][] = ['name' => '', 'val' => 0];
+    }
+
+    public function removeEnvironmentItem(int $index, string $target = 'environmentForm'): void
+    {
+        unset($this->{$target}['items'][$index]);
+        $this->{$target}['items'] = array_values($this->{$target}['items'] ?? []);
+    }
+
+    /** @return array<string, mixed> */
+    private function environmentValidationRules(string $prefix): array
+    {
+        return [
+            "{$prefix}.type" => ['required', 'in:Herd,Ambient'],
+            "{$prefix}.behavior" => ['required', 'string', 'max:60', 'regex:/^[A-Za-z0-9_]+$/'],
+            "{$prefix}.file" => ['nullable', 'string', 'max:160'],
+            "{$prefix}.agents" => ['array'],
+            "{$prefix}.agents.*.type" => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_]+$/'],
+            "{$prefix}.agents.*.chance" => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            "{$prefix}.agents.*.spawns" => ['array'],
+            "{$prefix}.agents.*.spawns.*.configName" => ['required', 'string', 'max:160', 'regex:/^[A-Za-z0-9_.-]+$/'],
+            "{$prefix}.agents.*.spawns.*.chance" => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            "{$prefix}.agents.*.items" => ['array'],
+            "{$prefix}.agents.*.items.*.name" => ['required', 'string', 'max:60', 'regex:/^[A-Za-z0-9_]+$/'],
+            "{$prefix}.agents.*.items.*.val" => ['required', 'numeric', 'min:-1', 'max:2147483647'],
+            "{$prefix}.items" => ['array'],
+            "{$prefix}.items.*.name" => ['required', 'string', 'max:60', 'regex:/^[A-Za-z0-9_]+$/'],
+            "{$prefix}.items.*.val" => ['required', 'numeric', 'min:-1', 'max:2147483647'],
+        ];
     }
 
     public function openAddForm(): void
@@ -1348,6 +1596,7 @@ class EditConfiguration extends Page
         $xmlEditor = app(XmlConfigurationEditor::class);
         $eventGroupsEditor = app(EventGroupsXmlEditor::class);
         $eventsEditor = app(EventsXmlEditor::class);
+        $environmentEditor = app(EnvironmentXmlEditor::class);
         $this->visualKind = match (true) {
             strtolower(basename($filename)) === 'serverdz.cfg' => 'server',
             strtolower(basename($filename)) === 'whitelist.txt' => 'whitelist',
@@ -1356,6 +1605,7 @@ class EditConfiguration extends Page
             strtolower(basename($filename)) === 'messages.xml' => 'messages',
             strtolower(basename($filename)) === 'cfgeventspawns.xml' => 'event-spawns',
             $eventsEditor->supports($filename, $this->rawContent) => 'events',
+            $environmentEditor->supports($filename, $this->rawContent) => 'environment',
             $typesEditor->supports($filename, $this->rawContent) => 'types',
             $weatherEditor->supports($filename, $this->rawContent) => 'weather',
             $jsonEditor->supports($this->rawContent) => 'json',
@@ -1367,6 +1617,7 @@ class EditConfiguration extends Page
         $this->visualSupported = $this->visualKind !== null;
         $this->typeEntries = $this->visualKind === 'types' ? $typesEditor->entries($this->rawContent) : [];
         $this->eventEntries = $this->visualKind === 'events' ? $eventsEditor->entries($this->rawContent) : [];
+        $this->environmentEntries = $this->visualKind === 'environment' ? $environmentEditor->entries($this->rawContent) : [];
         $this->weatherForm = $this->visualKind === 'weather' ? $weatherEditor->values($this->rawContent) : [];
         $this->serverConfig = $this->visualKind === 'server' ? app(ServerConfigEditor::class)->parse($this->rawContent) : [];
         $this->whitelistEntries = $this->visualKind === 'whitelist' ? $this->parseIdCommentLines($this->rawContent) : [];

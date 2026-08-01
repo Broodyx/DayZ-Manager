@@ -501,6 +501,231 @@
                     @endif
                 </section>
             </div>
+            @elseif ($visualKind === 'environment')
+            @php
+                $environmentItemHelp = [
+                    'globalCountMax' => 'Nejvyšší celkový počet jedinců druhu na serveru.',
+                    'zoneCountMin' => 'Minimální počet jedinců v jedné zóně teritoria.',
+                    'zoneCountMax' => 'Maximální počet jedinců v jedné zóně teritoria.',
+                    'playerSpawnRadiusNear' => 'Bližší poloměr od hráče (m), který ovlivňuje spawn.',
+                    'playerSpawnRadiusFar' => 'Vzdálenější poloměr od hráče (m), který ovlivňuje spawn.',
+                    'herdsCount' => 'Kolik stád/skupin tohoto typu server drží najednou.',
+                    'zoneTouchDisableEditPeriodSec' => 'Po vstupu hráče do zóny (s) se zóna dočasně nepřegeneruje.',
+                    'countMin' => 'Minimální počet pro tohoto agenta (typicky u nakažených).',
+                    'countMax' => 'Maximální počet pro tohoto agenta (typicky u nakažených).',
+                ];
+            @endphp
+            <datalist id="dz-environment-item-names">
+                @foreach (array_keys($environmentItemHelp) as $itemName)
+                    <option value="{{ $itemName }}">
+                @endforeach
+            </datalist>
+            <datalist id="dz-environment-behaviors">
+                @foreach (['DZWolfGroupBeh', 'DZDeerGroupBeh', 'DZSheepGroupBeh', 'DZdomesticGroupBeh', 'BlissBearGroupBeh', 'DZAmbientLifeGroupBeh'] as $behavior)
+                    <option value="{{ $behavior }}">
+                @endforeach
+            </datalist>
+            <div class="dz-editor-grid">
+                <section class="dz-panel">
+                    <div class="dz-panel-head">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <strong>Zvířata a nakažení · cfgenvironment.xml</strong>
+                                <p class="dz-muted text-sm mt-1">Kde se druh vyskytuje (teritoria), jaké třídy spawnuje a v jakém počtu.</p>
+                            </div>
+                            <button type="button" wire:click="openAddAnimalForm" class="dz-secondary">+ Přidat zvíře</button>
+                        </div>
+                        <input wire:model.live.debounce.250ms="environmentSearch" class="dz-search mt-3" placeholder="Hledat například Wolf…">
+                    </div>
+                    <div class="dz-list">
+                        @foreach ($this->filteredEnvironmentEntries() as $entry)
+                            <button type="button" wire:click="selectEnvironmentTerritory(@js($entry['name']))" class="dz-item {{ $selectedEnvironmentTerritory === $entry['name'] ? 'active' : '' }}">
+                                <span>{{ $entry['name'] }}</span>
+                                <span class="dz-item-meta">
+                                    @if ($entry['is_infected'])<span class="dz-badge pc">Nakažení</span>@endif
+                                    <small>{{ $entry['type'] }} · {{ $entry['file'] ?: 'bez souboru' }} · {{ $entry['agent_count'] }} agentů</small>
+                                </span>
+                            </button>
+                        @endforeach
+                    </div>
+                </section>
+
+                <section class="dz-panel">
+                    @if ($showAddAnimalForm)
+                        <div class="dz-panel-head">
+                            <strong>Nové zvíře v cfgenvironment.xml</strong>
+                            <p class="dz-muted text-sm mt-1">Jméno se kontroluje bez ohledu na velikost písmen. Napojení na mapu (přidávání zón) uvidíš hned po uložení v Mapovém editoru.</p>
+                        </div>
+                        <div class="dz-add-grid">
+                            <div class="dz-control">
+                                <label>Jméno druhu</label>
+                                <input wire:model="newAnimalForm.name" placeholder="Například Lynx">
+                                @error('newAnimalForm.name') <div class="dz-error">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="dz-control">
+                                <label>Typ</label>
+                                <select wire:model="newAnimalForm.type">
+                                    <option value="Herd">Herd · stádo</option>
+                                    <option value="Ambient">Ambient · ambientní jedinci</option>
+                                </select>
+                            </div>
+                            <div class="dz-control">
+                                <label>Behavior</label>
+                                <input wire:model="newAnimalForm.behavior" list="dz-environment-behaviors" placeholder="Například DZWolfGroupBeh">
+                                @error('newAnimalForm.behavior') <div class="dz-error">{{ $message }}</div> @enderror
+                            </div>
+                        </div>
+                        <div class="px-4 pb-4">
+                            <strong>Soubor teritorií</strong>
+                            <p class="dz-muted text-sm mt-1">Zóny (Water/Rest/Graze/…) tohoto souboru pak upravíš na mapě.</p>
+                            <div class="dz-checks mt-2">
+                                <label class="dz-check"><input type="radio" wire:model.live="newAnimalForm.file_mode" value="existing"> Použít existující soubor</label>
+                                <label class="dz-check"><input type="radio" wire:model.live="newAnimalForm.file_mode" value="new"> Založit nový prázdný soubor</label>
+                            </div>
+                            @if ($newAnimalForm['file_mode'] === 'new')
+                                <input wire:model="newAnimalForm.new_file" class="mt-2" placeholder="Například lynx_territories">
+                                <small class="dz-muted">Přípona _territories.xml se doplní automaticky.</small>
+                                @error('newAnimalForm.new_file') <div class="dz-error">{{ $message }}</div> @enderror
+                            @else
+                                <select wire:model="newAnimalForm.file" class="mt-2">
+                                    <option value="">— vyber soubor —</option>
+                                    @foreach ($this->territoryFileOptions() as $option)
+                                        <option value="{{ $option }}">{{ $option }}</option>
+                                    @endforeach
+                                </select>
+                                @error('newAnimalForm.file') <div class="dz-error">{{ $message }}</div> @enderror
+                            @endif
+                        </div>
+                        <div class="px-4 pb-4">
+                            <details class="dz-group" open>
+                                <summary><span>Agenti · třídy a šance spawnu</span><small>{{ count($newAnimalForm['agents'] ?? []) }}</small></summary>
+                                @foreach ($newAnimalForm['agents'] ?? [] as $agentIndex => $agent)
+                                    <article class="dz-event-child" wire:key="new-animal-agent-{{ $agentIndex }}">
+                                        <header>
+                                            <span><small>AGENT {{ $agentIndex + 1 }}</small></span>
+                                            <button type="button" wire:click="removeEnvironmentAgent({{ $agentIndex }}, 'newAnimalForm')" class="dz-danger">Odebrat</button>
+                                        </header>
+                                        <label><span>Typ (Male/Female…)</span><input type="text" wire:model="newAnimalForm.agents.{{ $agentIndex }}.type"></label>
+                                        <label><span>Šance agenta</span><input type="number" min="0" wire:model="newAnimalForm.agents.{{ $agentIndex }}.chance"></label>
+                                        @foreach ($agent['spawns'] ?? [] as $spawnIndex => $spawn)
+                                            <div class="flex gap-2 items-center">
+                                                <input type="text" wire:model="newAnimalForm.agents.{{ $agentIndex }}.spawns.{{ $spawnIndex }}.configName" placeholder="Classname, např. Animal_CanisLupus">
+                                                <input type="number" min="0" class="w-24" wire:model="newAnimalForm.agents.{{ $agentIndex }}.spawns.{{ $spawnIndex }}.chance" placeholder="Šance">
+                                                <button type="button" wire:click="removeEnvironmentAgentSpawn({{ $agentIndex }}, {{ $spawnIndex }}, 'newAnimalForm')" class="dz-danger">×</button>
+                                            </div>
+                                        @endforeach
+                                        <button type="button" wire:click="addEnvironmentAgentSpawn({{ $agentIndex }}, 'newAnimalForm')" class="dz-secondary">+ Třída</button>
+                                    </article>
+                                @endforeach
+                                <button type="button" wire:click="addEnvironmentAgent('newAnimalForm')" class="dz-secondary">+ Agent</button>
+                            </details>
+                            <details class="dz-group" open>
+                                <summary><span>Počty · item name/val</span><small>{{ count($newAnimalForm['items'] ?? []) }}</small></summary>
+                                @foreach ($newAnimalForm['items'] ?? [] as $itemIndex => $item)
+                                    <div class="flex gap-2 items-center mt-2">
+                                        <input type="text" list="dz-environment-item-names" wire:model="newAnimalForm.items.{{ $itemIndex }}.name" placeholder="Např. globalCountMax">
+                                        <input type="number" class="w-24" wire:model="newAnimalForm.items.{{ $itemIndex }}.val">
+                                        <button type="button" wire:click="removeEnvironmentItem({{ $itemIndex }}, 'newAnimalForm')" class="dz-danger">×</button>
+                                        @if (isset($environmentItemHelp[$item['name']])) <small class="dz-muted">{{ $environmentItemHelp[$item['name']] }}</small> @endif
+                                    </div>
+                                @endforeach
+                                <button type="button" wire:click="addEnvironmentItem('newAnimalForm')" class="dz-secondary mt-2">+ Hodnota</button>
+                            </details>
+                        </div>
+                        <div class="dz-savebar">
+                            <x-dz-confirm-button call="addAnimalTerritory()" label="Zkontrolovat a přidat" saved-label="Přidáno" class="dz-action" />
+                        </div>
+                    @elseif ($selectedEnvironmentTerritory)
+                        <div class="dz-panel-head">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <strong>{{ $selectedEnvironmentTerritory }}</strong>
+                                    <p class="dz-muted text-sm mt-1">Napojený soubor teritorií: {{ $environmentForm['file'] ?: 'žádný' }}</p>
+                                </div>
+                                @if ($environmentForm['is_infected'] ?? false)<span class="dz-badge pc">Nakažení</span>@endif
+                            </div>
+                        </div>
+                        <div class="dz-add-grid">
+                            <div class="dz-control">
+                                <label>Typ</label>
+                                <select wire:model="environmentForm.type">
+                                    <option value="Herd">Herd · stádo</option>
+                                    <option value="Ambient">Ambient · ambientní jedinci</option>
+                                </select>
+                            </div>
+                            <div class="dz-control">
+                                <label>Behavior</label>
+                                <input wire:model="environmentForm.behavior" list="dz-environment-behaviors">
+                                @error('environmentForm.behavior') <div class="dz-error">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="dz-control">
+                                <label>Soubor teritorií</label>
+                                <select wire:model="environmentForm.file">
+                                    <option value="">— žádný —</option>
+                                    @foreach ($this->territoryFileOptions() as $option)
+                                        <option value="{{ $option }}">{{ $option }}</option>
+                                    @endforeach
+                                </select>
+                                @error('environmentForm.file') <div class="dz-error">{{ $message }}</div> @enderror
+                                <small class="dz-muted">Přesné pozice zón uprav v <a href="{{ \App\Filament\Pages\MapEditor::getUrl(['project' => $this->getRecord()->id]) }}">Mapovém editoru</a>.</small>
+                            </div>
+                        </div>
+                        <div class="px-4 pb-4">
+                            <details class="dz-group" open>
+                                <summary><span>Agenti · třídy a šance spawnu</span><small>{{ count($environmentForm['agents'] ?? []) }}</small></summary>
+                                @foreach ($environmentForm['agents'] ?? [] as $agentIndex => $agent)
+                                    <article class="dz-event-child" wire:key="env-agent-{{ $agentIndex }}">
+                                        <header>
+                                            <span><small>AGENT {{ $agentIndex + 1 }}</small></span>
+                                            <button type="button" wire:click="removeEnvironmentAgent({{ $agentIndex }})" class="dz-danger">Odebrat</button>
+                                        </header>
+                                        <label><span>Typ (Male/Female…)</span><input type="text" wire:model="environmentForm.agents.{{ $agentIndex }}.type"></label>
+                                        <label><span>Šance agenta</span><input type="number" min="0" wire:model="environmentForm.agents.{{ $agentIndex }}.chance"></label>
+                                        @foreach ($agent['spawns'] ?? [] as $spawnIndex => $spawn)
+                                            <div class="flex gap-2 items-center">
+                                                <input type="text" wire:model="environmentForm.agents.{{ $agentIndex }}.spawns.{{ $spawnIndex }}.configName" placeholder="Classname, např. Animal_CanisLupus">
+                                                <input type="number" min="0" class="w-24" wire:model="environmentForm.agents.{{ $agentIndex }}.spawns.{{ $spawnIndex }}.chance" placeholder="Šance">
+                                                <button type="button" wire:click="removeEnvironmentAgentSpawn({{ $agentIndex }}, {{ $spawnIndex }})" class="dz-danger">×</button>
+                                            </div>
+                                        @endforeach
+                                        @foreach ($agent['items'] ?? [] as $agentItemIndex => $agentItem)
+                                            <div class="flex gap-2 items-center mt-1">
+                                                <small class="dz-muted">{{ $agentItem['name'] }}</small>
+                                                <input type="number" class="w-24" wire:model="environmentForm.agents.{{ $agentIndex }}.items.{{ $agentItemIndex }}.val">
+                                            </div>
+                                        @endforeach
+                                        <button type="button" wire:click="addEnvironmentAgentSpawn({{ $agentIndex }})" class="dz-secondary">+ Třída</button>
+                                    </article>
+                                @endforeach
+                                <button type="button" wire:click="addEnvironmentAgent" class="dz-secondary">+ Agent</button>
+                            </details>
+                            <details class="dz-group" open>
+                                <summary><span>Počty · item name/val</span><small>{{ count($environmentForm['items'] ?? []) }}</small></summary>
+                                @foreach ($environmentForm['items'] ?? [] as $itemIndex => $item)
+                                    <div class="flex gap-2 items-center mt-2">
+                                        <input type="text" list="dz-environment-item-names" wire:model="environmentForm.items.{{ $itemIndex }}.name" placeholder="Např. globalCountMax">
+                                        <input type="number" class="w-24" wire:model="environmentForm.items.{{ $itemIndex }}.val">
+                                        <button type="button" wire:click="removeEnvironmentItem({{ $itemIndex }})" class="dz-danger">×</button>
+                                        @if (isset($environmentItemHelp[$item['name']])) <small class="dz-muted">{{ $environmentItemHelp[$item['name']] }}</small> @endif
+                                    </div>
+                                @endforeach
+                                <button type="button" wire:click="addEnvironmentItem" class="dz-secondary mt-2">+ Hodnota</button>
+                            </details>
+                        </div>
+                        <div class="dz-savebar">
+                            <input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny (např. zvýšení globalCountMax)">
+                            <x-dz-confirm-button call="saveEnvironmentTerritory()" label="Uložit novou revizi" class="dz-action" />
+                            @php $removeEnvironmentConfirm = "Opravdu odebrat zvíře '{$selectedEnvironmentTerritory}' z cfgenvironment.xml? Vytvoří se nová revize, originál zůstane zachovaný. Napojený soubor teritorií zůstane netknutý."; @endphp
+                            <button type="button" class="dz-danger" x-on:click="dzConfirm(@js($removeEnvironmentConfirm)).then((ok) => { if (ok) $wire.removeEnvironmentTerritory(); })">Smazat zvíře</button>
+                        </div>
+                    @else
+                        <div class="p-10 text-center">
+                            <strong>Vyber zvíře vlevo</strong>
+                            <p class="dz-muted mt-2">Nebo přidej nové tlačítkem „+ Přidat zvíře“.</p>
+                        </div>
+                    @endif
+                </section>
+            </div>
             @elseif ($visualKind === 'server')
                 <section class="dz-editor-card"><h3>Serverová nastavení · serverDZ.cfg</h3><p class="dz-muted">Upravujte hodnoty serveru bez ručního psaní CFG syntaxe. Hesla jsou skrytá; prázdné pole zachová původní hodnotu.</p><div class="dz-fields-grid">
                     @foreach ($serverConfig as $key => $value)

@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\Project;
 use App\Services\Dayz\ClassnameCatalog;
+use App\Services\Dayz\EnvironmentTargetCatalog;
 use App\Services\Dayz\EventsXmlEditor;
 use App\Services\Dayz\MapConfigurationEditor;
 use App\Services\Dayz\MapConfigurationReader;
@@ -374,27 +375,25 @@ class MapEditor extends Page
         $options = fn ($names, string $target) => collect($names)->map(fn ($name) => [
             'value' => $name, 'label' => $name, 'target' => $target, 'available' => isset($uploaded[$target]),
         ])->values()->all();
-        $animalTargets = [
-            ['AnimalBear', 'Medvěd', 'bear_territories.xml'],
-            ['AnimalCow', 'Skot', 'cattle_territories.xml'],
-            ['AnimalDeer', 'Jelen', 'red_deer_territories.xml'],
-            ['AnimalRoeDeer', 'Srnec', 'roe_deer_territories.xml'],
-            ['AnimalWolf', 'Vlk', 'wolf_territories.xml'],
-            ['AnimalWildBoar', 'Divočák', 'wild_boar_territories.xml'],
-            ['AnimalSheep', 'Ovce / koza', 'sheep_goat_territories.xml'],
-            ['AnimalPig', 'Prase', 'pig_territories.xml'],
-            ['AnimalFox', 'Liška', 'fox_territories.xml'],
-            ['AnimalHare', 'Zajíc', 'hare_territories.xml'],
-            ['AnimalHen', 'Slepice', 'hen_territories.xml'],
-            ['AnimalDomestic', 'Domácí zvířata', 'domestic_animals_territories.xml'],
-        ];
-        $animalOptions = collect($animalTargets)->map(fn ($item) => [
-            'value' => $item[0],
-            'label' => $item[1].' · '.$item[2],
-            'target' => $item[2],
-            'available' => isset($uploaded[$item[2]]),
-            'upload_url' => $uploadUrl($item[2]),
-        ])->all();
+        $environmentTargets = app(EnvironmentTargetCatalog::class)->targets($revisions, fn ($item) => $this->revisionFilename($item));
+        $animalOptions = collect($environmentTargets)
+            ->reject(fn (array $item) => $item['is_infected'])
+            ->map(fn (array $item) => [
+                'value' => $item['name'],
+                'label' => $item['name'].' · '.$item['file'],
+                'target' => $item['file'],
+                'available' => isset($uploaded[$item['file']]),
+                'upload_url' => $uploadUrl($item['file']),
+            ])->values()->all();
+        $infectedOptions = collect($environmentTargets)
+            ->filter(fn (array $item) => $item['is_infected'])
+            ->map(fn (array $item) => [
+                'value' => $item['name'],
+                'label' => $item['name'].' · '.$item['file'],
+                'target' => $item['file'],
+                'available' => isset($uploaded[$item['file']]),
+                'upload_url' => $uploadUrl($item['file']),
+            ])->values()->all();
         $territoryOptions = collect(array_keys($uploaded))
             ->filter(fn ($name) => Str::is('*_territories.xml', $name))
             ->map(fn ($name) => ['value' => 'HuntingGround', 'label' => $name, 'target' => $name, 'available' => true])
@@ -479,12 +478,7 @@ class MapEditor extends Page
             }
         }
         $territoryFields = [
-            ['name' => 'zone_type', 'label' => 'Úloha zóny', 'type' => 'select', 'default' => 'HuntingGround', 'options' => [
-                ['value' => 'HuntingGround', 'label' => 'HuntingGround · hlavní oblast výskytu'],
-                ['value' => 'Rest', 'label' => 'Rest · klidová oblast'],
-                ['value' => 'Graze', 'label' => 'Graze · pastva'],
-                ['value' => 'Water', 'label' => 'Water · zdroj vody'],
-            ]],
+            ['name' => 'zone_type', 'label' => 'Úloha zóny', 'type' => 'text', 'list' => 'dz-zone-type-catalog', 'default' => 'HuntingGround', 'help' => 'Atribut name. Herní AI ho používá jako typ zóny — u zvířat obvykle HuntingGround/Rest/Graze/Water, u ambientních druhů vlastní název (např. Zone_hen), u nakažených název tieru (např. InfectedVillageTier1). Našeptávač nabízí názvy už použité v nahraných souborech.'],
             ['name' => 'radius', 'label' => 'Poloměr (m)', 'type' => 'number', 'min' => 1, 'max' => 5000, 'step' => 0.5, 'default' => 150, 'help' => 'Atribut r: dosah zóny od středu v metrech.'],
             ['name' => 'smin', 'label' => 'Statický spawn minimum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut smin. Minimální počet statických výskytů pro zónu.'],
             ['name' => 'smax', 'label' => 'Statický spawn maximum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut smax. Maximální počet statických výskytů pro zónu.'],
@@ -534,9 +528,12 @@ class MapEditor extends Page
                 'fields' => $territoryFields,
             ],
             'infected' => [
-                'target' => null, 'target_label' => '*infected*_territories.xml', 'available' => false,
-                'missing' => ['příslušný infected territory XML'], 'upload_url' => $uploadUrl('*infected*_territories.xml'),
-                'options' => [], 'help' => 'Zóny nakažených vyžadují export příslušného territory XML z aktuální mise. Bez něj editor zápis z bezpečnostních důvodů nepovolí.',
+                'target' => null, 'target_label' => 'odpovídající *_territories.xml nakažených', 'available' => count($infectedOptions) > 0,
+                'missing' => count($infectedOptions) ? [] : ['cfgenvironment.xml s registrací nakažených a jejich territories soubor'],
+                'upload_url' => $uploadUrl('cfgenvironment.xml'), 'options' => $infectedOptions,
+                'help' => 'Vyberte registraci nakažených. Zóna se uloží do jejího vlastního *_territories.xml; events.xml se tím nemění. Zadejte přesný název tieru (např. InfectedVillageTier1) do pole Úloha zóny.',
+                'fields' => $territoryFields,
+                'related' => ['events.xml' => 'počet skupin, lifetime a restock nakažených'],
             ],
             'custom' => [
                 'target' => null, 'target_label' => 'Object Spawner JSON', 'available' => false,
@@ -591,6 +588,20 @@ class MapEditor extends Page
                 $this->loadedSources[$filename] = true;
             }
         }
+    }
+
+    /** Known zone `name` values for the "Úloha zóny" datalist: the 4 common animal zone types plus every zone name already used in the project's loaded territory files (ambient/infected use their own per-species or per-tier names). */
+    public function zoneTypeCatalog(): array
+    {
+        return collect($this->markers)
+            ->filter(fn (array $marker): bool => $marker['type'] === 'territory')
+            ->map(fn (array $marker) => $marker['parameters']['zone_type'] ?? null)
+            ->filter()
+            ->merge(['HuntingGround', 'Rest', 'Graze', 'Water'])
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
     }
 
     /** @return list<array{value:string,label:string,count:int}> */

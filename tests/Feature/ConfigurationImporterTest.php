@@ -47,6 +47,46 @@ class ConfigurationImporterTest extends TestCase
         ]);
     }
 
+    public function test_import_generated_file_creates_import_and_first_revision_without_an_upload(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Generated file test',
+            'platform' => 'unknown',
+            'map' => 'ChernarusPlus',
+        ]);
+        $content = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<territory-type>\n</territory-type>\n";
+
+        $import = app(ConfigurationImporter::class)->importGeneratedFile($project, 'lynx_territories.xml', $content, $user);
+
+        $this->assertSame('lynx_territories.xml', $import->original_filename);
+        $this->assertSame('valid', $import->validation_status);
+        Storage::disk('dayz')->assertExists($import->storage_path);
+        $this->assertSame($content, Storage::disk('dayz')->get($import->storage_path));
+        $this->assertDatabaseHas('configuration_revisions', [
+            'configuration_import_id' => $import->id,
+            'revision_number' => 1,
+            'created_by' => $user->id,
+        ]);
+    }
+
+    public function test_import_generated_file_rejects_invalid_xml(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create();
+        $project = Project::query()->create([
+            'user_id' => $user->id,
+            'name' => 'Generated file invalid test',
+            'platform' => 'unknown',
+            'map' => 'ChernarusPlus',
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        app(ConfigurationImporter::class)->importGeneratedFile($project, 'broken.xml', '<not-closed>', $user);
+    }
+
     public function test_project_owner_can_read_raw_revision_but_another_user_cannot(): void
     {
         Storage::fake('dayz');

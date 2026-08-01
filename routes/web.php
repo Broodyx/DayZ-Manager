@@ -24,7 +24,7 @@ Route::post('/admin/map-editor/points', function (
         'parameters'=>'nullable|array',
         'parameters.orientation'=>'nullable|numeric|min:-360|max:360',
         'parameters.radius'=>'nullable|numeric|min:1|max:5000',
-        'parameters.zone_type'=>'nullable|in:HuntingGround,Rest,Graze,Water',
+        'parameters.zone_type'=>'nullable|string|max:60|regex:/^[A-Za-z0-9_.-]+$/',
         'parameters.smin'=>'nullable|integer|min:0|max:1000','parameters.smax'=>'nullable|integer|min:0|max:1000',
         'parameters.dmin'=>'nullable|integer|min:0|max:1000','parameters.dmax'=>'nullable|integer|min:0|max:1000',
         'parameters.spawn_mode'=>'nullable|in:fresh,hop,travel','parameters.group_name'=>'nullable|string|max:120',
@@ -50,26 +50,23 @@ Route::post('/admin/map-editor/points', function (
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $eventTypes = ['vehicle','dynamic','heli','convoy','aerial'];
     $filename = strtolower(basename($data['target_filename']));
-    $animalTargets = [
-        'AnimalBear' => 'bear_territories.xml', 'AnimalCow' => 'cattle_territories.xml',
-        'AnimalDeer' => 'red_deer_territories.xml', 'AnimalRoeDeer' => 'roe_deer_territories.xml',
-        'AnimalWolf' => 'wolf_territories.xml', 'AnimalWildBoar' => 'wild_boar_territories.xml',
-        'AnimalSheep' => 'sheep_goat_territories.xml', 'AnimalPig' => 'pig_territories.xml',
-        'AnimalFox' => 'fox_territories.xml', 'AnimalHare' => 'hare_territories.xml',
-        'AnimalHen' => 'hen_territories.xml', 'AnimalDomestic' => 'domestic_animals_territories.xml',
-    ];
+    $revisions = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get();
+    $filenameOf = fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
+    $environmentTargets = app(\App\Services\Dayz\EnvironmentTargetCatalog::class)->targets($revisions, $filenameOf);
+    $animalTargets = collect($environmentTargets)->reject(fn ($item) => $item['is_infected'])->pluck('file', 'name')->all();
+    $infectedTargets = collect($environmentTargets)->filter(fn ($item) => $item['is_infected'])->pluck('file', 'name')->all();
     $validTarget = match (true) {
         in_array($data['type'], $eventTypes, true) => $filename === 'cfgeventspawns.xml',
         $data['type'] === 'player' => $filename === 'cfgplayerspawnpoints.xml',
         $data['type'] === 'contaminated' => $filename === 'cfgeffectarea.json',
         $data['type'] === 'loot' => $filename === 'mapgrouppos.xml',
         $data['type'] === 'animal' => ($animalTargets[$data['label']] ?? null) === $filename,
+        $data['type'] === 'infected' => ($infectedTargets[$data['label']] ?? null) === $filename,
         $data['type'] === 'territory' => \Illuminate\Support\Str::is('*_territories.xml', $filename),
         default => false,
     };
     abort_unless($validTarget, 422, 'Zvolený typ nelze bezpečně zapsat do požadovaného souboru.');
-    $source = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
-        ->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? ''))) === $filename);
+    $source = $revisions->first(fn ($revision) => $filenameOf($revision) === $filename);
     abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422, "Nejprve importujte {$filename}.");
     if (in_array($data['type'], $eventTypes, true)) {
         $eventsRevision = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
@@ -127,7 +124,7 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         'parameters.orientation'=>'nullable|numeric|min:0|max:359.999',
         'parameters.pos_y'=>'nullable|numeric|min:-1000|max:5000',
         'parameters.pitch'=>'nullable|numeric|min:-360|max:360','parameters.yaw'=>'nullable|numeric|min:-360|max:360','parameters.roll'=>'nullable|numeric|min:-360|max:360',
-        'parameters.zone_type'=>'nullable|in:HuntingGround,Rest,Graze,Water','parameters.radius'=>'nullable|numeric|min:1|max:5000',
+        'parameters.zone_type'=>'nullable|string|max:60|regex:/^[A-Za-z0-9_.-]+$/','parameters.radius'=>'nullable|numeric|min:1|max:5000',
         'parameters.smin'=>'nullable|integer|min:0|max:1000','parameters.smax'=>'nullable|integer|min:0|max:1000',
         'parameters.dmin'=>'nullable|integer|min:0|max:1000','parameters.dmax'=>'nullable|integer|min:0|max:1000',
         'parameters.name'=>['nullable', 'string', 'max:120', 'regex:/^[A-Za-z0-9_.-]*$/'],

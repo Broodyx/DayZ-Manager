@@ -91,6 +91,60 @@ final readonly class ConfigurationImporter
         }
     }
 
+    /**
+     * Creates a brand-new configuration file (and its first revision) directly from generated
+     * content, without going through an upload — used to seed an empty *_territories.xml when a
+     * newly registered animal in cfgenvironment.xml has no existing territory file to link to.
+     */
+    public function importGeneratedFile(Project $project, string $filename, string $content, User $user): ConfigurationImport
+    {
+        if ($project->user_id !== $user->id) {
+            throw new RuntimeException('The selected project does not belong to the signed-in user.');
+        }
+
+        $validationErrors = $this->validate($filename, $content);
+        if ($validationErrors !== []) {
+            throw new RuntimeException($validationErrors[0]['message'] ?? 'Generovaný soubor není platný.');
+        }
+
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        $path = "{$project->id}/imports/".Str::uuid().'.'.$extension;
+        Storage::disk('dayz')->put($path, $content);
+
+        try {
+            return DB::transaction(function () use ($project, $user, $filename, $content, $path): ConfigurationImport {
+                $lockedProject = Project::query()->lockForUpdate()->findOrFail($project->id);
+                $import = $lockedProject->imports()->create([
+                    'original_filename' => $filename,
+                    'storage_path' => $path,
+                    'sha256' => hash('sha256', $content),
+                    'detected_platform' => 'unknown',
+                    'detection_confidence' => 0,
+                    'validation_status' => 'valid',
+                    'validation_errors' => null,
+                    'imported_at' => now(),
+                ]);
+
+                $revisionNumber = ((int) $lockedProject->revisions()->max('revision_number')) + 1;
+                ConfigurationRevision::query()->create([
+                    'project_id' => $lockedProject->id,
+                    'configuration_import_id' => $import->id,
+                    'revision_number' => $revisionNumber,
+                    'storage_path' => $path,
+                    'sha256' => hash('sha256', $content),
+                    'change_summary' => "Založen nový soubor {$filename}",
+                    'created_by' => $user->id,
+                ]);
+
+                return $import;
+            });
+        } catch (Throwable $exception) {
+            Storage::disk('dayz')->delete($path);
+
+            throw $exception;
+        }
+    }
+
     private function importArchive(Project $project, StoredConfiguration $archive, User $user): ConfigurationImport
     {
         [$contents, $paths] = $this->inspect($archive);
