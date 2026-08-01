@@ -120,6 +120,12 @@ class ProjectResource extends Resource
                         ->helperText('U Nitrado to bývá ve tvaru "1:/dayzps_missions/<mise>/" — najdeš ji ve FTP údajích hostingu.')
                         ->maxLength(255)
                         ->columnSpanFull(),
+                    Forms\Components\TextInput::make('ftp_log_path')
+                        ->label('Cesta k server logům (volitelné)')
+                        ->placeholder('např. 0:/dayzps/config/')
+                        ->helperText('Jen pokud hosting drží logy (.RPT/.ADM) jinde než misi — u Nitrado bývá pod "0:/dayzps/config/". Umožní načíst log přímo v Log analyzátoru bez ručního kopírování.')
+                        ->maxLength(255)
+                        ->columnSpanFull(),
                 ])
                 ->columns(2),
         ]);

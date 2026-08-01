@@ -25,10 +25,18 @@ class FtpBrowserTest extends TestCase
         mkdir($this->root.'/db', 0777, true);
         mkdir($this->root.'/env', 0777, true);
         mkdir($this->root.'/custom', 0777, true);
+        mkdir($this->root.'/logs', 0777, true);
         file_put_contents($this->root.'/types.xml', '<types></types>');
         file_put_contents($this->root.'/db/globals.xml', '<globals></globals>');
         file_put_contents($this->root.'/env/wolf_territories.xml', '<territory-type></territory-type>');
         file_put_contents($this->root.'/custom/startovni-vybava.json', '{"items": []}');
+        file_put_contents($this->root.'/logs/DayZServer_PS4_x64_2026-08-01_08-37-57.RPT', 'log a');
+        touch($this->root.'/logs/DayZServer_PS4_x64_2026-08-01_08-37-57.RPT', strtotime('2026-08-01 08:37:57'));
+        file_put_contents($this->root.'/logs/DayZServer_PS4_x64_2026-07-31_10-00-00.RPT', 'log b');
+        touch($this->root.'/logs/DayZServer_PS4_x64_2026-07-31_10-00-00.RPT', strtotime('2026-07-31 10:00:00'));
+        file_put_contents($this->root.'/logs/DayZServer_x64_2026-08-01.ADM', 'admin log');
+        touch($this->root.'/logs/DayZServer_x64_2026-08-01.ADM', strtotime('2026-08-01 09:00:00'));
+        file_put_contents($this->root.'/logs/not-a-log.txt', 'irrelevant');
     }
 
     protected function tearDown(): void
@@ -146,5 +154,45 @@ class FtpBrowserTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         app(FtpBrowser::class)->filesystem($project);
+    }
+
+    public function test_list_log_files_on_filters_to_log_extensions_and_sorts_newest_first(): void
+    {
+        $browser = app(FtpBrowser::class);
+        $files = $browser->listLogFilesOn($this->localFilesystem(), 'logs');
+
+        $this->assertSame([
+            'DayZServer_x64_2026-08-01.ADM',
+            'DayZServer_PS4_x64_2026-08-01_08-37-57.RPT',
+            'DayZServer_PS4_x64_2026-07-31_10-00-00.RPT',
+        ], array_column($files, 'name'));
+    }
+
+    public function test_read_log_file_returns_its_content(): void
+    {
+        $browser = app(FtpBrowser::class);
+        $content = $browser->readOn($this->localFilesystem(), 'logs/DayZServer_PS4_x64_2026-08-01_08-37-57.RPT');
+
+        $this->assertSame('log a', $content);
+    }
+
+    public function test_filesystem_for_logs_throws_without_a_configured_log_path(): void
+    {
+        $project = Project::query()->create([
+            'user_id' => User::factory()->create()->id, 'name' => 'No log path test', 'platform' => 'playstation', 'map' => 'chernarusplus',
+            'ftp_protocol' => 'ftp', 'ftp_host' => 'ms2321.gamedata.io', 'ftp_username' => 'user', 'ftp_password' => 'secret',
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        app(FtpBrowser::class)->filesystemForLogs($project);
+    }
+
+    public function test_project_has_ftp_log_connection_only_with_both_ftp_and_log_path(): void
+    {
+        $withoutLogPath = new Project(['ftp_host' => 'h', 'ftp_username' => 'u', 'ftp_password' => 'p']);
+        $this->assertFalse($withoutLogPath->hasFtpLogConnection());
+
+        $withLogPath = new Project(['ftp_host' => 'h', 'ftp_username' => 'u', 'ftp_password' => 'p', 'ftp_log_path' => '0:/dayzps/config/']);
+        $this->assertTrue($withLogPath->hasFtpLogConnection());
     }
 }

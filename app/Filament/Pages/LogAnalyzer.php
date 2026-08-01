@@ -7,6 +7,7 @@ use App\Models\LogAnalysis;
 use App\Models\Project;
 use App\Services\Dayz\MapConfigurationEditor;
 use App\Services\Dayz\ServerLogAnalyzer;
+use App\Services\Ftp\FtpBrowser;
 use App\Services\Revision\ConfigurationRevisionEditor;
 use App\Services\Revision\TypesXmlEditor;
 use Filament\Notifications\Notification;
@@ -39,6 +40,12 @@ class LogAnalyzer extends Page
 
     public ?int $viewingHistoryId = null;
 
+    public array $ftpLogFiles = [];
+
+    public bool $ftpLogsLoaded = false;
+
+    public ?string $ftpLogError = null;
+
     public function mount(): void
     {
         $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
@@ -52,6 +59,48 @@ class LogAnalyzer extends Page
     public function updatedProjectId(): void
     {
         $this->loadHistory();
+        $this->ftpLogFiles = [];
+        $this->ftpLogsLoaded = false;
+        $this->ftpLogError = null;
+    }
+
+    /** Lists .RPT/.ADM/.log files at the project's configured FTP log path — a separate root from the mission files on hosts (e.g. Nitrado on console) that split the two. */
+    public function loadFtpLogFiles(FtpBrowser $browser): void
+    {
+        $this->ftpLogFiles = [];
+        $this->ftpLogError = null;
+        $this->ftpLogsLoaded = true;
+
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project || ! $project->hasFtpLogConnection()) {
+            return;
+        }
+
+        try {
+            $this->ftpLogFiles = $browser->listLogFiles($project);
+        } catch (RuntimeException $exception) {
+            $this->ftpLogError = $exception->getMessage();
+        }
+    }
+
+    /** Fetches one log file's content from FTP straight into the analyzer textarea. */
+    public function loadFtpLogFile(string $path, FtpBrowser $browser): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project) {
+            return;
+        }
+
+        try {
+            $this->logContent = $browser->readLogFile($project, $path);
+        } catch (RuntimeException $exception) {
+            Notification::make()->danger()->title('Log se nepodařilo načíst')->body($exception->getMessage())->send();
+
+            return;
+        }
+
+        $this->analyzed = false;
+        Notification::make()->success()->title('Log načten z FTP')->body(basename($path))->send();
     }
 
     public function loadHistory(): void
@@ -242,6 +291,13 @@ class LogAnalyzer extends Page
             ->orderByDesc('revision_number')
             ->get()
             ->first(fn (ConfigurationRevision $revision): bool => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === $filename);
+    }
+
+    public function currentProjectHasFtpLogConnection(): bool
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+
+        return (bool) $project?->hasFtpLogConnection();
     }
 
     private function projectQuery()

@@ -36,14 +36,36 @@ class FtpBrowser
     /** Folder names DayZ/hosting panels normally create; anything else is flagged "atypické". */
     private const KNOWN_FOLDER_NAMES = ['db', 'env', 'custom', 'storage_1', 'storage_2', 'backup', 'data'];
 
+    /** Files DayZ server logs normally use — RPT (main server log), ADM (admin log), plain .log. */
+    private const LOG_EXTENSIONS = ['rpt', 'adm', 'log'];
+
     public function filesystem(Project $project): Filesystem
     {
         if (! $project->hasFtpConnection()) {
             throw new RuntimeException('Server nemá nastavené FTP připojení — doplň ho v Nastavení serveru.');
         }
 
+        return $this->buildFilesystem($project, $project->ftp_root_path ?: '/');
+    }
+
+    /**
+     * Some hosts (e.g. Nitrado on PlayStation/Xbox) expose server logs under a completely
+     * separate FTP root ("0:/dayzps/config/") from the mission files root
+     * ("1:/dayzps_missions/<mission>/") — the adapter chroots every request to a single
+     * root, so reaching the logs needs its own connection built with ftp_log_path.
+     */
+    public function filesystemForLogs(Project $project): Filesystem
+    {
+        if (! $project->hasFtpLogConnection()) {
+            throw new RuntimeException('Server nemá nastavenou cestu k logům na FTP — doplň ji v Nastavení serveru.');
+        }
+
+        return $this->buildFilesystem($project, (string) $project->ftp_log_path);
+    }
+
+    private function buildFilesystem(Project $project, string $root): Filesystem
+    {
         $protocol = $project->ftp_protocol ?: 'ftp';
-        $root = $project->ftp_root_path ?: '/';
 
         if ($protocol === 'sftp') {
             $provider = new SftpConnectionProvider(
@@ -70,6 +92,52 @@ class FtpBrowser
         );
 
         return new Filesystem(new FtpAdapter($options));
+    }
+
+    /** @return list<array{name: string, path: string, size: ?int, modified: ?int}> */
+    public function listLogFiles(Project $project, string $path = ''): array
+    {
+        return $this->listLogFilesOn($this->filesystemForLogs($project), $path);
+    }
+
+    /** @return list<array{name: string, path: string, size: ?int, modified: ?int}> */
+    public function listLogFilesOn(Filesystem $filesystem, string $path = ''): array
+    {
+        try {
+            $listing = $filesystem->listContents($path)->toArray();
+        } catch (UnableToListContents $exception) {
+            throw new RuntimeException('Adresář s logy se nepodařilo načíst: '.$exception->getMessage(), previous: $exception);
+        }
+
+        $files = [];
+        foreach ($listing as $item) {
+            if (! $item instanceof StorageAttributes || $item->isDir()) {
+                continue;
+            }
+            $name = basename($item->path());
+            if (! in_array(strtolower(pathinfo($name, PATHINFO_EXTENSION)), self::LOG_EXTENSIONS, true)) {
+                continue;
+            }
+            $files[] = [
+                'name' => $name,
+                'path' => $item->path(),
+                'size' => $item instanceof FileAttributes ? $item->fileSize() : null,
+                'modified' => $item instanceof FileAttributes ? $item->lastModified() : null,
+            ];
+        }
+
+        // Prefer real mtime for newest-first — filenames aren't always uniformly named across
+        // log types (RPT vs ADM), so a plain string sort can't reliably stand in for chronology.
+        usort($files, fn (array $a, array $b): int => $a['modified'] !== null && $b['modified'] !== null && $a['modified'] !== $b['modified']
+            ? $b['modified'] <=> $a['modified']
+            : strnatcasecmp($b['name'], $a['name']));
+
+        return $files;
+    }
+
+    public function readLogFile(Project $project, string $path): string
+    {
+        return $this->readOn($this->filesystemForLogs($project), $path);
     }
 
     /** @return list<array{name: string, path: string, type: string, size: ?int, known: bool, category: ?string}> */

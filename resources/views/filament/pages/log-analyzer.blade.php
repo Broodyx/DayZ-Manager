@@ -32,6 +32,29 @@
             </details>
         @endif
 
+        @if ($this->currentProjectHasFtpLogConnection())
+            <div class="dz-log-ftp">
+                <div class="dz-log-actions">
+                    <button type="button" wire:click="loadFtpLogFiles" wire:loading.attr="disabled" wire:target="loadFtpLogFiles" class="dz-secondary">Načíst seznam logů z FTP</button>
+                    <span wire:loading wire:target="loadFtpLogFiles" class="dz-muted">Načítám…</span>
+                </div>
+                @if ($ftpLogError)
+                    <div class="dz-flash-warning">{{ $ftpLogError }}</div>
+                @elseif ($ftpLogsLoaded && ! count($ftpLogFiles))
+                    <div class="dz-info">Ve složce s logy nejsou žádné .RPT/.ADM/.log soubory.</div>
+                @elseif (count($ftpLogFiles))
+                    <div class="dz-log-history-list">
+                        @foreach ($ftpLogFiles as $file)
+                            <div class="dz-log-history-row">
+                                <span>{{ $file['name'] }}<small class="dz-muted">{{ ($file['modified'] ?? null) ? \Illuminate\Support\Carbon::createFromTimestamp($file['modified'])->format('d.m.Y H:i') : '' }}{{ ($file['size'] ?? null) !== null ? ' · '.number_format($file['size'] / 1024, 0, ',', ' ').' kB' : '' }}</small></span>
+                                <button type="button" wire:click="loadFtpLogFile('{{ $file['path'] }}')" wire:loading.attr="disabled" class="dz-secondary">Načíst</button>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        @endif
+
         <div class="dz-log-input">
             <label for="dz-log-textarea">Obsah logu (server console log, restart.log, script log …)</label>
             <textarea id="dz-log-textarea" wire:model="logContent" rows="12" placeholder="Vlož sem obsah .RPT / .log souboru…"></textarea>
