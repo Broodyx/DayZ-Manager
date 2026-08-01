@@ -172,6 +172,9 @@ class MapEditor extends Page
         $environmentTargets = $hasEnvironmentFile ? app(EnvironmentTargetCatalog::class)->targets($revisions, $filenameOf) : [];
         $registeredTerritoryFiles = collect($environmentTargets)->pluck('file')->map(fn ($file) => strtolower(basename((string) $file)))->all();
         $unregisteredTerritoryFiles = [];
+        if (! $hasEnvironmentFile && collect($this->markers)->contains(fn (array $marker): bool => ($marker['type'] ?? '') === 'territory')) {
+            $this->spawnValidationWarnings[] = ['severity' => 'warning', 'title' => 'Nelze ověřit registraci territory souborů', 'detail' => 'Projekt nemá nahraný cfgenvironment.xml. Manager proto nemůže ověřit, ke kterému druhu a behavioru patří jednotlivé *_territories.xml.', 'action' => 'Nahrajte aktuální cfgenvironment.xml; bez něj lze zkontrolovat pouze syntaxi a hodnoty v territory souborech.'];
+        }
         foreach ($this->markers as $marker) {
             $parameters = $marker['parameters'] ?? [];
             if (($marker['type'] ?? '') === 'territory') {
