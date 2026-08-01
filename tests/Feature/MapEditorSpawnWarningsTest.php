@@ -92,6 +92,11 @@ XML);
         $this->seedFile($project, $user, 'cfgeventspawns.xml', $content);
     }
 
+    private function seedEnvironment(Project $project, User $user, string $content): void
+    {
+        $this->seedFile($project, $user, 'cfgenvironment.xml', $content);
+    }
+
     private function seedEvents(Project $project, User $user, string $content): void
     {
         $this->seedFile($project, $user, 'events.xml', $content);
@@ -242,6 +247,76 @@ XML);
         $latest = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
             ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename ?? '')) === 'events.xml');
         $this->assertStringContainsString('name="VehicleTransitBus"', Storage::disk('dayz')->get($latest->storage_path));
+    }
+
+    private const ENVIRONMENT_XML = <<<'XML'
+<env><territories>
+    <file path="env/red_deer_territories.xml" />
+    <file path="env/hen_territories.xml" />
+    <file path="env/zombie_territories.xml" />
+    <territory type="Herd" name="Deer" behavior="DZDeerGroupBeh"><file usable="red_deer_territories" /></territory>
+    <territory type="Ambient" name="AmbientHen" behavior="DZAmbientLifeGroupBeh"><file usable="hen_territories" /></territory>
+    <territory type="Herd" name="ZombieTest" behavior="DZdomesticGroupBeh"><file usable="zombie_territories" /></territory>
+</territories></env>
+XML;
+
+    public function test_animal_population_warning_flags_a_herd_territory_missing_its_animal_prefixed_event(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEvents($project, $user, '<events><event name="AmbientHen"><nominal>3</nominal></event></events>');
+        $this->seedEnvironment($project, $user, self::ENVIRONMENT_XML);
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadEventCatalog')
+            ->call('loadAnimalPopulationWarnings')
+            ->assertSet('animalPopulationWarnings', [
+                ['territory' => 'Deer', 'expected_event' => 'AnimalDeer'],
+            ]);
+    }
+
+    public function test_animal_population_warning_is_clear_when_events_are_defined_and_infected_are_skipped(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEvents($project, $user, '<events><event name="AnimalDeer"><nominal>5</nominal></event><event name="AmbientHen"><nominal>3</nominal></event></events>');
+        $this->seedEnvironment($project, $user, self::ENVIRONMENT_XML);
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadEventCatalog')
+            ->call('loadAnimalPopulationWarnings')
+            ->assertSet('animalPopulationWarnings', []);
+    }
+
+    public function test_adding_an_animal_event_clears_the_population_warning(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEvents($project, $user, '<events><event name="AmbientHen"><nominal>3</nominal></event></events>');
+        $this->seedEnvironment($project, $user, self::ENVIRONMENT_XML);
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadEventCatalog')
+            ->call('loadAnimalPopulationWarnings')
+            ->assertSet('animalPopulationWarnings', [['territory' => 'Deer', 'expected_event' => 'AnimalDeer']])
+            ->call('openAddAnimalEventModal', 'Deer', 'AnimalDeer')
+            ->assertSet('showAddEventModal', true)
+            ->assertSet('addEventForm.limit', 'child')
+            ->call('submitAddEvent')
+            ->assertSet('showAddEventModal', false)
+            ->assertSet('animalPopulationWarnings', []);
     }
 
     public function test_mapgrouppos_markers_are_colored_by_loot_category(): void

@@ -206,6 +206,24 @@
                 </ul>
             </div>
         @endif
+        @if (count($animalPopulationWarnings))
+            <div class="dz-map-alert">
+                <strong>{{ count($animalPopulationWarnings) }} zvíře{{ count($animalPopulationWarnings) > 1 ? '' : '' }} v cfgenvironment.xml nemá v events.xml žádnou populaci.</strong>
+                Teritorium samo o sobě nic nespawnuje — bez odpovídajícího eventu v events.xml (nominal/min/max) Central Economy tohle zvíře nikdy nevytvoří, i když jsou zóny nastavené správně.
+                <ul>
+                    @foreach ($animalPopulationWarnings as $warning)
+                        <li>
+                            <div class="dz-map-alert-row">
+                                <span><strong>{{ $warning['territory'] }}</strong> — chybí event <code>{{ $warning['expected_event'] }}</code> v events.xml.</span>
+                                <span class="dz-map-alert-actions">
+                                    <button type="button" wire:click="openAddAnimalEventModal('{{ $warning['territory'] }}', '{{ $warning['expected_event'] }}')" class="dz-secondary">Přidat event do events.xml</button>
+                                </span>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         @if ($showAddEventModal)
             <div class="dz-point-modal">
                 <div class="dz-point-modal-card">

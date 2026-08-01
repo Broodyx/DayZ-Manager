@@ -13,6 +13,7 @@ use App\Services\Dayz\ServerFileLayout;
 use App\Services\Ftp\FtpBrowser;
 use App\Services\Import\ConfigurationImporter;
 use App\Services\Revision\ConfigurationRevisionEditor;
+use App\Services\Revision\EnvironmentXmlEditor;
 use App\Services\Revision\TypesXmlEditor;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -49,6 +50,7 @@ class MapEditor extends Page
     public bool $showDenseLayers = false;
     public array $spawnPointWarnings = [];
     public array $eventSpawnWarnings = [];
+    public array $animalPopulationWarnings = [];
     public array $classnameOptions = [];
     public bool $showAddEventModal = false;
     public string $addEventName = '';
@@ -94,6 +96,7 @@ class MapEditor extends Page
         $this->loadPointTypeCatalog();
         $this->loadSpawnPointWarnings();
         $this->loadEventSpawnWarnings();
+        $this->loadAnimalPopulationWarnings();
 
         $requestedEvent = trim((string) request()->string('open_event'));
         if ($requestedEvent !== '' && in_array($requestedEvent, $this->eventSpawnWarnings, true)) {
@@ -109,6 +112,45 @@ class MapEditor extends Page
         $this->loadPointTypeCatalog();
         $this->loadSpawnPointWarnings();
         $this->loadEventSpawnWarnings();
+        $this->loadAnimalPopulationWarnings();
+    }
+
+    /**
+     * Flags animals/ambient species registered in cfgenvironment.xml that have no matching
+     * events.xml entry — a territory alone never spawns anything; events.xml is what actually
+     * tells the Central Economy how many to keep alive and how often to restock them. Herd
+     * species need an "Animal"-prefixed event (Deer → AnimalDeer); Ambient species need an
+     * exact-name match (AmbientHen → AmbientHen). Infected/zombie territories are skipped —
+     * they spawn through a different mechanism (Infected* events tied to cfgeventspawns.xml).
+     */
+    public function loadAnimalPopulationWarnings(): void
+    {
+        $this->animalPopulationWarnings = [];
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project) {
+            return;
+        }
+        $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'cfgenvironment.xml');
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            return;
+        }
+
+        try {
+            $entries = app(EnvironmentXmlEditor::class)->entries(Storage::disk('dayz')->get($revision->storage_path));
+        } catch (\Throwable) {
+            return;
+        }
+
+        $definedEvents = collect($this->eventCatalog)->pluck('name')->map(fn ($name) => strtolower($name))->all();
+        foreach ($entries as $entry) {
+            if ($entry['is_infected']) {
+                continue;
+            }
+            $expectedEvent = $entry['type'] === 'Ambient' ? $entry['name'] : 'Animal'.$entry['name'];
+            if (! in_array(strtolower($expectedEvent), $definedEvents, true)) {
+                $this->animalPopulationWarnings[] = ['territory' => $entry['name'], 'expected_event' => $expectedEvent];
+            }
+        }
     }
 
     /** Flags event names used in cfgeventspawns.xml that events.xml does not define. */
@@ -181,6 +223,37 @@ class MapEditor extends Page
         $this->showAddEventModal = true;
     }
 
+    /**
+     * Same modal as openAddEventModal(), but pre-filled for an animal population event
+     * (limit=child instead of mixed, and the classname pulled from the territory's own
+     * cfgenvironment.xml agents when available) instead of the generic object-event defaults.
+     */
+    public function openAddAnimalEventModal(string $territoryName, string $eventName): void
+    {
+        $childType = '';
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if ($project) {
+            $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'cfgenvironment.xml');
+            if ($revision && Storage::disk('dayz')->exists($revision->storage_path)) {
+                try {
+                    $values = app(EnvironmentXmlEditor::class)->values(Storage::disk('dayz')->get($revision->storage_path), $territoryName);
+                    $childType = $values['agents'][0]['spawns'][0]['configName'] ?? '';
+                } catch (\Throwable) {
+                    $childType = '';
+                }
+            }
+        }
+
+        $this->addEventName = $eventName;
+        $this->addEventForm = [
+            'nominal' => 5, 'min' => 1, 'max' => 3,
+            'lifetime' => 3600, 'restock' => 0,
+            'saferadius' => 100, 'distanceradius' => 100, 'cleanupradius' => 100,
+            'position' => 'fixed', 'limit' => 'child', 'child_type' => $childType,
+        ];
+        $this->showAddEventModal = true;
+    }
+
     public function closeAddEventModal(): void
     {
         $this->showAddEventModal = false;
@@ -209,6 +282,7 @@ class MapEditor extends Page
         $this->showAddEventModal = false;
         $this->loadEventCatalog();
         $this->loadEventSpawnWarnings();
+        $this->loadAnimalPopulationWarnings();
         $this->loadPointTypeCatalog();
         Notification::make()->success()->title("Event {$this->addEventName} byl přidán do events.xml")->body("Vznikla revize #{$saved->revision_number}.")->send();
     }
