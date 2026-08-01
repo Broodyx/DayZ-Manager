@@ -675,7 +675,11 @@
                 eventRoot.hidden = Object.keys(settings).length === 0;
                 if (!eventRoot.hidden) {
                     const labels = {nominal:'Cílový počet eventů',min:'Minimum současně',max:'Maximum současně',lifetime:'Životnost (s)',restock:'Doplnění (s)',saferadius:'Bezpečný poloměr (m)',distanceradius:'Vzdálenost od hráče (m)',cleanupradius:'Poloměr úklidu (m)',position:'Režim pozice',limit:'Způsob limitu',active:'Aktivní',deletable:'Lze odstranit',init_random:'Náhodný start',remove_damaged:'Odstranit poškozené'};
-                    const grid = mkEl('div', {class:'dz-event-setting-grid'}, Object.entries(settings).map(([key,value]) => mkEl('span', {}, [mkEl('small', {text:labels[key] || key}), mkEl('b', {text:String(value)})])));
+                    const editable = ['nominal','min','max','lifetime','restock','saferadius','distanceradius','cleanupradius'];
+                    const grid = mkEl('div', {class:'dz-event-setting-grid'}, Object.entries(settings).map(([key,value]) => {
+                        if (!editable.includes(key)) return mkEl('span', {}, [mkEl('small', {text:labels[key] || key}), mkEl('b', {text:String(value)})]);
+                        return mkEl('label', {}, [mkEl('small', {text:labels[key] || key}), mkEl('input', {type:'number', min:'0', value:String(value), 'data-parameter':'event_'+key})]);
+                    }));
                     const nodes = [
                         mkEl('strong', {text:'Související pravidla z events.xml'}),
                         mkEl('p', {text:'Tato nastavení platí pro celý event, ne jen pro právě přidávaný bod.'}),
@@ -702,6 +706,7 @@
                     relatedRoot.replaceChildren(
                         mkEl('strong', {text:'Další nastavení nejsou vlastností bodu'}),
                         list,
+                        ...(selectedCatalogOption?.value ? [mkEl('a', {href:'{{ url('/admin/projects') }}/' + @js($projectId) + '/configuration?event=' + encodeURIComponent(selectedCatalogOption.value), text:'Otevřít tento event v editoru events.xml →'})] : []),
                         mkEl('small', {text:'Změňte je v editoru příslušného souboru. Editor je záměrně nezapisuje do cfgeventspawns.xml, protože by vznikla neplatná konfigurace.'}),
                     );
                 }
@@ -746,11 +751,11 @@
             };
             const placePoint = (button) => {
                 const label = button.dataset.label || button.textContent.trim();
+                const definition = pointTypeCatalog[button.dataset.point] || { options: [], missing: ['podporovaný konfigurační soubor'], available: false };
                 if (pendingButton !== button) {
                     pendingButton = button;
                     modal.querySelectorAll('[data-point]').forEach((item) => item.classList.toggle('selected', item === button));
                     const catalog = document.getElementById('dz-event-catalog'); const select = catalog.querySelector('select'); const nameInput = catalog.querySelector('.dz-point-name');
-                    const definition = pointTypeCatalog[button.dataset.point] || { options: [], missing: ['podporovaný konfigurační soubor'], available: false };
                     const entries = definition.options || [];
                     select.replaceChildren(new Option('Vyberte existující možnost...', ''));
                     entries.forEach((item) => select.add(new Option(item.label, item.value)));

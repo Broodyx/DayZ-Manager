@@ -18,6 +18,7 @@ Route::post('/admin/map-editor/points', function (
     \App\Services\Revision\MapXmlEditor $eventEditor,
     \App\Services\Dayz\MapConfigurationEditor $mapEditor,
     \App\Services\Revision\TypesXmlEditor $typesEditor,
+    \App\Services\Dayz\EventsXmlEditor $eventsEditor,
 ) {
     $data = $request->validate([
         'project_id'=>'required|integer','type'=>'required|string|max:40','label'=>'required|string|max:120',
@@ -47,6 +48,8 @@ Route::post('/admin/map-editor/points', function (
         'parameters.around_particle'=>'nullable|string|max:255','parameters.tiny_particle'=>'nullable|string|max:255',
         'parameters.ppe_type'=>'nullable|string|max:160',
         'parameters.auto_add_types'=>'nullable|boolean',
+        'parameters.event_nominal'=>'nullable|integer|min:0|max:100000','parameters.event_min'=>'nullable|integer|min:0|max:100000','parameters.event_max'=>'nullable|integer|min:0|max:100000',
+        'parameters.event_lifetime'=>'nullable|integer|min:0|max:3888000','parameters.event_restock'=>'nullable|integer|min:0|max:3888000','parameters.event_saferadius'=>'nullable|integer|min:0|max:20000','parameters.event_distanceradius'=>'nullable|integer|min:0|max:20000','parameters.event_cleanupradius'=>'nullable|integer|min:0|max:20000','parameters.event_active'=>'nullable|boolean','parameters.event_position'=>'nullable|in:fixed,player','parameters.event_limit'=>'nullable|in:mixed,unlimited,nearest,farthest',
     ]);
     $parameters = $data['parameters'] ?? [];
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
@@ -105,6 +108,14 @@ Route::post('/admin/map-editor/points', function (
         abort(422, $exception->getMessage());
     }
     $saved = $editor->save($project, $source, $content, 'Přidán mapový bod '.$data['label'], auth()->user());
+    if (in_array($data['type'], $eventTypes, true) && array_key_exists('event_nominal', $parameters)) {
+        $eventsRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'events.xml');
+        if ($eventsRevision && Storage::disk('dayz')->exists($eventsRevision->storage_path)) {
+            $eventValues = collect($parameters)->filter(fn ($value, $key) => str_starts_with((string) $key, 'event_'))->mapWithKeys(fn ($value, $key) => [substr($key, 6) => $value])->all();
+            $eventContent = $eventsEditor->update(Storage::disk('dayz')->get($eventsRevision->storage_path), $data['label'], $eventValues);
+            $editor->save($project, $eventsRevision, $eventContent, 'Upraven event '.$data['label'].' při přidání mapového bodu', auth()->user());
+        }
+    }
     $typesAdded = [];
     if (in_array($data['type'], $eventTypes, true) && ($parameters['auto_add_types'] ?? false)) {
         $typesRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'types.xml');
