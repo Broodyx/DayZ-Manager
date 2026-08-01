@@ -613,7 +613,8 @@
                         section = sections.get(sectionName);
                     }
                     const label = document.createElement('label');
-                    label.textContent = field.label;
+                    label.textContent = field.label + (field.required ? ' *' : '');
+                    if (field.required) label.classList.add('dz-required-field');
                     let input;
                     if (field.type === 'select') {
                         input = document.createElement('select');
@@ -627,6 +628,7 @@
                         if (field.autocomplete === false) input.setAttribute('autocomplete', 'off');
                     }
                     input.dataset.parameter = field.name;
+                    if (field.required) input.required = true;
                     input.value = values[field.name] ?? field.default ?? '';
                     if (editMode && field.name === 'spawn_mode') {
                         input.disabled = true;
@@ -682,6 +684,14 @@
                     if (children.length) {
                         const list = mkEl('ul', {}, children.map((child) => mkEl('li', {}, [mkEl('code', {text:child.type}), ' · min '+child.min+', max '+child.max+', loot '+child.lootmin+'–'+child.lootmax])));
                         nodes.push(mkEl('details', {}, [mkEl('summary', {text:'Varianty / children ('+children.length+')'}), list]));
+                    }
+                    if (['vehicle', 'heli', 'convoy', 'dynamic', 'aerial'].includes(pendingButton?.dataset.point)) {
+                        const auto = mkEl('label', {class:'dz-auto-types'}, [
+                            mkEl('input', {type:'checkbox', checked:'checked'}),
+                            ' Automaticky doplnit spawnované classy do types.xml',
+                        ]);
+                        auto.querySelector('input').dataset.parameter = 'auto_add_types';
+                        nodes.push(auto);
                     }
                     eventRoot.replaceChildren(...nodes);
                 }
@@ -763,7 +773,14 @@
                     ? (customName || selectedName || label)
                     : (selectedName || customName || label);
                 const parameters = {};
-                document.querySelectorAll('#dz-event-catalog [data-parameter]').forEach((input) => parameters[input.dataset.parameter] = input.value);
+                document.querySelectorAll('#dz-event-catalog [data-parameter]').forEach((input) => parameters[input.dataset.parameter] = input.type === 'checkbox' ? input.checked : input.value);
+                const requiredMissing = (definition.fields || []).filter((field) => field.required && !String(parameters[field.name] ?? '').trim());
+                if (requiredMissing.length) {
+                    showFeedback(catalogRoot, 'Vyplň povinná pole: ' + requiredMissing.map((field) => field.label).join(', ') + '.');
+                    const firstMissing = catalogRoot.querySelector('[data-parameter="' + requiredMissing[0].name + '"]');
+                    firstMissing?.focus();
+                    return;
+                }
                 const marker = L.marker([Number(modal.dataset.lat), Number(modal.dataset.lng)]).addTo(map);
                 const newX = Math.round(Number(modal.dataset.lng));
                 const newZ = Math.round(Number(modal.dataset.lat));

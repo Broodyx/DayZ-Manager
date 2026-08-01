@@ -682,7 +682,7 @@ class MapEditor extends Page
 
         $eventsBy = fn ($callback) => collect($this->eventCatalog)->filter($callback)->values();
         $eventFields = [
-            ['name' => 'orientation', 'label' => 'Natočení objektu (°)', 'type' => 'number', 'min' => 0, 'max' => 359.999, 'step' => 0.001, 'default' => 0, 'help' => 'Atribut a v cfgeventspawns.xml. 0° míří na sever, hodnota určuje natočení kandidátní pozice.'],
+            ['name' => 'orientation', 'label' => 'Natočení objektu (°)', 'type' => 'number', 'min' => 0, 'max' => 359.999, 'step' => 0.001, 'default' => 0, 'required' => true, 'help' => 'Povinné. 0° míří na sever; hodnota určuje natočení kandidátní pozice.'],
         ];
         $playerFields = [
             ['name' => 'spawn_mode', 'section' => 'Bod a skupina', 'label' => 'Režim spawnu', 'type' => 'select', 'default' => 'fresh', 'options' => [
@@ -748,7 +748,7 @@ class MapEditor extends Page
             }
         }
         $territoryFields = [
-            ['name' => 'zone_type', 'label' => 'Úloha zóny', 'type' => 'text', 'list' => 'dz-zone-type-catalog', 'default' => 'HuntingGround', 'help' => 'Atribut name. Herní AI ho používá jako typ zóny — u zvířat obvykle HuntingGround/Rest/Graze/Water, u ambientních druhů vlastní název (např. Zone_hen), u nakažených název tieru (např. InfectedVillageTier1). Našeptávač nabízí názvy už použité v nahraných souborech.'],
+            ['name' => 'zone_type', 'label' => 'Úloha zóny', 'type' => 'text', 'list' => 'dz-zone-type-catalog', 'default' => 'HuntingGround', 'required' => true, 'help' => 'Povinné. U zvířat obvykle HuntingGround/Rest/Graze/Water; u nakažených přesný tier, např. InfectedVillageTier1.'],
             ['name' => 'radius', 'label' => 'Poloměr (m)', 'type' => 'number', 'min' => 1, 'max' => 5000, 'step' => 0.5, 'default' => 150, 'help' => 'Atribut r: dosah zóny od středu v metrech.'],
             ['name' => 'smin', 'label' => 'Statický spawn minimum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut smin. Minimální počet statických výskytů pro zónu.'],
             ['name' => 'smax', 'label' => 'Statický spawn maximum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut smax. Maximální počet statických výskytů pro zónu.'],

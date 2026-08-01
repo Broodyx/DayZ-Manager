@@ -17,6 +17,7 @@ Route::post('/admin/map-editor/points', function (
     \App\Services\Revision\ConfigurationRevisionEditor $editor,
     \App\Services\Revision\MapXmlEditor $eventEditor,
     \App\Services\Dayz\MapConfigurationEditor $mapEditor,
+    \App\Services\Revision\TypesXmlEditor $typesEditor,
 ) {
     $data = $request->validate([
         'project_id'=>'required|integer','type'=>'required|string|max:40','label'=>'required|string|max:120',
@@ -45,6 +46,7 @@ Route::post('/admin/map-editor/points', function (
         'parameters.outer_offset'=>'nullable|numeric|min:0|max:1000','parameters.particle_name'=>'nullable|string|max:255',
         'parameters.around_particle'=>'nullable|string|max:255','parameters.tiny_particle'=>'nullable|string|max:255',
         'parameters.ppe_type'=>'nullable|string|max:160',
+        'parameters.auto_add_types'=>'nullable|boolean',
     ]);
     $parameters = $data['parameters'] ?? [];
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
@@ -103,7 +105,24 @@ Route::post('/admin/map-editor/points', function (
         abort(422, $exception->getMessage());
     }
     $saved = $editor->save($project, $source, $content, 'Přidán mapový bod '.$data['label'], auth()->user());
-    return response()->json(['ok'=>true,'revision'=>$saved->revision_number]);
+    $typesAdded = [];
+    if (in_array($data['type'], $eventTypes, true) && ($parameters['auto_add_types'] ?? false)) {
+        $typesRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'types.xml');
+        if ($typesRevision && Storage::disk('dayz')->exists($typesRevision->storage_path)) {
+            $eventNode = collect($eventsXml?->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
+            $typesContent = Storage::disk('dayz')->get($typesRevision->storage_path);
+            $defined = collect($typesEditor->entries($typesContent))->pluck('name')->map(fn ($name) => strtolower($name))->all();
+            foreach ($eventNode?->children->child ?? [] as $child) {
+                $classname = trim((string) ($child['type'] ?? ''));
+                if ($classname === '' || in_array(strtolower($classname), $defined, true)) continue;
+                $typesContent = $typesEditor->add($typesContent, $classname, ['nominal'=>0, 'lifetime'=>1800, 'restock'=>0, 'min'=>0, 'quantmin'=>-1, 'quantmax'=>-1, 'cost'=>100], 'other');
+                $defined[] = strtolower($classname);
+                $typesAdded[] = $classname;
+            }
+            if ($typesAdded !== []) $editor->save($project, $typesRevision, $typesContent, 'Automaticky doplněny classy eventu '.$data['label'].' do types.xml', auth()->user());
+        }
+    }
+    return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'types_added'=>$typesAdded]);
 })->middleware('auth')->name('map-editor.points.store');
 
 Route::post('/admin/map-editor/points/update', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor) {
