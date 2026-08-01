@@ -252,7 +252,16 @@
                 <span>Tyto kontroly ověřují XML hodnoty. Vhodnost terénu a skutečné odmítnutí kandidáta potvrzuje až poslední RPT.</span>
                 <ul>
                     @foreach ($spawnValidationWarnings as $warning)
-                        <li><strong>{{ $warning['title'] }}</strong> — {{ $warning['detail'] }}<br><small>Co udělat: {{ $warning['action'] }}</small></li>
+                        <li>
+                            <div class="dz-map-alert-row">
+                                <span><strong>{{ $warning['title'] }}</strong> — {{ $warning['detail'] }}<br><small>Co udělat: {{ $warning['action'] }}</small></span>
+                                @if (!empty($warning['event_name']))
+                                    <x-dz-confirm-button call="repairEventPopulation('{{ $warning['event_name'] }}')" label="Automaticky opravit event" saved-label="Opraveno" class="dz-secondary" />
+                                @else
+                                    <a class="dz-secondary" href="{{ url('/admin/projects/'.$projectId.'/configuration') }}">Otevřít konfiguraci</a>
+                                @endif
+                            </div>
+                        </li>
                     @endforeach
                 </ul>
             </div>

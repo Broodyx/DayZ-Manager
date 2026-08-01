@@ -205,12 +205,35 @@ class MapEditor extends Page
             if (! Str::startsWith($name, ['Animal', 'Vehicle'])) continue;
             $settings = $event['settings'] ?? [];
             if ((int) ($settings['active'] ?? 0) !== 1 || (int) ($settings['nominal'] ?? 0) <= 0 || (int) ($settings['max'] ?? 0) <= 0) {
-                $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => "Event {$name} je vypnutý nebo má nulovou populaci", 'detail' => 'Bod může být správně uložený, ale event nevytvoří žádnou instanci.', 'action' => 'V events.xml nastavte active=1 a nominal/max větší než 0.'];
+                $this->spawnValidationWarnings[] = ['severity' => 'critical', 'event_name' => $name, 'title' => "Event {$name} je vypnutý nebo má nulovou populaci", 'detail' => 'Bod může být správně uložený, ale event nevytvoří žádnou instanci.', 'action' => 'V events.xml nastavte active=1 a nominal/max větší než 0.'];
             }
             if ((int) ($settings['min'] ?? 0) > (int) ($settings['max'] ?? 0)) {
                 $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => "Event {$name} má neplatný rozsah", 'detail' => 'Minimum je vyšší než maximum.', 'action' => 'Opravte min/max v events.xml.'];
             }
         }
+    }
+
+    public function repairEventPopulation(string $eventName, EventsXmlEditor $eventsEditor, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $revision = $project ? $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'events.xml') : null;
+        if (! $project || ! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            Notification::make()->danger()->title('events.xml nebyl nalezen')->body('Nejdřív nahrajte aktuální events.xml.')->send();
+            return;
+        }
+        $content = Storage::disk('dayz')->get($revision->storage_path);
+        $event = collect($this->eventCatalog)->first(fn ($item) => ($item['name'] ?? '') === $eventName);
+        $settings = $event['settings'] ?? [];
+        $updated = $eventsEditor->update($content, $eventName, [
+            'active' => 1,
+            'nominal' => max(1, (int) ($settings['nominal'] ?? 0)),
+            'min' => max(1, (int) ($settings['min'] ?? 0)),
+            'max' => max(1, (int) ($settings['max'] ?? 0), (int) ($settings['min'] ?? 0)),
+        ]);
+        $saved = $revisionEditor->save($project, $revision, $updated, 'Automatická oprava populace eventu '.$eventName, auth()->user());
+        $this->loadEventCatalog();
+        $this->loadSpawnValidationWarnings();
+        Notification::make()->success()->title("Event {$eventName} opraven")->body("active=1, nominal/min/max > 0 · revize #{$saved->revision_number}")->send();
     }
 
     /**
