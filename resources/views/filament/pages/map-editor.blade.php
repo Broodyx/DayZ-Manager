@@ -700,7 +700,7 @@
                     eventRoot.replaceChildren(...nodes);
                 }
                 const related = {...(definition.related || {})};
-                if (Object.keys(settings).length && selectedCatalogOption?.event_name) delete related.events_xml;
+                if (Object.keys(settings).length && (selectedCatalogOption?.event_name || selectedCatalogOption?.value)) delete related.events_xml;
                 relatedRoot.hidden = Object.keys(related).length === 0;
                 if (!relatedRoot.hidden) {
                     const list = mkEl('ul', {}, Object.entries(related).map(([file,description]) => mkEl('li', {}, [mkEl('code', {text:file}), ' – '+description])));
