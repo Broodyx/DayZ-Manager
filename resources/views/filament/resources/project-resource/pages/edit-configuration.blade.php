@@ -525,6 +525,11 @@
                     <option value="{{ $behavior }}">
                 @endforeach
             </datalist>
+            <datalist id="dz-classname-catalog">
+                @foreach (collect($environmentEntries)->flatMap(fn ($entry) => collect($entry['agents'] ?? [])->flatMap(fn ($agent) => collect($agent['spawns'] ?? [])->pluck('configName')))->filter()->unique()->sort() as $classname)
+                    <option value="{{ $classname }}">
+                @endforeach
+            </datalist>
             <div class="dz-editor-grid">
                 <section class="dz-panel">
                     <div class="dz-panel-head">
@@ -673,17 +678,18 @@
                         <div class="px-4 pb-4">
                             <details class="dz-group" open>
                                 <summary><span>Agenti · třídy a šance spawnu</span><small>{{ count($environmentForm['agents'] ?? []) }}</small></summary>
+                                <p class="dz-muted px-2 pt-2">@if (($environmentForm['type'] ?? 'Herd') === 'Herd') U stád (Deer, Bear, Wolf…) je 0 agentů správně — zvířata a velikost stáda řídí events.xml. @else Ambient musí mít alespoň jednoho agenta a jeho spawnovanou classname. @endif</p>
                                 @foreach ($environmentForm['agents'] ?? [] as $agentIndex => $agent)
                                     <article class="dz-event-child" wire:key="env-agent-{{ $agentIndex }}">
                                         <header>
                                             <span><small>AGENT {{ $agentIndex + 1 }}</small></span>
                                             <button type="button" wire:click="removeEnvironmentAgent({{ $agentIndex }})" class="dz-danger">Odebrat</button>
                                         </header>
-                                        <label><span>Typ (Male/Female…)</span><input type="text" wire:model="environmentForm.agents.{{ $agentIndex }}.type"></label>
+                                        <label><span>Typ agenta</span><select wire:model="environmentForm.agents.{{ $agentIndex }}.type"><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Jiný typ</option></select></label>
                                         <label><span>Šance agenta</span><input type="number" min="0" wire:model="environmentForm.agents.{{ $agentIndex }}.chance"></label>
                                         @foreach ($agent['spawns'] ?? [] as $spawnIndex => $spawn)
                                             <div class="flex gap-2 items-center">
-                                                <input type="text" wire:model="environmentForm.agents.{{ $agentIndex }}.spawns.{{ $spawnIndex }}.configName" placeholder="Classname, např. Animal_CanisLupus">
+                                                <input type="text" list="dz-classname-catalog" wire:model="environmentForm.agents.{{ $agentIndex }}.spawns.{{ $spawnIndex }}.configName" placeholder="Vyberte nebo napište classname">
                                                 <input type="number" min="0" class="w-24" wire:model="environmentForm.agents.{{ $agentIndex }}.spawns.{{ $spawnIndex }}.chance" placeholder="Šance">
                                                 <button type="button" wire:click="removeEnvironmentAgentSpawn({{ $agentIndex }}, {{ $spawnIndex }})" class="dz-danger">×</button>
                                             </div>
