@@ -171,8 +171,9 @@ class MapEditor extends Page
                 $filename = strtolower((string) ($marker['filename'] ?? ''));
                 if (str_ends_with($filename, '_territories.xml')) {
                     $zone = (string) ($parameters['zone_type'] ?? '');
-                    if (! in_array($zone, ['Graze', 'Water', 'Rest'], true) && ! str_contains($filename, 'zombie')) {
-                        $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Neplatná zóna zvířat', 'detail' => "{$marker['label']} používá „{$zone}“. Pro zvířata použijte pouze Graze, Water nebo Rest.", 'action' => 'Upravte bod na mapě a zvolte platnou úlohu zóny.'];
+                    $knownZones = $this->zoneTypeCatalog();
+                    if (! in_array($zone, $knownZones, true) && ! str_contains($filename, 'zombie')) {
+                        $this->spawnValidationWarnings[] = ['severity' => 'warning', 'title' => 'Neznámá úloha zóny', 'detail' => "{$marker['label']} používá „{$zone}“, která se v aktuálních territory souborech projektu jinde nevyskytuje.", 'action' => 'Ověřte název proti cfgenvironment.xml a odpovídajícímu *_territories.xml; vlastní název může být platný jen pro konkrétní konfiguraci.'];
                     }
                     foreach (['smin' => 'smax', 'dmin' => 'dmax'] as $min => $max) {
                         if ((float) ($parameters[$min] ?? 0) > (float) ($parameters[$max] ?? 0)) {
