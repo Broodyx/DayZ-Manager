@@ -439,6 +439,7 @@ class EditConfiguration extends Page
             ->orderByDesc('revision_number')
             ->get()
             ->unique(fn (ConfigurationRevision $revision): string => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))))
+            ->sortBy(fn (ConfigurationRevision $revision): string => strtolower($revision->configurationImport?->original_filename ?? basename($revision->storage_path)))
             ->mapWithKeys(fn (ConfigurationRevision $revision): array => [
                 $revision->id => ($revision->configurationImport?->original_filename ?? basename($revision->storage_path))
                     ." · revize #{$revision->revision_number}",

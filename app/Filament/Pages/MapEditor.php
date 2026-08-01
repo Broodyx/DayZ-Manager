@@ -182,7 +182,7 @@ class MapEditor extends Page
                 if (str_ends_with($filename, '_territories.xml')) {
                     if ($hasEnvironmentFile && $registeredTerritoryFiles !== [] && ! in_array(basename($filename), $registeredTerritoryFiles, true) && ! in_array(basename($filename), $unregisteredTerritoryFiles, true)) {
                         $unregisteredTerritoryFiles[] = basename($filename);
-                        $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Territory soubor není registrovaný v cfgenvironment.xml', 'detail' => "{$marker['label']} se načítá z {$filename}, ale tento soubor není v aktuálním cfgenvironment.xml přiřazený žádnému druhu/behavioru.", 'action' => 'V cfgenvironment.xml přidejte <file path="env/..." /> a odpovídající <territory><file usable="..." /></territory>, nebo použijte správný registrovaný soubor.'];
+                        $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Territory soubor není registrovaný v cfgenvironment.xml', 'detail' => "Soubor {$filename} je sice nahraný, ale cfgenvironment.xml ho nepřiřazuje žádnému druhu ani behavioru. Nahrání souboru samo o sobě nestačí — hra ho ignoruje.", 'action' => 'V cfgenvironment.xml musí být současně <file path="env/'.$filename.'" /> a registrace <territory> s <file usable="'.pathinfo($filename, PATHINFO_FILENAME).'" />.'];
                     }
                     $zone = (string) ($parameters['zone_type'] ?? '');
                     $knownZones = $this->zoneTypeCatalog();
