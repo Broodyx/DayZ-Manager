@@ -1011,7 +1011,7 @@
                         if (!confirmed) return;
                     }
                 }
-                fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ,new_x:newX,new_z:newZ,parameters})}).then(async (r) => { if (!r.ok) throw new Error(await describeFetchError(r, 'Bod se nepodařilo upravit.')); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
+                fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,label:activeMarker.label,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ,new_x:newX,new_z:newZ,parameters})}).then(async (r) => { if (!r.ok) throw new Error(await describeFetchError(r, 'Bod se nepodařilo upravit.')); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
             };
             const deleteConsequence = (filename) => {
                 if (filename === 'cfgplayerspawnpoints.xml') {
@@ -1034,7 +1034,7 @@
                     danger: true,
                 });
                 if (!confirmed) return;
-                fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ})}).then(async (r) => { if (!r.ok) throw new Error(await describeFetchError(r, 'Bod se nepodařilo odstranit.')); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
+                fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,label:activeMarker.label,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ})}).then(async (r) => { if (!r.ok) throw new Error(await describeFetchError(r, 'Bod se nepodařilo odstranit.')); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
             };
             const layerScopeData = @js($layerScopes);
             const cleanupModal = document.getElementById('dz-cleanup-modal');
@@ -1188,3 +1188,4 @@
         @endif
     </div>
 </x-filament-panels::page>
+

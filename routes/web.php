@@ -156,7 +156,7 @@ Route::post('/admin/map-editor/points', function (
 
 Route::post('/admin/map-editor/points/update', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor, \App\Services\Revision\SpawnableTypesXmlEditor $spawnableEditor) {
     $data = $request->validate([
-        'project_id'=>'required|integer','revision_id'=>'required|integer','filename'=>'required|string','path'=>'required|string|max:1000',
+        'project_id'=>'required|integer','revision_id'=>'required|integer','filename'=>'required|string','label'=>'required|string|max:120','path'=>'required|string|max:1000',
         'x'=>'required|numeric','z'=>'required|numeric','new_x'=>'required|numeric|min:0|max:15360','new_z'=>'required|numeric|min:0|max:15360',
         'parameters'=>'nullable|array','parameters.group_name'=>'nullable|string|max:120',
         'parameters.group_lifetime_override'=>'nullable|integer|min:-1','parameters.group_counter_override'=>'nullable|integer|min:-1',
@@ -180,6 +180,7 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
     ]);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
+    $filename = strtolower(basename(str_replace('\\', '/', $data['filename'])));
     abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422);
     abort_if(str_ends_with(strtolower($data['filename']), '.json'), 422, 'JSON mapové body upravte ve vizuálním JSON editoru.');
     try {
