@@ -427,6 +427,15 @@
     .dz-event-setting-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.45rem; }
     .dz-event-setting-grid span { display:grid; gap:.12rem; padding:.45rem .55rem; border:1px solid #263b20; border-radius:.35rem; }
     .dz-event-setting-grid b { color:#d8f57b; }
+    .dz-spawn-class-list { display:grid; gap:.45rem; margin-top:.75rem; padding:.75rem; border:1px solid #385326; border-radius:.55rem; background:#0c140e; color:#e8f2e3; }
+    .dz-spawn-class-list > small, .dz-spawn-class-row span, .dz-auto-types small { display:block; color:#aab6a4; }
+    .dz-spawn-class-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:.55rem; padding:.45rem .55rem; border:1px solid #263b20; border-radius:.35rem; color:#e8f2e3; }
+    .dz-spawn-class-row code { color:#d8f57b; font-weight:700; }
+    .dz-related-editor-section { margin-top:.75rem; }
+    .dz-auto-types { display:flex; align-items:flex-start; gap:.55rem; color:#e8f2e3; }
+    .dz-auto-types strong { display:block; color:#d8f57b; }
+    .dz-inline-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.55rem; margin-top:.5rem; }
+    .dz-inline-fields label { display:grid; gap:.2rem; }
     .dz-event-settings details { margin-top:.75rem; }
     .dz-event-settings ul, .dz-related-files ul { margin:.55rem 0 0; padding-left:1.25rem; }
     .dz-related-files li + li { margin-top:.3rem; }
