@@ -696,13 +696,12 @@
                     if (['vehicle', 'heli', 'convoy', 'dynamic', 'aerial'].includes(pendingButton?.dataset.point)) {
                         const auto = mkEl('label', {class:'dz-auto-types'}, [
                             mkEl('input', {type:'checkbox', checked:'checked'}),
-                            ' Automaticky doplnit spawnované classy do types.xml',
+                            mkEl('span', {}, [mkEl('strong', {text:'Automaticky doplnit spawnované třídy do types.xml'}), mkEl('small', {text:'Pouze ověří/zaeviduje třídy vozidla. Počet vozidel se nastavuje v events.xml.'})]),
                         ]);
                         auto.querySelector('input').dataset.parameter = 'auto_add_types';
-                        nodes.push(auto);
-                        nodes.push(mkEl('label', {}, [mkEl('small', {text:'Stav vozidla při spawnu · damage 0 = 100% funkční, 1 = zničené'}), mkEl('input', {type:'number', min:'0', max:'1', step:'0.01', value:'0', 'data-parameter':'damage_min'}), mkEl('input', {type:'number', min:'0', max:'1', step:'0.01', value:'0', 'data-parameter':'damage_max'})]));
-                        nodes.push(mkEl('label', {}, [mkEl('small', {text:'Cargo preset (volitelné)'}), mkEl('input', {type:'text', placeholder:'např. mixHunter', 'data-parameter':'cargo_preset'})]));
-                        nodes.push(mkEl('label', {}, [mkEl('small', {text:'Attachmenty (volitelné, oddělené čárkou)'}), mkEl('input', {type:'text', placeholder:'SparkPlug,CarRadiator,CarBattery', 'data-parameter':'attachments'})]));
+                        nodes.push(mkEl('div', {class:'dz-related-editor-section'}, [auto]));
+                        nodes.push(mkEl('label', {}, [mkEl('strong', {text:'Stav vozidla při spawnu'}), mkEl('small', {text:'0 = 100% funkční, 1 = zcela poškozené. Uložení proběhne do cfgspawnabletypes.xml.'}), mkEl('span', {class:'dz-inline-fields'}, [mkEl('label', {}, [mkEl('small', {text:'Minimum damage'}), mkEl('input', {type:'number', min:'0', max:'1', step:'0.01', value:'0', 'data-parameter':'damage_min'})]), mkEl('label', {}, [mkEl('small', {text:'Maximum damage'}), mkEl('input', {type:'number', min:'0', max:'1', step:'0.01', value:'0', 'data-parameter':'damage_max'})])])]));
+                        nodes.push(mkEl('label', {}, [mkEl('strong', {text:'Výbava a náklad vozidla'}), mkEl('small', {text:'Volitelné. Cargo preset a attachmenty se uloží do cfgspawnabletypes.xml, ne do cfgeventspawns.xml.'}), mkEl('input', {type:'text', placeholder:'např. mixHunter', 'data-parameter':'cargo_preset'}), mkEl('input', {type:'text', placeholder:'SparkPlug,CarRadiator,CarBattery', 'data-parameter':'attachments'})]));
                     }
                     eventRoot.replaceChildren(...nodes);
                 }
@@ -712,10 +711,10 @@
                 if (!relatedRoot.hidden) {
                     const list = mkEl('ul', {}, Object.entries(related).map(([file,description]) => mkEl('li', {}, [mkEl('code', {text:file}), ' – '+description])));
                     relatedRoot.replaceChildren(
-                        mkEl('strong', {text:'Další nastavení nejsou vlastností bodu'}),
+                        mkEl('strong', {text: pendingButton?.dataset.point === 'vehicle' ? 'Nastavení vozidla – kam se co uloží' : 'Nastavení zvířecího eventu – kam se co uloží'}),
                         list,
                         ...(selectedCatalogOption?.value ? [mkEl('a', {href:'{{ url('/admin/projects') }}/' + @js($projectId) + '/configuration?event=' + encodeURIComponent(selectedCatalogOption.value), text:'Otevřít tento event v editoru events.xml →'})] : []),
-                        mkEl('small', {text:'Změňte je v editoru příslušného souboru. Editor je záměrně nezapisuje do cfgeventspawns.xml, protože by vznikla neplatná konfigurace.'}),
+                        mkEl('small', {text: pendingButton?.dataset.point === 'vehicle' ? 'Pozice a natočení se ukládají do cfgeventspawns.xml. Počet, limity a životnost jsou v events.xml; stav, cargo a attachmenty v cfgspawnabletypes.xml.' : 'Pozice zóny se ukládá do příslušného *_territories.xml. Počet zvířat, velikost stáda, lifetime a aktivace se řídí eventem v events.xml.'}),
                     );
                 }
             };
