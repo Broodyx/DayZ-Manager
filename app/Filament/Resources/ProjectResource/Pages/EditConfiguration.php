@@ -1700,6 +1700,7 @@ class EditConfiguration extends Page
         }
         $result = [];
         $eventIndex = 0;
+        $visiblePositions = 0;
         foreach ($document->documentElement->childNodes as $event) {
             if (! $event instanceof \DOMElement || $event->tagName !== 'event') {
                 continue;
@@ -1714,10 +1715,11 @@ class EditConfiguration extends Page
                 // cfgeventspawns.xml commonly contains thousands of positions.
                 // Keep the Livewire snapshot/browser responsive; saveXml updates
                 // only the displayed paths and leaves the rest of rawContent intact.
-                if (array_sum(array_map(fn (array $item): int => count($item['positions']), $result)) + count($positions) >= 200) {
-                    break 2;
+                if ($visiblePositions >= 200) {
+                    continue;
                 }
                 $positionIndex++;
+                $visiblePositions++;
                 $base = "/eventposdef[1]/event[{$eventIndex}]/pos[{$positionIndex}]";
                 $positions[] = ['x_path' => $base.'@x', 'z_path' => $base.'@z', 'a_path' => $base.'@a'];
             }
