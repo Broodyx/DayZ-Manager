@@ -327,6 +327,9 @@
     .dz-map-alert li::marker { color:#d97738; }
     .dz-map-alert-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem; }
     .dz-map-alert-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+    .dz-upload-progress { display:flex; align-items:center; gap:.6rem; min-width:14rem; font-size:.8rem; color:#dfeecb; }
+    .dz-upload-progress-track { flex:1; height:.5rem; border-radius:1rem; background:#1c2917; overflow:hidden; }
+    .dz-upload-progress-fill { height:100%; background:#91c52b; transition:width .25s ease; }
     .dz-add-event-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem; margin:1rem 0; }
     .dz-add-event-grid label { display:grid; gap:.35rem; min-width:0; color:#d8f57b; font-weight:700; font-size:.82rem; }
     .dz-add-event-grid label small { color:#aab6a4; font-weight:400; line-height:1.4; }

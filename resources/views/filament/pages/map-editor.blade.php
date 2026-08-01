@@ -129,7 +129,29 @@
                 <div class="dz-map-alert-row">
                     <strong>{{ $undeployedSources->count() }} soubor{{ $undeployedSources->count() > 1 ? 'y' : '' }} není nahráno na server.</strong>
                     @if ($hasFtpConnection)
-                        <button type="button" class="dz-action" x-on:click="dzConfirm('Nahrát všech {{ $undeployedSources->count() }} nenahraných souborů přímo na živý server přes FTP? Přepíše odpovídající soubory na serveru.').then((ok) => { if (ok) $wire.pushAllUndeployedToFtp(); })">Nahrát vše na FTP</button>
+                        {{-- wire:ignore: the bulk push loops with awaited per-file Livewire calls, each of
+                             which re-renders the page (loadMapSources() shrinks $undeployedSources) — without
+                             this the progress UI would get reset/removed mid-loop by Livewire's own morph. --}}
+                        <div wire:ignore x-data="{
+                            uploading: false, done: 0,
+                            ids: @js($undeployedSources->pluck('revision_id')->all()),
+                            total: {{ $undeployedSources->count() }},
+                        }">
+                            <button type="button" class="dz-action" x-show="!uploading" x-on:click="
+                                dzConfirm('Nahrát všech ' + total + ' nenahraných souborů přímo na živý server přes FTP? Přepíše odpovídající soubory na serveru.').then(async (ok) => {
+                                    if (!ok) return;
+                                    uploading = true; done = 0;
+                                    for (const id of ids) {
+                                        try { await $wire.pushSourceToFtp(id); } catch (e) {}
+                                        done++;
+                                    }
+                                })
+                            ">Nahrát vše na FTP</button>
+                            <div class="dz-upload-progress" x-show="uploading" x-cloak>
+                                <div class="dz-upload-progress-track"><div class="dz-upload-progress-fill" x-bind:style="'width:' + Math.round((total ? done / total : 1) * 100) + '%'"></div></div>
+                                <span x-text="(done < total ? 'Nahrávám ' : 'Hotovo — nahráno ') + done + ' / ' + total"></span>
+                            </div>
+                        </div>
                     @endif
                 </div>
                 <span>Tyto revize vznikly v editoru, ale ještě nebyly stažené ani nahrané na živý server.</span>
@@ -240,7 +262,7 @@
                     @foreach ($mapSources as $source)
                         @if ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0 && $source['loaded'])
                             <article class="dz-map-layer-card">
-                                <label><input class="map-layer-toggle" type="checkbox" @checked($source['filename'] === 'cfgplayerspawnpoints.xml' && $source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
+                                <label><input class="map-layer-toggle" type="checkbox" @checked(($source['filename'] === 'cfgplayerspawnpoints.xml' || $source['filename'] === request()->string('show')->toString()) && $source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
                                 <p>{{ $source['description'] }}</p>
                                 <div class="dz-layer-actions">
                                     <a href="{{ url('/admin/projects/'.$projectId.'/configuration?revision='.$source['revision_id']) }}">Upravit</a>
@@ -690,7 +712,15 @@
                 const marker = L.marker([Number(modal.dataset.lat), Number(modal.dataset.lng)]).addTo(map);
                 const newX = Math.round(Number(modal.dataset.lng));
                 const newZ = Math.round(Number(modal.dataset.lat));
-                fetch('{{ route('map-editor.points.store') }}', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'}, body: JSON.stringify({project_id: @js($projectId), type: button.dataset.point, label: chosen || label, target_filename: targetState.target, x: newX, z: newZ, parameters}) }).then(async (response) => { if (!response.ok) throw new Error((await response.json().catch(()=>({}))).message || 'Uložení bodu selhalo'); window.location.reload(); }).catch((error) => { map.removeLayer(marker); modal.hidden = false; showFeedback(modal, error.message); });
+                fetch('{{ route('map-editor.points.store') }}', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'}, body: JSON.stringify({project_id: @js($projectId), type: button.dataset.point, label: chosen || label, target_filename: targetState.target, x: newX, z: newZ, parameters}) }).then(async (response) => {
+                    if (!response.ok) throw new Error((await response.json().catch(()=>({}))).message || 'Uložení bodu selhalo');
+                    // A freshly-touched layer is unchecked by default (only cfgplayerspawnpoints.xml
+                    // starts on) — force it on after reload, otherwise the point that was just added
+                    // exists in the file but never actually renders, looking like nothing happened.
+                    const reloadUrl = new URL(window.location.href);
+                    reloadUrl.searchParams.set('show', targetState.target);
+                    window.location.href = reloadUrl.toString();
+                }).catch((error) => { map.removeLayer(marker); modal.hidden = false; showFeedback(modal, error.message); });
                 const popup = () => mkEl('span', {}, [
                     mkEl('strong', {text:chosen || label}),
                     mkEl('br'),
