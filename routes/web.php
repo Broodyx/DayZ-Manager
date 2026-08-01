@@ -19,6 +19,7 @@ Route::post('/admin/map-editor/points', function (
     \App\Services\Dayz\MapConfigurationEditor $mapEditor,
     \App\Services\Revision\TypesXmlEditor $typesEditor,
     \App\Services\Dayz\EventsXmlEditor $eventsEditor,
+    \App\Services\Revision\SpawnableTypesXmlEditor $spawnableEditor,
 ) {
     $data = $request->validate([
         'project_id'=>'required|integer','type'=>'required|string|max:40','label'=>'required|string|max:120',
@@ -48,6 +49,7 @@ Route::post('/admin/map-editor/points', function (
         'parameters.around_particle'=>'nullable|string|max:255','parameters.tiny_particle'=>'nullable|string|max:255',
         'parameters.ppe_type'=>'nullable|string|max:160',
         'parameters.auto_add_types'=>'nullable|boolean',
+        'parameters.damage_min'=>'nullable|numeric|min:0|max:1','parameters.damage_max'=>'nullable|numeric|min:0|max:1','parameters.cargo_preset'=>'nullable|string|max:80','parameters.attachments'=>'nullable|string|max:2000',
         'parameters.event_nominal'=>'nullable|integer|min:0|max:100000','parameters.event_min'=>'nullable|integer|min:0|max:100000','parameters.event_max'=>'nullable|integer|min:0|max:100000',
         'parameters.event_lifetime'=>'nullable|integer|min:0|max:3888000','parameters.event_restock'=>'nullable|integer|min:0|max:3888000','parameters.event_saferadius'=>'nullable|integer|min:0|max:20000','parameters.event_distanceradius'=>'nullable|integer|min:0|max:20000','parameters.event_cleanupradius'=>'nullable|integer|min:0|max:20000','parameters.event_active'=>'nullable|boolean','parameters.event_position'=>'nullable|in:fixed,player','parameters.event_limit'=>'nullable|in:mixed,unlimited,nearest,farthest',
     ]);
@@ -116,6 +118,19 @@ Route::post('/admin/map-editor/points', function (
             $eventValues = collect($parameters)->filter(fn ($value, $key) => str_starts_with((string) $key, 'event_'))->mapWithKeys(fn ($value, $key) => [substr($key, 6) => $value])->all();
             $eventContent = $eventsEditor->update(Storage::disk('dayz')->get($eventsRevision->storage_path), $eventName, $eventValues);
             $editor->save($project, $eventsRevision, $eventContent, 'Upraven event '.$eventName.' při přidání mapového bodu', auth()->user());
+        }
+    }
+    if ($data['type'] !== 'animal' && in_array($data['type'], $eventTypes, true) && (array_key_exists('damage_min', $parameters) || array_key_exists('cargo_preset', $parameters) || array_key_exists('attachments', $parameters))) {
+        $spawnableRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'cfgspawnabletypes.xml');
+        if ($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path)) {
+            $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
+            $spawnableContent = $spawnableEditor->update(Storage::disk('dayz')->get($spawnableRevision->storage_path), $data['label'], [
+                'damage_min' => $parameters['damage_min'] ?? 0,
+                'damage_max' => $parameters['damage_max'] ?? 0,
+                'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
+                'cargo' => trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : [],
+            ]);
+            $editor->save($project, $spawnableRevision, $spawnableContent, 'Nastavení vozidla '.$data['label'].' při přidání mapového bodu', auth()->user());
         }
     }
     $typesAdded = [];

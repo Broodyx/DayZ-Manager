@@ -696,6 +696,9 @@
                         ]);
                         auto.querySelector('input').dataset.parameter = 'auto_add_types';
                         nodes.push(auto);
+                        nodes.push(mkEl('label', {}, [mkEl('small', {text:'Stav vozidla při spawnu · damage 0 = 100% funkční, 1 = zničené'}), mkEl('input', {type:'number', min:'0', max:'1', step:'0.01', value:'0', 'data-parameter':'damage_min'}), mkEl('input', {type:'number', min:'0', max:'1', step:'0.01', value:'0', 'data-parameter':'damage_max'})]));
+                        nodes.push(mkEl('label', {}, [mkEl('small', {text:'Cargo preset (volitelné)'}), mkEl('input', {type:'text', placeholder:'např. mixHunter', 'data-parameter':'cargo_preset'})]));
+                        nodes.push(mkEl('label', {}, [mkEl('small', {text:'Attachmenty (volitelné, oddělené čárkou)'}), mkEl('input', {type:'text', placeholder:'SparkPlug,CarRadiator,CarBattery', 'data-parameter':'attachments'})]));
                     }
                     eventRoot.replaceChildren(...nodes);
                 }
