@@ -134,7 +134,7 @@ class LogAnalyzer extends Page
         $this->findings = $result['findings'];
         $this->totalLines = $result['totalLines'];
         $this->matchedLines = $result['matchedLines'];
-        $this->saveHistory($result);
+        $this->saveHistory($result, $this->filenameTimestamp($latest['name']));
 
         Notification::make()
             ->success()
@@ -181,13 +181,15 @@ class LogAnalyzer extends Page
         $this->saveHistory($result);
     }
 
-    private function saveHistory(array $result): void
+    private function saveHistory(array $result, ?Carbon $filenameTimestamp = null): void
     {
         $path = 'log-analyses/'.auth()->id().'/'.now()->format('Ymd-His').'-'.Str::random(8).'.log';
         Storage::disk('dayz')->put($path, $this->logContent);
-        $sourceTimestamp = $this->sourceTimestamp($this->logContent);
+        $sourceTimestamp = $filenameTimestamp ?: $this->sourceTimestamp($this->logContent);
 
         if ($sourceTimestamp && LogAnalysis::query()->where('project_id', $this->projectId)->where('created_by', auth()->id())->where('source_timestamp', $sourceTimestamp)->exists()) {
+            Storage::disk('dayz')->delete($path);
+
             return;
         }
 
@@ -223,6 +225,19 @@ class LogAnalyzer extends Page
         }
 
         return null;
+    }
+
+    private function filenameTimestamp(string $filename): ?Carbon
+    {
+        if (preg_match('/_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.(?:rpt|adm|log)$/i', basename($filename), $match) !== 1) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d_H-i-s', $match[1]);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function loadFromHistory(int $id): void
