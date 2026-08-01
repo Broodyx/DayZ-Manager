@@ -127,9 +127,15 @@ class FtpBrowser
             ];
         }
 
-        // The filename contains the server restart time. FTP mtime often reflects upload/copy
-        // time and can therefore select an older restart as the "latest" file.
+        // Prefer RPT because it is the authoritative DayZ server restart log. ADM/log are
+        // useful fallbacks. The filename contains the restart time; FTP mtime often reflects
+        // upload/copy time and can therefore select an older restart as the "latest" file.
         usort($files, function (array $a, array $b): int {
+            $aPriority = strtolower(pathinfo($a['name'], PATHINFO_EXTENSION)) === 'rpt' ? 0 : 1;
+            $bPriority = strtolower(pathinfo($b['name'], PATHINFO_EXTENSION)) === 'rpt' ? 0 : 1;
+            if ($aPriority !== $bPriority) {
+                return $aPriority <=> $bPriority;
+            }
             $aTimestamp = $this->logFilenameTimestamp($a['name']);
             $bTimestamp = $this->logFilenameTimestamp($b['name']);
             if ($aTimestamp !== null && $bTimestamp !== null && $aTimestamp !== $bTimestamp) {
