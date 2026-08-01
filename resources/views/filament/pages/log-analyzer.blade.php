@@ -18,7 +18,10 @@
                     @foreach ($history as $item)
                         <div class="dz-log-history-row {{ $viewingHistoryId === $item['id'] ? 'active' : '' }}">
                             <button type="button" wire:click="loadFromHistory({{ $item['id'] }})" class="dz-log-history-open">
-                                <span>{{ $item['created_at'] }}</span>
+                                <span>{{ $item['source_filename'] ?: $item['created_at'] }}</span>
+                                @if ($item['source_filename'])
+                                    <small>{{ $item['created_at'] }}</small>
+                                @endif
                                 <span class="dz-log-history-meta">
                                     @if ($item['critical_count'] > 0)<span class="dz-badge dz-log-history-badge-critical">{{ $item['critical_count'] }}× kritické</span>@endif
                                     @if ($item['warning_count'] > 0)<span class="dz-badge dz-log-history-badge-warning">{{ $item['warning_count'] }}× varování</span>@endif

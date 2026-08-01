@@ -134,7 +134,7 @@ class LogAnalyzer extends Page
         $this->findings = $result['findings'];
         $this->totalLines = $result['totalLines'];
         $this->matchedLines = $result['matchedLines'];
-        $this->saveHistory($result, $this->filenameTimestamp($latest['name']));
+        $this->saveHistory($result, $this->filenameTimestamp($latest['name']), $latest['name']);
 
         Notification::make()
             ->success()
@@ -154,6 +154,7 @@ class LogAnalyzer extends Page
             ->map(fn (LogAnalysis $item): array => [
                 'id' => $item->id,
                 'created_at' => ($item->source_timestamp ?: $item->created_at)->format('d.m.Y H:i'),
+                'source_filename' => $item->source_filename,
                 'total_lines' => $item->total_lines,
                 'matched_lines' => $item->matched_lines,
                 'critical_count' => $item->critical_count,
@@ -181,7 +182,7 @@ class LogAnalyzer extends Page
         $this->saveHistory($result);
     }
 
-    private function saveHistory(array $result, ?Carbon $filenameTimestamp = null): void
+    private function saveHistory(array $result, ?Carbon $filenameTimestamp = null, ?string $filename = null): void
     {
         $path = 'log-analyses/'.auth()->id().'/'.now()->format('Ymd-His').'-'.Str::random(8).'.log';
         Storage::disk('dayz')->put($path, $this->logContent);
@@ -200,6 +201,7 @@ class LogAnalyzer extends Page
             'created_by' => auth()->id(),
             'storage_path' => $path,
             'source_timestamp' => $sourceTimestamp,
+            'source_filename' => $filename,
             'findings' => $result['findings'],
             'total_lines' => $result['totalLines'],
             'matched_lines' => $result['matchedLines'],

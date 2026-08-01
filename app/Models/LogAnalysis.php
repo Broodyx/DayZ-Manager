@@ -11,6 +11,7 @@ class LogAnalysis extends Model
         'project_id', 'created_by', 'storage_path', 'findings',
         'total_lines', 'matched_lines', 'critical_count', 'warning_count',
         'source_timestamp',
+        'source_filename',
     ];
 
     protected function casts(): array
