@@ -609,6 +609,14 @@
             animalZoneTypeCatalog.id = 'dz-animal-zone-type-catalog';
             ['Graze', 'Water', 'Rest'].forEach((name) => animalZoneTypeCatalog.appendChild(mkEl('option', { value: name })));
             document.body.appendChild(animalZoneTypeCatalog);
+            const cargoPresetCatalog = document.createElement('datalist');
+            cargoPresetCatalog.id = 'dz-cargo-preset-catalog';
+            (@js($pointTypeCatalog['_spawnable_suggestions']['cargo_presets'] ?? [])).forEach((name) => cargoPresetCatalog.appendChild(mkEl('option', { value: name })));
+            document.body.appendChild(cargoPresetCatalog);
+            const attachmentCatalog = document.createElement('datalist');
+            attachmentCatalog.id = 'dz-attachment-catalog';
+            (@js($pointTypeCatalog['_spawnable_suggestions']['attachments'] ?? [])).forEach((name) => attachmentCatalog.appendChild(mkEl('option', { value: name })));
+            document.body.appendChild(attachmentCatalog);
             let selectedCatalogOption = null;
             const editDefinitionForMarker = (marker) => {
                 if (marker.type === 'player-spawn-area') return pointTypeCatalog.player;
@@ -735,7 +743,7 @@
                         auto.querySelector('input').dataset.parameter = 'auto_add_types';
                         nodes.push(mkEl('div', {class:'dz-related-editor-section'}, [auto]));
                         nodes.push(mkEl('label', {}, [mkEl('strong', {text:'Stav vozidla při spawnu'}), mkEl('small', {text:'0 = 100% funkční, 1 = zcela poškozené. Uložení proběhne do cfgspawnabletypes.xml.'}), mkEl('span', {class:'dz-inline-fields'}, [mkEl('label', {}, [mkEl('small', {text:'Minimum damage'}), mkEl('input', {type:'number', min:'0', max:'1', step:'0.01', value:'0', 'data-parameter':'damage_min'})]), mkEl('label', {}, [mkEl('small', {text:'Maximum damage'}), mkEl('input', {type:'number', min:'0', max:'1', step:'0.01', value:'0', 'data-parameter':'damage_max'})])])]));
-                        nodes.push(mkEl('label', {}, [mkEl('strong', {text:'Výbava a náklad vozidla'}), mkEl('small', {text:'Volitelné. Cargo preset a attachmenty se uloží do cfgspawnabletypes.xml, ne do cfgeventspawns.xml.'}), mkEl('input', {type:'text', placeholder:'např. mixHunter', 'data-parameter':'cargo_preset'}), mkEl('input', {type:'text', placeholder:'SparkPlug,CarRadiator,CarBattery', 'data-parameter':'attachments'})]));
+                        nodes.push(mkEl('label', {}, [mkEl('strong', {text:'Výbava a náklad vozidla'}), mkEl('small', {text:'Volitelné. Nabídka vychází z aktuálního cfgspawnabletypes.xml; lze zadat i vlastní hodnotu.'}), mkEl('input', {type:'text', list:'dz-cargo-preset-catalog', placeholder:'např. mixHunter', 'data-parameter':'cargo_preset'}), mkEl('input', {type:'text', list:'dz-attachment-catalog', placeholder:'SparkPlug,CarRadiator,CarBattery', 'data-parameter':'attachments'})]));
                     }
                     eventRoot.replaceChildren(...nodes);
                 }

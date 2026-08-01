@@ -764,12 +764,32 @@ class MapEditor extends Page
         }
 
         $eventsBy = fn ($callback) => collect($this->eventCatalog)->filter($callback)->values();
+        $spawnableSuggestions = ['cargo_presets' => [], 'attachments' => []];
+        $spawnableRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfgspawnabletypes.xml');
+        if ($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path)) {
+            $spawnableXml = new \DOMDocument();
+            if (@$spawnableXml->loadXML(Storage::disk('dayz')->get($spawnableRevision->storage_path), LIBXML_NONET | LIBXML_COMPACT)) {
+                foreach ($spawnableXml->getElementsByTagName('cargo') as $cargo) {
+                    $preset = trim((string) $cargo->attributes?->getNamedItem('preset')?->nodeValue);
+                    if ($preset !== '') $spawnableSuggestions['cargo_presets'][] = $preset;
+                }
+                foreach ($spawnableXml->getElementsByTagName('attachments') as $group) {
+                    foreach ($group->getElementsByTagName('item') as $item) {
+                        $name = trim((string) $item->attributes?->getNamedItem('name')?->nodeValue);
+                        if ($name !== '') $spawnableSuggestions['attachments'][] = $name;
+                    }
+                }
+            }
+        }
+        foreach ($spawnableSuggestions as $key => $values) {
+            $spawnableSuggestions[$key] = collect($values)->filter()->unique()->sort()->take(1500)->values()->all();
+        }
         $eventFields = [
             ['name' => 'orientation', 'label' => 'Natočení objektu (°)', 'type' => 'number', 'min' => 0, 'max' => 359.999, 'step' => 0.001, 'default' => 0, 'required' => true, 'help' => 'Povinné. 0° míří na sever; hodnota určuje natočení kandidátní pozice.'],
             ['name' => 'damage_min', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Minimální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => '0 = 100% funkční, 1 = zničené. Rozsah určuje náhodné poškození.'],
             ['name' => 'damage_max', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Maximální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => 'Nastav 0–0 pro vždy plně funkční auto; například 0.4–0.8 znamená náhodné poškození 40–80 %.'],
-            ['name' => 'cargo_preset', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Cargo preset', 'type' => 'text', 'default' => '', 'help' => 'Volitelný preset nákladu, například mixHunter.'],
-            ['name' => 'attachments', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Attachmenty', 'type' => 'text', 'default' => '', 'help' => 'Volitelně oddělené čárkou, například SparkPlug,CarRadiator,CarBattery.'],
+            ['name' => 'cargo_preset', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Cargo preset', 'type' => 'text', 'list' => 'dz-cargo-preset-catalog', 'default' => '', 'help' => 'Začněte psát a vyberte preset z aktuálního cfgspawnabletypes.xml. Ruční hodnota je stále možná.'],
+            ['name' => 'attachments', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Attachmenty', 'type' => 'text', 'list' => 'dz-attachment-catalog', 'default' => '', 'help' => 'Nabízí použité attachmenty z aktuálního souboru; zadejte více tříd oddělených čárkou.'],
         ];
         $playerFields = [
             ['name' => 'spawn_mode', 'section' => 'Bod a skupina', 'label' => 'Režim spawnu', 'type' => 'select', 'default' => 'fresh', 'options' => [
@@ -897,6 +917,7 @@ class MapEditor extends Page
                 'missing' => ['Object Spawner JSON'], 'upload_url' => $uploadUrl('*spawner*.json'),
                 'options' => [], 'help' => 'Vlastní objekt nelze bezpečně zapsat bez třídy objektu, orientace a aktuálního Object Spawner JSON.',
             ],
+            '_spawnable_suggestions' => $spawnableSuggestions,
         ];
     }
 
