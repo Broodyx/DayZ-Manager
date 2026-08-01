@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Dayz\ConfigurationCatalog;
 use App\Services\Import\ConfigurationImporter;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use League\Flysystem\FileAttributes;
 use League\Flysystem\Filesystem;
@@ -126,13 +127,37 @@ class FtpBrowser
             ];
         }
 
-        // Prefer real mtime for newest-first — filenames aren't always uniformly named across
-        // log types (RPT vs ADM), so a plain string sort can't reliably stand in for chronology.
-        usort($files, fn (array $a, array $b): int => $a['modified'] !== null && $b['modified'] !== null && $a['modified'] !== $b['modified']
-            ? $b['modified'] <=> $a['modified']
-            : strnatcasecmp($b['name'], $a['name']));
+        // The filename contains the server restart time. FTP mtime often reflects upload/copy
+        // time and can therefore select an older restart as the "latest" file.
+        usort($files, function (array $a, array $b): int {
+            $aTimestamp = $this->logFilenameTimestamp($a['name']);
+            $bTimestamp = $this->logFilenameTimestamp($b['name']);
+            if ($aTimestamp !== null && $bTimestamp !== null && $aTimestamp !== $bTimestamp) {
+                return $bTimestamp <=> $aTimestamp;
+            }
+            if ($aTimestamp !== null && $bTimestamp === null) return -1;
+            if ($aTimestamp === null && $bTimestamp !== null) return 1;
+            if ($a['modified'] !== null && $b['modified'] !== null && $a['modified'] !== $b['modified']) {
+                return $b['modified'] <=> $a['modified'];
+            }
+
+            return strnatcasecmp($b['name'], $a['name']);
+        });
 
         return $files;
+    }
+
+    private function logFilenameTimestamp(string $filename): ?int
+    {
+        if (preg_match('/_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.(?:rpt|adm|log)$/i', basename($filename), $match) !== 1) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d_H-i-s', $match[1])->timestamp;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function readLogFile(Project $project, string $path): string

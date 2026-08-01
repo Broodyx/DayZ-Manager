@@ -162,9 +162,9 @@ class FtpBrowserTest extends TestCase
         $files = $browser->listLogFilesOn($this->localFilesystem(), 'logs');
 
         $this->assertSame([
-            'DayZServer_x64_2026-08-01.ADM',
             'DayZServer_PS4_x64_2026-08-01_08-37-57.RPT',
             'DayZServer_PS4_x64_2026-07-31_10-00-00.RPT',
+            'DayZServer_x64_2026-08-01.ADM',
         ], array_column($files, 'name'));
     }
 
