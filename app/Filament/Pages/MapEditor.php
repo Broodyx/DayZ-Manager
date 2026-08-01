@@ -133,6 +133,9 @@ class MapEditor extends Page
     /** Re-runs all map spawn relationship checks on demand and keeps the result visible in the banners below. */
     public function checkSpawnEventLinks(): void
     {
+        // The repair actions create a new revision. Refresh markers first so the
+        // manual check never validates the old Livewire snapshot again.
+        $this->loadMarkers();
         $this->loadEventCatalog();
         $this->loadEventSpawnWarnings();
         $this->loadAnimalPopulationWarnings();
