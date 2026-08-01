@@ -123,13 +123,18 @@ Route::post('/admin/map-editor/points', function (
     if ($data['type'] !== 'animal' && in_array($data['type'], $eventTypes, true) && (array_key_exists('damage_min', $parameters) || array_key_exists('cargo_preset', $parameters) || array_key_exists('attachments', $parameters))) {
         $spawnableRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'cfgspawnabletypes.xml');
         if ($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path)) {
+            $eventNode = collect($eventsXml?->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
             $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
-            $spawnableContent = $spawnableEditor->update(Storage::disk('dayz')->get($spawnableRevision->storage_path), $data['label'], [
-                'damage_min' => $parameters['damage_min'] ?? 0,
-                'damage_max' => $parameters['damage_max'] ?? 0,
-                'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
-                'cargo' => trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : [],
-            ]);
+            $spawnableContent = Storage::disk('dayz')->get($spawnableRevision->storage_path);
+            $spawnClassnames = collect($eventNode?->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values();
+            foreach ($spawnClassnames as $classname) {
+                $spawnableContent = $spawnableEditor->update($spawnableContent, $classname, [
+                    'damage_min' => $parameters['damage_min'] ?? 0,
+                    'damage_max' => $parameters['damage_max'] ?? 0,
+                    'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
+                    'cargo' => trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : [],
+                ]);
+            }
             $editor->save($project, $spawnableRevision, $spawnableContent, 'Nastavení vozidla '.$data['label'].' při přidání mapového bodu', auth()->user());
         }
     }
@@ -190,16 +195,25 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
     }
     $saved = $editor->save($project, $source, $content, 'Upraven mapový bod X/Z', auth()->user());
     if ($filename === 'cfgeventspawns.xml' && (array_key_exists('damage_min', $data['parameters'] ?? []) || array_key_exists('damage_max', $data['parameters'] ?? []) || array_key_exists('cargo_preset', $data['parameters'] ?? []) || array_key_exists('attachments', $data['parameters'] ?? []))) {
+        $eventsRevision = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'events.xml');
+        abort_unless($eventsRevision && Storage::disk('dayz')->exists($eventsRevision->storage_path), 422, 'Nejprve importujte aktuální events.xml.');
+        $eventXml = @simplexml_load_string(Storage::disk('dayz')->get($eventsRevision->storage_path));
+        $eventNode = collect($eventXml?->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
+        $spawnClassnames = collect($eventNode?->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
+        abort_unless($spawnClassnames !== [], 422, 'Event '.$data['label'].' nemá žádnou spawnovanou child třídu.');
         $spawnableRevision = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'cfgspawnabletypes.xml');
         abort_unless($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path), 422, 'Nejprve importujte aktuální cfgspawnabletypes.xml.');
         $parameters = $data['parameters'] ?? [];
         $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
-        $spawnableContent = $spawnableEditor->update(Storage::disk('dayz')->get($spawnableRevision->storage_path), $data['label'], [
-            'damage_min' => $parameters['damage_min'] ?? 0,
-            'damage_max' => $parameters['damage_max'] ?? 0,
-            'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
-            'cargo' => trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : [],
-        ]);
+        $spawnableContent = Storage::disk('dayz')->get($spawnableRevision->storage_path);
+        foreach ($spawnClassnames as $classname) {
+            $spawnableContent = $spawnableEditor->update($spawnableContent, $classname, [
+                'damage_min' => $parameters['damage_min'] ?? 0,
+                'damage_max' => $parameters['damage_max'] ?? 0,
+                'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
+                'cargo' => trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : [],
+            ]);
+        }
         $editor->save($project, $spawnableRevision, $spawnableContent, 'Upraveno nastavení vozidla '.$data['label'], auth()->user());
     }
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number]);
