@@ -1168,7 +1168,12 @@ class MapEditor extends Page
     {
         $filename = $revision->configurationImport?->original_filename ?? basename($revision->storage_path);
         $path = $layout->relativePath($filename, $project);
-        $browser->write($project, $path, Storage::disk('dayz')->get($revision->storage_path));
+        $content = Storage::disk('dayz')->get($revision->storage_path);
+        $browser->write($project, $path, $content);
+        $remote = $browser->read($project, $path);
+        if (hash('sha256', $content) !== hash('sha256', $remote)) {
+            throw new RuntimeException("Server po zápisu vrátil jiný obsah souboru ({$path}).");
+        }
         $revision->forceFill(['downloaded_at' => now()])->save();
 
         return $filename;
