@@ -197,6 +197,16 @@ class MapEditor extends Page
                     if ((float) ($parameters['radius'] ?? 0) <= 0) {
                         $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Zóna zvířat nemá platný poloměr', 'detail' => "{$marker['label']} má poloměr 0 nebo zápornou hodnotu.", 'action' => 'Nastavte poloměr alespoň 1 metr.'];
                     }
+                    if (! str_contains($filename, 'zombie')
+                        && (int) ($parameters['smax'] ?? 0) === 0
+                        && (int) ($parameters['dmax'] ?? 0) === 0) {
+                        $this->spawnValidationWarnings[] = [
+                            'severity' => 'critical',
+                            'title' => "{$marker['label']} nemá povolený počet zvířat",
+                            'detail' => 'smax i dmax jsou 0. Territory se načte, ale hra v této zóně nemá povolený žádný statický ani dynamický spawn.',
+                            'action' => 'Nastavte smax nebo dmax na hodnotu větší než 0; minima musí být nejvýše maximum.',
+                        ];
+                    }
                 }
             }
         }
@@ -937,6 +947,28 @@ class MapEditor extends Page
         $revisions = $this->latestRevisions($project);
         $groupCategories = $this->groupPrototypeCategories($reader, $revisions);
         $this->lootCategoryLegend = $this->buildLootCategoryLegend($revisions, $groupCategories);
+        $eventChildren = [];
+        $spawnableValues = [];
+        $eventsRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'events.xml');
+        if ($eventsRevision && Storage::disk('dayz')->exists($eventsRevision->storage_path)) {
+            $eventsXml = @simplexml_load_string(Storage::disk('dayz')->get($eventsRevision->storage_path));
+            foreach ($eventsXml?->event ?? [] as $event) {
+                $eventName = (string) ($event['name'] ?? '');
+                $eventChildren[$eventName] = collect($event->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
+            }
+        }
+        $spawnableRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfgspawnabletypes.xml');
+        if ($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path)) {
+            $spawnableEditor = app(\App\Services\Revision\SpawnableTypesXmlEditor::class);
+            $spawnableXmlContent = Storage::disk('dayz')->get($spawnableRevision->storage_path);
+            $spawnableXml = new \DOMDocument();
+            if (@$spawnableXml->loadXML($spawnableXmlContent, LIBXML_NONET | LIBXML_COMPACT)) {
+                $neededClasses = collect($eventChildren)->flatten()->unique()->values();
+                foreach ($neededClasses as $classname) {
+                    try { $spawnableValues[$classname] = $spawnableEditor->values($spawnableXmlContent, $classname); } catch (\Throwable) {}
+                }
+            }
+        }
 
         foreach ($revisions as $revision) {
             $filename = $this->revisionFilename($revision);
@@ -951,6 +983,20 @@ class MapEditor extends Page
             }
             foreach ($reader->markers($filename, $content) as $marker) {
                 $marker['revision_id'] = $revision->id;
+                if ($filename === 'cfgeventspawns.xml') {
+                    $children = $eventChildren[$marker['label']] ?? [];
+                    $vehicleValues = collect($children)->map(fn ($classname) => $spawnableValues[$classname] ?? null)->filter()->first();
+                    if (is_array($vehicleValues)) {
+                        $attachments = collect($vehicleValues['attachments'] ?? [])->flatMap(fn ($group) => $group['items'] ?? [])->pluck('name')->filter()->unique()->implode(',');
+                        $cargo = collect($vehicleValues['cargo'] ?? [])->pluck('preset')->filter()->first() ?? '';
+                        $marker['parameters'] = array_merge($marker['parameters'] ?? [], [
+                            'damage_min' => $vehicleValues['damage_min'] ?? 0,
+                            'damage_max' => $vehicleValues['damage_max'] ?? 0,
+                            'cargo_preset' => $cargo,
+                            'attachments' => $attachments,
+                        ]);
+                    }
+                }
                 if ($filename === 'mapgrouppos.xml') {
                     $categories = $groupCategories[$marker['label']] ?? [];
                     $marker['categories'] = $categories;
