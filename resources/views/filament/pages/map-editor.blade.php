@@ -246,6 +246,17 @@
                 </ul>
             </div>
         @endif
+        @if (count($spawnValidationWarnings))
+            <div class="dz-map-alert">
+                <strong>Kontrola použitelnosti spawnů našla {{ count($spawnValidationWarnings) }} problémů.</strong>
+                <span>Tyto kontroly ověřují XML hodnoty. Vhodnost terénu a skutečné odmítnutí kandidáta potvrzuje až poslední RPT.</span>
+                <ul>
+                    @foreach ($spawnValidationWarnings as $warning)
+                        <li><strong>{{ $warning['title'] }}</strong> — {{ $warning['detail'] }}<br><small>Co udělat: {{ $warning['action'] }}</small></li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         @if ($showAddEventModal)
             <div class="dz-point-modal">
                 <div class="dz-point-modal-card">

@@ -54,6 +54,7 @@ class MapEditor extends Page
     public array $eventSpawnWarnings = [];
     public array $animalPopulationWarnings = [];
     public array $animalTypeWarnings = [];
+    public array $spawnValidationWarnings = [];
     public array $classnameOptions = [];
     public bool $showAddEventModal = false;
     public string $addEventName = '';
@@ -108,6 +109,7 @@ class MapEditor extends Page
         $this->loadEventSpawnWarnings();
         $this->loadAnimalPopulationWarnings();
         $this->loadAnimalTypeWarnings();
+        $this->loadSpawnValidationWarnings();
 
         $requestedEvent = trim((string) request()->string('open_event'));
         if ($requestedEvent !== '' && in_array($requestedEvent, $this->eventSpawnWarnings, true)) {
@@ -125,6 +127,7 @@ class MapEditor extends Page
         $this->loadEventSpawnWarnings();
         $this->loadAnimalPopulationWarnings();
         $this->loadAnimalTypeWarnings();
+        $this->loadSpawnValidationWarnings();
     }
 
     /** Re-runs all map spawn relationship checks on demand and keeps the result visible in the banners below. */
@@ -134,10 +137,12 @@ class MapEditor extends Page
         $this->loadEventSpawnWarnings();
         $this->loadAnimalPopulationWarnings();
         $this->loadAnimalTypeWarnings();
+        $this->loadSpawnValidationWarnings();
 
         $issues = count($this->eventSpawnWarnings)
             + count($this->animalPopulationWarnings)
-            + count($this->animalTypeWarnings);
+            + count($this->animalTypeWarnings)
+            + count($this->spawnValidationWarnings);
 
         if ($issues > 0) {
             Notification::make()
@@ -154,6 +159,43 @@ class MapEditor extends Page
             ->title('Vazby spawnů jsou v pořádku')
             ->body('Spawn body odkazují na existující eventy a jejich classy jsou v types.xml.')
             ->send();
+    }
+
+    /** Structural checks for spawn candidates; terrain suitability still requires the server RPT. */
+    public function loadSpawnValidationWarnings(): void
+    {
+        $this->spawnValidationWarnings = [];
+        foreach ($this->markers as $marker) {
+            $parameters = $marker['parameters'] ?? [];
+            if (($marker['type'] ?? '') === 'territory') {
+                $filename = strtolower((string) ($marker['filename'] ?? ''));
+                if (str_ends_with($filename, '_territories.xml')) {
+                    $zone = (string) ($parameters['zone_type'] ?? '');
+                    if (! in_array($zone, ['Graze', 'Water', 'Rest'], true) && ! str_contains($filename, 'zombie')) {
+                        $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Neplatná zóna zvířat', 'detail' => "{$marker['label']} používá „{$zone}“. Pro zvířata použijte pouze Graze, Water nebo Rest.", 'action' => 'Upravte bod na mapě a zvolte platnou úlohu zóny.'];
+                    }
+                    foreach (['smin' => 'smax', 'dmin' => 'dmax'] as $min => $max) {
+                        if ((float) ($parameters[$min] ?? 0) > (float) ($parameters[$max] ?? 0)) {
+                            $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Neplatný rozsah spawnu', 'detail' => "{$marker['label']} má {$min} větší než {$max}.", 'action' => 'Minimum nesmí být vyšší než maximum.'];
+                        }
+                    }
+                    if ((float) ($parameters['radius'] ?? 0) <= 0) {
+                        $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Zóna zvířat nemá platný poloměr', 'detail' => "{$marker['label']} má poloměr 0 nebo zápornou hodnotu.", 'action' => 'Nastavte poloměr alespoň 1 metr.'];
+                    }
+                }
+            }
+        }
+        foreach ($this->eventCatalog as $event) {
+            $name = (string) ($event['name'] ?? '');
+            if (! Str::startsWith($name, ['Animal', 'Vehicle'])) continue;
+            $settings = $event['settings'] ?? [];
+            if ((int) ($settings['active'] ?? 0) !== 1 || (int) ($settings['nominal'] ?? 0) <= 0 || (int) ($settings['max'] ?? 0) <= 0) {
+                $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => "Event {$name} je vypnutý nebo má nulovou populaci", 'detail' => 'Bod může být správně uložený, ale event nevytvoří žádnou instanci.', 'action' => 'V events.xml nastavte active=1 a nominal/max větší než 0.'];
+            }
+            if ((int) ($settings['min'] ?? 0) > (int) ($settings['max'] ?? 0)) {
+                $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => "Event {$name} má neplatný rozsah", 'detail' => 'Minimum je vyšší než maximum.', 'action' => 'Opravte min/max v events.xml.'];
+            }
+        }
     }
 
     /**
