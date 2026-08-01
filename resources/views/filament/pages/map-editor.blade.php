@@ -583,6 +583,10 @@
             zoneTypeCatalog.id = 'dz-zone-type-catalog';
             (@js($this->zoneTypeCatalog())).forEach((name) => zoneTypeCatalog.appendChild(mkEl('option', { value: name })));
             document.body.appendChild(zoneTypeCatalog);
+            const animalZoneTypeCatalog = document.createElement('datalist');
+            animalZoneTypeCatalog.id = 'dz-animal-zone-type-catalog';
+            ['Graze', 'Water', 'Rest'].forEach((name) => animalZoneTypeCatalog.appendChild(mkEl('option', { value: name })));
+            document.body.appendChild(animalZoneTypeCatalog);
             let selectedCatalogOption = null;
             const editDefinitionForMarker = (marker) => {
                 if (marker.type === 'player-spawn-area') return pointTypeCatalog.player;
@@ -751,7 +755,23 @@
                 confirm.disabled = !available || (!selectedCatalogOption && (definition.options || []).length > 0);
                 confirm.textContent = available ? 'Umístit bod a vytvořit revizi' : 'Nejprve nahrajte požadovaný soubor';
                 renderRelatedSettings();
+                syncTerritoryZoneField();
                 return { target, available };
+            };
+            const syncTerritoryZoneField = () => {
+                if (!['animal', 'territory'].includes(pendingButton?.dataset.point)) return;
+                const input = document.querySelector('#dz-event-catalog [data-parameter="zone_type"]');
+                if (!input) return;
+                const option = selectedCatalogOption?.value || '';
+                const animal = option.startsWith('Animal') || pendingButton?.dataset.point === 'animal';
+                if (!animal) return;
+                const allowed = ['Graze', 'Water', 'Rest'];
+                input.setAttribute('list', 'dz-animal-zone-type-catalog');
+                input.setAttribute('placeholder', allowed.join(', '));
+                const current = String(input.value || '').trim();
+                if (!allowed.includes(current)) input.value = 'Graze';
+                const help = input.closest('label')?.querySelector('small');
+                if (help) help.textContent = 'Povinné pro zvířata. Povolené hodnoty: Graze, Water, Rest. HuntingGround hra pro stáda nepoužije.';
             };
             const placePoint = (button) => {
                 const label = button.dataset.label || button.textContent.trim();
@@ -789,6 +809,14 @@
                     const firstMissing = catalogRoot.querySelector('[data-parameter="' + requiredMissing[0].name + '"]');
                     firstMissing?.focus();
                     return;
+                }
+                if (['animal', 'territory'].includes(button.dataset.point) && selectedCatalogOption?.value?.startsWith('Animal')) {
+                    const allowed = ['Graze', 'Water', 'Rest'];
+                    if (!allowed.includes(String(parameters.zone_type || '').trim())) {
+                        showFeedback(catalogRoot, 'Neplatná úloha zóny pro zvířata. Použij Graze, Water nebo Rest.');
+                        catalogRoot.querySelector('[data-parameter="zone_type"]')?.focus();
+                        return;
+                    }
                 }
                 const marker = L.marker([Number(modal.dataset.lat), Number(modal.dataset.lng)]).addTo(map);
                 const newX = Math.round(Number(modal.dataset.lng));

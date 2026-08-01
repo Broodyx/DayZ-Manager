@@ -751,7 +751,7 @@ class MapEditor extends Page
             }
         }
         $territoryFields = [
-            ['name' => 'zone_type', 'label' => 'Úloha zóny', 'type' => 'text', 'list' => 'dz-zone-type-catalog', 'default' => 'HuntingGround', 'required' => true, 'help' => 'Povinné. U zvířat obvykle HuntingGround/Rest/Graze/Water; u nakažených přesný tier, např. InfectedVillageTier1.'],
+            ['name' => 'zone_type', 'label' => 'Úloha zóny', 'type' => 'text', 'list' => 'dz-zone-type-catalog', 'default' => 'Graze', 'required' => true, 'help' => 'Povinné. U stád zvířat použij Graze, Water nebo Rest; u nakažených přesný tier, např. InfectedVillageTier1.'],
             ['name' => 'radius', 'label' => 'Poloměr (m)', 'type' => 'number', 'min' => 1, 'max' => 5000, 'step' => 0.5, 'default' => 150, 'help' => 'Atribut r: dosah zóny od středu v metrech.'],
             ['name' => 'smin', 'label' => 'Statický spawn minimum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut smin. Minimální počet statických výskytů pro zónu.'],
             ['name' => 'smax', 'label' => 'Statický spawn maximum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut smax. Maximální počet statických výskytů pro zónu.'],
