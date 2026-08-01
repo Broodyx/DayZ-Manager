@@ -180,6 +180,7 @@ class EditConfiguration extends Page
         $requestedRevision = request()->integer('revision');
         $requestedType = trim((string) request()->string('type'));
         $requestedEvent = trim((string) request()->string('event'));
+        $requestedTerritory = trim((string) request()->string('register_territory'));
 
         $requested = $requestedRevision
             ? $this->getRecord()->revisions()->whereKey($requestedRevision)->first()
@@ -203,6 +204,37 @@ class EditConfiguration extends Page
         if ($requestedEvent !== '') {
             $this->selectEvent($requestedEvent, app(EventsXmlEditor::class));
         }
+        if ($requestedTerritory !== '') {
+            $this->prepareTerritoryRegistration($requestedTerritory);
+        }
+    }
+
+    private function prepareTerritoryRegistration(string $filename): void
+    {
+        $filename = basename(str_replace('\\', '/', $filename));
+        if (! str_ends_with(strtolower($filename), '_territories.xml')) {
+            return;
+        }
+
+        $base = preg_replace('/_territories\.xml$/i', '', $filename) ?: $filename;
+        $suggestedName = Str::studly(str_replace(['-', '_'], ' ', $base));
+        $this->newAnimalForm = [
+            'name' => $suggestedName,
+            'type' => 'Herd',
+            'behavior' => 'DZdomesticGroupBeh',
+            'file_mode' => 'existing',
+            'file' => $filename,
+            'new_file' => '',
+            'agents' => [],
+            'items' => [],
+        ];
+        $this->selectedEnvironmentTerritory = null;
+        $this->showAddAnimalForm = true;
+        Notification::make()
+            ->warning()
+            ->title('Průvodce registrací territory souboru')
+            ->body("Soubor {$filename} je nahraný, ale hra ho bez této registrace nepoužije. Zkontrolujte navržený druh a behavior a potom uložte.")
+            ->send();
     }
 
     private function latestRevisionByFilename(string $filename): ?ConfigurationRevision

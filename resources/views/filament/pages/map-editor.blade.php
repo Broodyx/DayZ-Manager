@@ -257,6 +257,8 @@
                                 <span><strong>{{ $warning['title'] }}</strong> — {{ $warning['detail'] }}<br><small>Co udělat: {{ $warning['action'] }}</small></span>
                                 @if (!empty($warning['event_name']))
                                     <x-dz-confirm-button call="repairEventPopulation('{{ $warning['event_name'] }}')" label="Automaticky opravit event" saved-label="Opraveno" class="dz-secondary" />
+                                @elseif (!empty($warning['territory_file']))
+                                    <a class="dz-secondary" href="{{ url('/admin/projects/'.$projectId.'/configuration?register_territory='.rawurlencode($warning['territory_file'])) }}">Otevřít průvodce registrací</a>
                                 @else
                                     <a class="dz-secondary" href="{{ url('/admin/projects/'.$projectId.'/configuration') }}">Otevřít konfiguraci</a>
                                 @endif

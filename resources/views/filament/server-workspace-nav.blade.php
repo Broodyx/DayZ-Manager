@@ -7,6 +7,7 @@
         || request()->routeIs('filament.admin.resources.projects.edit')
         || request()->routeIs('filament.admin.pages.map-editor')
         || request()->routeIs('filament.admin.pages.configuration-import')
+        || request()->routeIs('filament.admin.pages.configuration-wizard')
     );
     $project = $showWorkspace
         ? \App\Models\Project::query()
