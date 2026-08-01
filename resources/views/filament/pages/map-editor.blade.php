@@ -114,6 +114,10 @@
                 @endforeach
             </select></label>
             <a class="dz-map-upload-button" href="{{ url('/admin/configuration-import?area=map&project='.$projectId) }}">+ Přidat mapový soubor</a>
+            <button type="button" class="dz-secondary" wire:click="checkSpawnEventLinks" wire:loading.attr="disabled" wire:target="checkSpawnEventLinks">
+                <span wire:loading.remove wire:target="checkSpawnEventLinks">Zkontrolovat vazby spawnů</span>
+                <span wire:loading wire:target="checkSpawnEventLinks">Kontroluji vazby…</span>
+            </button>
             <details class="dz-map-help">
                 <summary>Jak mapu číst?</summary>
                 <div>

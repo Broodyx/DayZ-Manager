@@ -127,6 +127,35 @@ class MapEditor extends Page
         $this->loadAnimalTypeWarnings();
     }
 
+    /** Re-runs all map spawn relationship checks on demand and keeps the result visible in the banners below. */
+    public function checkSpawnEventLinks(): void
+    {
+        $this->loadEventCatalog();
+        $this->loadEventSpawnWarnings();
+        $this->loadAnimalPopulationWarnings();
+        $this->loadAnimalTypeWarnings();
+
+        $issues = count($this->eventSpawnWarnings)
+            + count($this->animalPopulationWarnings)
+            + count($this->animalTypeWarnings);
+
+        if ($issues > 0) {
+            Notification::make()
+                ->warning()
+                ->title("Kontrola našla {$issues} problémů ve vazbách spawnů")
+                ->body('Výsledky jsou zobrazené v bannerech pod ovládací lištou mapy.')
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->success()
+            ->title('Vazby spawnů jsou v pořádku')
+            ->body('Spawn body odkazují na existující eventy a jejich classy jsou v types.xml.')
+            ->send();
+    }
+
     /**
      * Flags animals/ambient species registered in cfgenvironment.xml that have no matching
      * events.xml entry — a territory alone never spawns anything; events.xml is what actually
