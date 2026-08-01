@@ -10,6 +10,7 @@ class LogAnalysis extends Model
     protected $fillable = [
         'project_id', 'created_by', 'storage_path', 'findings',
         'total_lines', 'matched_lines', 'critical_count', 'warning_count',
+        'source_timestamp',
     ];
 
     protected function casts(): array
@@ -20,6 +21,7 @@ class LogAnalysis extends Model
             'matched_lines' => 'integer',
             'critical_count' => 'integer',
             'warning_count' => 'integer',
+            'source_timestamp' => 'datetime',
         ];
     }
 

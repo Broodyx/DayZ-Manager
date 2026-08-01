@@ -15,6 +15,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 use RuntimeException;
 
 class LogAnalyzer extends Page
@@ -147,12 +148,12 @@ class LogAnalyzer extends Page
         $this->history = LogAnalysis::query()
             ->where('created_by', auth()->id())
             ->when($this->projectId, fn ($query) => $query->where('project_id', $this->projectId))
-            ->latest()
+            ->orderByRaw('COALESCE(source_timestamp, created_at) DESC')
             ->limit(20)
             ->get()
             ->map(fn (LogAnalysis $item): array => [
                 'id' => $item->id,
-                'created_at' => $item->created_at->format('d.m.Y H:i'),
+                'created_at' => ($item->source_timestamp ?: $item->created_at)->format('d.m.Y H:i'),
                 'total_lines' => $item->total_lines,
                 'matched_lines' => $item->matched_lines,
                 'critical_count' => $item->critical_count,
@@ -184,6 +185,11 @@ class LogAnalyzer extends Page
     {
         $path = 'log-analyses/'.auth()->id().'/'.now()->format('Ymd-His').'-'.Str::random(8).'.log';
         Storage::disk('dayz')->put($path, $this->logContent);
+        $sourceTimestamp = $this->sourceTimestamp($this->logContent);
+
+        if ($sourceTimestamp && LogAnalysis::query()->where('project_id', $this->projectId)->where('created_by', auth()->id())->where('source_timestamp', $sourceTimestamp)->exists()) {
+            return;
+        }
 
         $counts = collect($result['findings'])->countBy('severity');
 
@@ -191,6 +197,7 @@ class LogAnalyzer extends Page
             'project_id' => $this->projectId,
             'created_by' => auth()->id(),
             'storage_path' => $path,
+            'source_timestamp' => $sourceTimestamp,
             'findings' => $result['findings'],
             'total_lines' => $result['totalLines'],
             'matched_lines' => $result['matchedLines'],
@@ -199,6 +206,23 @@ class LogAnalyzer extends Page
         ]);
 
         $this->loadHistory();
+    }
+
+    private function sourceTimestamp(string $content): ?Carbon
+    {
+        foreach (preg_split('/\R/', $content) ?: [] as $line) {
+            if (preg_match('/^(\d{2}:\d{2}:\d{2})/', $line, $match)) {
+                return Carbon::today()->setTimeFromTimeString($match[1]);
+            }
+            if (preg_match('/^(\w{3}, \d{1,2} \w{3} \d{4} \d{2}:\d{2}:\d{2})/', $line, $match)) {
+                try { return Carbon::createFromFormat('D, j M Y H:i:s', $match[1]); } catch (\Throwable) {}
+            }
+            if (preg_match('/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/', $line, $match)) {
+                try { return Carbon::createFromFormat('Y-m-d H:i:s', $match[1]); } catch (\Throwable) {}
+            }
+        }
+
+        return null;
     }
 
     public function loadFromHistory(int $id): void
