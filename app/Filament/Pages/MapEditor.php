@@ -168,14 +168,17 @@ class MapEditor extends Page
         $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
         $revisions = $project ? $this->latestRevisions($project) : collect();
         $filenameOf = fn ($revision): string => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
-        $environmentTargets = app(EnvironmentTargetCatalog::class)->targets($revisions, $filenameOf);
+        $hasEnvironmentFile = $revisions->contains(fn ($revision) => $filenameOf($revision) === 'cfgenvironment.xml');
+        $environmentTargets = $hasEnvironmentFile ? app(EnvironmentTargetCatalog::class)->targets($revisions, $filenameOf) : [];
         $registeredTerritoryFiles = collect($environmentTargets)->pluck('file')->map(fn ($file) => strtolower(basename((string) $file)))->all();
+        $unregisteredTerritoryFiles = [];
         foreach ($this->markers as $marker) {
             $parameters = $marker['parameters'] ?? [];
             if (($marker['type'] ?? '') === 'territory') {
                 $filename = strtolower((string) ($marker['filename'] ?? ''));
                 if (str_ends_with($filename, '_territories.xml')) {
-                    if ($registeredTerritoryFiles !== [] && ! in_array(basename($filename), $registeredTerritoryFiles, true)) {
+                    if ($hasEnvironmentFile && $registeredTerritoryFiles !== [] && ! in_array(basename($filename), $registeredTerritoryFiles, true) && ! in_array(basename($filename), $unregisteredTerritoryFiles, true)) {
+                        $unregisteredTerritoryFiles[] = basename($filename);
                         $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Territory soubor není registrovaný v cfgenvironment.xml', 'detail' => "{$marker['label']} se načítá z {$filename}, ale tento soubor není v aktuálním cfgenvironment.xml přiřazený žádnému druhu/behavioru.", 'action' => 'V cfgenvironment.xml přidejte <file path="env/..." /> a odpovídající <territory><file usable="..." /></territory>, nebo použijte správný registrovaný soubor.'];
                     }
                     $zone = (string) ($parameters['zone_type'] ?? '');
