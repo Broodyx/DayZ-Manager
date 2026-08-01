@@ -248,13 +248,13 @@
         @endif
         @if (count($spawnValidationWarnings))
             <div class="dz-map-alert">
-                <strong>Kontrola použitelnosti spawnů našla {{ count($spawnValidationWarnings) }} problémů.</strong>
+                <strong>Kontrola použitelnosti spawnů našla {{ collect($spawnValidationWarnings)->sum('occurrences') }} problémů.</strong>
                 <span>Tyto kontroly ověřují XML hodnoty. Vhodnost terénu a skutečné odmítnutí kandidáta potvrzuje až poslední RPT.</span>
                 <ul>
                     @foreach ($spawnValidationWarnings as $warning)
                         <li>
                             <div class="dz-map-alert-row">
-                                <span><strong>{{ $warning['title'] }}</strong> — {{ $warning['detail'] }}<br><small>Co udělat: {{ $warning['action'] }}</small></span>
+                                <span><strong>{{ $warning['occurrences'] > 1 ? $warning['occurrences'].'× ' : '' }}{{ $warning['title'] }}</strong> — {{ $warning['detail'] }}<br><small>Co udělat: {{ $warning['action'] }}</small></span>
                                 @if (!empty($warning['event_name']))
                                     <x-dz-confirm-button call="repairEventPopulation('{{ $warning['event_name'] }}')" label="Automaticky opravit event" saved-label="Opraveno" class="dz-secondary" />
                                 @elseif (!empty($warning['territory_file']))

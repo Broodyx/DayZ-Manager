@@ -221,6 +221,23 @@ class MapEditor extends Page
                 $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => "Event {$name} má neplatný rozsah", 'detail' => 'Minimum je vyšší než maximum.', 'action' => 'Opravte min/max v events.xml.'];
             }
         }
+
+        // A stock territory file can contain hundreds of identical zones. Keep the
+        // result actionable instead of rendering one banner row per zone.
+        $grouped = [];
+        foreach ($this->spawnValidationWarnings as $warning) {
+            $key = implode('|', [
+                (string) ($warning['severity'] ?? ''),
+                (string) ($warning['title'] ?? ''),
+                (string) ($warning['detail'] ?? ''),
+                (string) ($warning['action'] ?? ''),
+            ]);
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = $warning + ['occurrences' => 0];
+            }
+            $grouped[$key]['occurrences']++;
+        }
+        $this->spawnValidationWarnings = array_values($grouped);
     }
 
     public function repairEventPopulation(string $eventName, EventsXmlEditor $eventsEditor, ConfigurationRevisionEditor $revisionEditor): void
