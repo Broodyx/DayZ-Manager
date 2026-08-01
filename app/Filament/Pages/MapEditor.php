@@ -297,8 +297,13 @@ class MapEditor extends Page
         }
         $content = $document->saveXML();
         $saved = $revisionEditor->save($project, $revision, $content ?: '', ($remove ? 'Odstraněny' : 'Opraveny').' zóny bez povoleného spawnu: '.$filename, auth()->user());
-        $this->loadMarkers();
-        $this->loadSpawnValidationWarnings();
+        // Do not reload every map layer in the same Livewire request. Large stock
+        // territory files contain thousands of markers and made the repair button
+        // appear stuck even though the revision had already been saved.
+        $this->spawnValidationWarnings = collect($this->spawnValidationWarnings)
+            ->reject(fn (array $warning): bool => ($warning['territory_file'] ?? '') === $filename)
+            ->values()
+            ->all();
         Notification::make()->success()->title($remove ? 'Neaktivní zóny odstraněny' : 'Počet spawnů doplněn')->body(count($zones).'× zóna · revize #'.$saved->revision_number)->send();
     }
 
