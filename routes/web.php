@@ -143,6 +143,7 @@ Route::post('/admin/map-editor/points', function (
             foreach ($eventNode?->children->child ?? [] as $child) {
                 $classname = trim((string) ($child['type'] ?? ''));
                 if ($classname === '' || in_array(strtolower($classname), $defined, true)) continue;
+                if (array_key_exists('spawn_type_'.$classname, $parameters) && ! filter_var($parameters['spawn_type_'.$classname], FILTER_VALIDATE_BOOLEAN)) continue;
                 $typesContent = $typesEditor->add($typesContent, $classname, ['nominal'=>0, 'lifetime'=>1800, 'restock'=>0, 'min'=>0, 'quantmin'=>-1, 'quantmax'=>-1, 'cost'=>100], 'other');
                 $defined[] = strtolower($classname);
                 $typesAdded[] = $classname;

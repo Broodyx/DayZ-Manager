@@ -694,9 +694,21 @@
                         nodes.push(mkEl('details', {}, [mkEl('summary', {text:'Varianty / children ('+children.length+')'}), list]));
                     }
                     if (['vehicle', 'heli', 'convoy', 'dynamic', 'aerial'].includes(pendingButton?.dataset.point)) {
+                        if (children.length) {
+                            const spawnList = mkEl('div', {class:'dz-spawn-class-list'}, [
+                                mkEl('strong', {text:'Třídy, které tento event může spawnovat'}),
+                                mkEl('small', {text:'Tyto classnames pocházejí z events.xml/cfgeventgroups.xml. Zaškrtnuté třídy se při uložení doplní do types.xml.'}),
+                                ...children.map((child) => mkEl('label', {class:'dz-spawn-class-row'}, [
+                                    mkEl('input', {type:'checkbox', checked:'checked', 'data-parameter':'spawn_type_'+child.type}),
+                                    mkEl('code', {text:child.type}),
+                                    mkEl('span', {text:'min '+child.min+' · max '+child.max}),
+                                ])),
+                            ]);
+                            nodes.push(spawnList);
+                        }
                         const auto = mkEl('label', {class:'dz-auto-types'}, [
                             mkEl('input', {type:'checkbox', checked:'checked'}),
-                            mkEl('span', {}, [mkEl('strong', {text:'Automaticky doplnit spawnované třídy do types.xml'}), mkEl('small', {text:'Pouze ověří/zaeviduje třídy vozidla. Počet vozidel se nastavuje v events.xml.'})]),
+                            mkEl('span', {}, [mkEl('strong', {text:'Automaticky doplnit vybrané třídy do types.xml'}), mkEl('small', {text:'Zaeviduje vybrané classnames. Počet vozidel se nastavuje v events.xml.'})]),
                         ]);
                         auto.querySelector('input').dataset.parameter = 'auto_add_types';
                         nodes.push(mkEl('div', {class:'dz-related-editor-section'}, [auto]));
