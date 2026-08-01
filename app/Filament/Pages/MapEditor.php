@@ -165,11 +165,19 @@ class MapEditor extends Page
     public function loadSpawnValidationWarnings(): void
     {
         $this->spawnValidationWarnings = [];
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $revisions = $project ? $this->latestRevisions($project) : collect();
+        $filenameOf = fn ($revision): string => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
+        $environmentTargets = app(EnvironmentTargetCatalog::class)->targets($revisions, $filenameOf);
+        $registeredTerritoryFiles = collect($environmentTargets)->pluck('file')->map(fn ($file) => strtolower(basename((string) $file)))->all();
         foreach ($this->markers as $marker) {
             $parameters = $marker['parameters'] ?? [];
             if (($marker['type'] ?? '') === 'territory') {
                 $filename = strtolower((string) ($marker['filename'] ?? ''));
                 if (str_ends_with($filename, '_territories.xml')) {
+                    if ($registeredTerritoryFiles !== [] && ! in_array(basename($filename), $registeredTerritoryFiles, true)) {
+                        $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Territory soubor není registrovaný v cfgenvironment.xml', 'detail' => "{$marker['label']} se načítá z {$filename}, ale tento soubor není v aktuálním cfgenvironment.xml přiřazený žádnému druhu/behavioru.", 'action' => 'V cfgenvironment.xml přidejte <file path="env/..." /> a odpovídající <territory><file usable="..." /></territory>, nebo použijte správný registrovaný soubor.'];
+                    }
                     $zone = (string) ($parameters['zone_type'] ?? '');
                     $knownZones = $this->zoneTypeCatalog();
                     if (! in_array($zone, $knownZones, true) && ! str_contains($filename, 'zombie')) {
