@@ -224,6 +224,24 @@
                 </ul>
             </div>
         @endif
+        @if (count($animalTypeWarnings))
+            <div class="dz-map-alert">
+                <strong>{{ count($animalTypeWarnings) }} classname{{ count($animalTypeWarnings) > 1 ? 'ů' : '' }} z cfgenvironment.xml chybí v types.xml.</strong>
+                Central Economy potřebuje pro každou spawnovanou třídu záznam v types.xml, jinak zvíře nejde spořádaně sledovat/spawnovat, i když je teritorium i event v pořádku.
+                <ul>
+                    @foreach ($animalTypeWarnings as $warning)
+                        <li>
+                            <div class="dz-map-alert-row">
+                                <span><strong>{{ $warning['classname'] }}</strong> — chybí v types.xml (zvíře {{ $warning['territory'] }}).</span>
+                                <span class="dz-map-alert-actions">
+                                    <x-dz-confirm-button call="addAnimalTypeEntry('{{ $warning['classname'] }}')" label="Doplnit do types.xml" saved-label="Doplněno" class="dz-secondary" />
+                                </span>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         @if ($showAddEventModal)
             <div class="dz-point-modal">
                 <div class="dz-point-modal-card">
@@ -525,6 +543,21 @@
                 feedback.classList.toggle('error', isError);
                 feedback.hidden = false;
             };
+            // A 5xx means the request never actually reached the app (proxy/server/container
+            // issue) — the body is an HTML error page, not JSON, so .json() always fails for it.
+            // Surfacing that distinction beats the generic fallback, which reads like the save
+            // itself was rejected when actually nothing was ever processed.
+            const describeFetchError = async (response, fallback) => {
+                if (response.status >= 500) {
+                    return 'Server na chvíli neodpověděl (chyba ' + response.status + '). Zkus to prosím znovu; pokud se to opakuje, nejde o tuhle úpravu, ale o výpadek serveru.';
+                }
+                try {
+                    const data = await response.json();
+                    return data.message || fallback;
+                } catch {
+                    return fallback;
+                }
+            };
             const mkEl = (tag, props = {}, children = []) => {
                 const node = document.createElement(tag);
                 Object.entries(props).forEach(([key, value]) => {
@@ -731,7 +764,7 @@
                 const newX = Math.round(Number(modal.dataset.lng));
                 const newZ = Math.round(Number(modal.dataset.lat));
                 fetch('{{ route('map-editor.points.store') }}', { method: 'POST', headers: {'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'}, body: JSON.stringify({project_id: @js($projectId), type: button.dataset.point, label: chosen || label, target_filename: targetState.target, x: newX, z: newZ, parameters}) }).then(async (response) => {
-                    if (!response.ok) throw new Error((await response.json().catch(()=>({}))).message || 'Uložení bodu selhalo');
+                    if (!response.ok) throw new Error(await describeFetchError(response, 'Uložení bodu selhalo'));
                     // A freshly-touched layer is unchecked by default (only cfgplayerspawnpoints.xml
                     // starts on) — force it on after reload, otherwise the point that was just added
                     // exists in the file but never actually renders, looking like nothing happened.
@@ -879,7 +912,7 @@
                         if (!confirmed) return;
                     }
                 }
-                fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ,new_x:newX,new_z:newZ,parameters})}).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(()=>({}))).message || 'Bod se nepodařilo upravit.'); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
+                fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ,new_x:newX,new_z:newZ,parameters})}).then(async (r) => { if (!r.ok) throw new Error(await describeFetchError(r, 'Bod se nepodařilo upravit.')); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
             };
             const deleteConsequence = (filename) => {
                 if (filename === 'cfgplayerspawnpoints.xml') {
@@ -902,7 +935,7 @@
                     danger: true,
                 });
                 if (!confirmed) return;
-                fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ})}).then(async (r) => { if (!r.ok) throw new Error((await r.json().catch(()=>({}))).message || 'Bod se nepodařilo odstranit.'); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
+                fetch('{{ route('map-editor.points.delete') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ})}).then(async (r) => { if (!r.ok) throw new Error(await describeFetchError(r, 'Bod se nepodařilo odstranit.')); window.location.reload(); }).catch((error) => showFeedback(editModal, error.message));
             };
             const layerScopeData = @js($layerScopes);
             const cleanupModal = document.getElementById('dz-cleanup-modal');
@@ -954,8 +987,7 @@
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}', 'Accept': 'application/json' },
                         body: JSON.stringify({ project_id: @js($projectId), revision_id: cleanupTarget.revisionId, filename: cleanupTarget.filename, scopes: checked }),
                     });
-                    const result = await response.json().catch(() => ({}));
-                    if (!response.ok) throw new Error(result.message || 'Body se nepodařilo odstranit.');
+                    if (!response.ok) throw new Error(await describeFetchError(response, 'Body se nepodařilo odstranit.'));
                     window.location.reload();
                 } catch (error) {
                     showFeedback(cleanupModal, error.message);

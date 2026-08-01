@@ -19,8 +19,10 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\WithFileUploads;
 use RuntimeException;
+use Throwable;
 
 class MapEditor extends Page
 {
@@ -51,6 +53,7 @@ class MapEditor extends Page
     public array $spawnPointWarnings = [];
     public array $eventSpawnWarnings = [];
     public array $animalPopulationWarnings = [];
+    public array $animalTypeWarnings = [];
     public array $classnameOptions = [];
     public bool $showAddEventModal = false;
     public string $addEventName = '';
@@ -70,6 +73,13 @@ class MapEditor extends Page
 
     /** Priority order when a building's loot points span several categories. */
     private const CATEGORY_PRIORITY = ['weapons', 'explosives', 'medical', 'food', 'tools', 'clothes', 'containers', 'vehicles'];
+
+    /**
+     * Real vanilla Animal_* types.xml entries carry no population of their own — nominal/min/
+     * restock are all 0 because the live animal count is driven by events.xml, not the economy
+     * restock system. A generated entry mirrors that instead of guessing plausible-looking numbers.
+     */
+    private const ANIMAL_TYPE_DEFAULTS = ['nominal' => 0, 'lifetime' => 1800, 'restock' => 0, 'min' => 0, 'quantmin' => -1, 'quantmax' => -1, 'cost' => 100];
 
     public function mount(ClassnameCatalog $classnameCatalog): void
     {
@@ -97,6 +107,7 @@ class MapEditor extends Page
         $this->loadSpawnPointWarnings();
         $this->loadEventSpawnWarnings();
         $this->loadAnimalPopulationWarnings();
+        $this->loadAnimalTypeWarnings();
 
         $requestedEvent = trim((string) request()->string('open_event'));
         if ($requestedEvent !== '' && in_array($requestedEvent, $this->eventSpawnWarnings, true)) {
@@ -113,6 +124,7 @@ class MapEditor extends Page
         $this->loadSpawnPointWarnings();
         $this->loadEventSpawnWarnings();
         $this->loadAnimalPopulationWarnings();
+        $this->loadAnimalTypeWarnings();
     }
 
     /**
@@ -151,6 +163,101 @@ class MapEditor extends Page
                 $this->animalPopulationWarnings[] = ['territory' => $entry['name'], 'expected_event' => $expectedEvent];
             }
         }
+    }
+
+    /**
+     * Flags every classname a cfgenvironment.xml agent spawns (e.g. "Animal_CervusElaphus")
+     * that has no types.xml entry — the Central Economy needs a types.xml entry to track and
+     * persist anything it spawns, animals included, so a missing entry is another way an
+     * otherwise-correctly-configured animal never actually appears in game.
+     */
+    public function loadAnimalTypeWarnings(): void
+    {
+        $this->animalTypeWarnings = [];
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project) {
+            return;
+        }
+        $revisions = $this->latestRevisions($project);
+        $environmentRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfgenvironment.xml');
+        if (! $environmentRevision || ! Storage::disk('dayz')->exists($environmentRevision->storage_path)) {
+            return;
+        }
+
+        $typesRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'types.xml');
+        $definedTypes = [];
+        if ($typesRevision && Storage::disk('dayz')->exists($typesRevision->storage_path)) {
+            $definedTypes = collect(app(TypesXmlEditor::class)->entries(Storage::disk('dayz')->get($typesRevision->storage_path)))
+                ->pluck('name')->map(fn ($name) => strtolower($name))->all();
+        }
+
+        $environmentEditor = app(EnvironmentXmlEditor::class);
+        $environmentContent = Storage::disk('dayz')->get($environmentRevision->storage_path);
+        try {
+            $entries = $environmentEditor->entries($environmentContent);
+        } catch (Throwable) {
+            return;
+        }
+
+        $seen = [];
+        foreach ($entries as $entry) {
+            if ($entry['is_infected']) {
+                continue;
+            }
+            try {
+                $values = $environmentEditor->values($environmentContent, $entry['name']);
+            } catch (Throwable) {
+                continue;
+            }
+            foreach ($values['agents'] as $agent) {
+                foreach ($agent['spawns'] as $spawn) {
+                    $classname = trim((string) ($spawn['configName'] ?? ''));
+                    if ($classname === '' || isset($seen[$classname])) {
+                        continue;
+                    }
+                    $seen[$classname] = true;
+                    if (! in_array(strtolower($classname), $definedTypes, true)) {
+                        $this->animalTypeWarnings[] = ['territory' => $entry['name'], 'classname' => $classname];
+                    }
+                }
+            }
+        }
+    }
+
+    /** Generates a types.xml entry for an animal classname cfgenvironment.xml spawns but types.xml doesn't track yet. */
+    public function addAnimalTypeEntry(string $classname, TypesXmlEditor $typesEditor, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project) {
+            return;
+        }
+        $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'types.xml');
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            Notification::make()->danger()->title('types.xml nebyl nalezen.')->body('Nejprve nahrajte types.xml přes „Přidat mapový soubor“.')->send();
+
+            return;
+        }
+
+        try {
+            $updated = $typesEditor->add(
+                Storage::disk('dayz')->get($revision->storage_path),
+                $classname,
+                self::ANIMAL_TYPE_DEFAULTS,
+                'other',
+            );
+        } catch (ValidationException $exception) {
+            Notification::make()->danger()->title($exception->validator->errors()->first())->send();
+
+            return;
+        } catch (RuntimeException $exception) {
+            Notification::make()->danger()->title($exception->getMessage())->send();
+
+            return;
+        }
+
+        $saved = $revisionEditor->save($project, $revision, $updated, "Přidána položka {$classname} (zvíře z cfgenvironment.xml)", auth()->user());
+        $this->loadAnimalTypeWarnings();
+        Notification::make()->success()->title("Položka {$classname} přidána do types.xml")->body("Vznikla revize #{$saved->revision_number}.")->send();
     }
 
     /** Flags event names used in cfgeventspawns.xml that events.xml does not define. */

@@ -351,4 +351,77 @@ XML;
         $this->assertSame(1, $legend['weapons']['item_count']);
         $this->assertSame(1, $legend['food']['item_count']);
     }
+
+    private function seedTypes(Project $project, User $user, string $content): void
+    {
+        $this->seedFile($project, $user, 'types.xml', $content);
+    }
+
+    private const ENVIRONMENT_XML_WITH_AGENT = <<<'XML'
+<env><territories>
+    <file path="env/red_deer_territories.xml" />
+    <territory type="Herd" name="Deer" behavior="DZDeerGroupBeh">
+        <file usable="red_deer_territories" />
+        <agent type="Male" chance="1"><spawn configName="Animal_CervusElaphus" chance="1" /></agent>
+    </territory>
+</territories></env>
+XML;
+
+    public function test_animal_type_warning_flags_a_classname_missing_from_types_xml(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEnvironment($project, $user, self::ENVIRONMENT_XML_WITH_AGENT);
+        $this->seedTypes($project, $user, '<types><type name="AKM"><nominal>5</nominal></type></types>');
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadAnimalTypeWarnings')
+            ->assertSet('animalTypeWarnings', [
+                ['territory' => 'Deer', 'classname' => 'Animal_CervusElaphus'],
+            ]);
+    }
+
+    public function test_animal_type_warning_is_clear_when_the_classname_is_already_defined(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEnvironment($project, $user, self::ENVIRONMENT_XML_WITH_AGENT);
+        $this->seedTypes($project, $user, '<types><type name="Animal_CervusElaphus"><nominal>0</nominal></type></types>');
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadAnimalTypeWarnings')
+            ->assertSet('animalTypeWarnings', []);
+    }
+
+    public function test_adding_an_animal_type_entry_clears_the_warning_and_writes_expected_defaults(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEnvironment($project, $user, self::ENVIRONMENT_XML_WITH_AGENT);
+        $this->seedTypes($project, $user, '<types><type name="AKM"><nominal>5</nominal></type></types>');
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadAnimalTypeWarnings')
+            ->assertSet('animalTypeWarnings', [['territory' => 'Deer', 'classname' => 'Animal_CervusElaphus']])
+            ->call('addAnimalTypeEntry', 'Animal_CervusElaphus')
+            ->assertSet('animalTypeWarnings', []);
+
+        $latest = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename ?? '')) === 'types.xml');
+        $content = Storage::disk('dayz')->get($latest->storage_path);
+        $this->assertStringContainsString('name="Animal_CervusElaphus"', $content);
+        $this->assertMatchesRegularExpression('/Animal_CervusElaphus.*?<nominal>0<\/nominal>/s', $content);
+    }
 }
