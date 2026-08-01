@@ -260,7 +260,7 @@
                                 @elseif (!empty($warning['territory_file']))
                                     @if (!empty($warning['zero_population']))
                                         <x-dz-confirm-button call="repairZeroTerritoryPopulation('{{ $warning['territory_file'] }}')" label="Doplnit spawny (1–3)" saved-label="Opraveno" class="dz-secondary" />
-                                        <x-dz-confirm-button call="repairZeroTerritoryPopulation('{{ $warning['territory_file'] }}', true)" label="Smazat neaktivní zóny" saved-label="Odstraněno" class="dz-secondary" />
+                                        <x-dz-confirm-button call="removeZeroTerritoryPopulation('{{ $warning['territory_file'] }}')" label="Smazat neaktivní zóny" saved-label="Odstraněno" class="dz-secondary" />
                                     @else
                                         <a class="dz-secondary" href="{{ url('/admin/projects/'.$projectId.'/configuration?register_territory='.rawurlencode($warning['territory_file'])) }}">Otevřít průvodce registrací</a>
                                     @endif

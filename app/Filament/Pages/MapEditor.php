@@ -242,7 +242,17 @@ class MapEditor extends Page
         $this->spawnValidationWarnings = array_values($grouped);
     }
 
-    public function repairZeroTerritoryPopulation(string $territoryFile, bool $remove = false, ConfigurationRevisionEditor $revisionEditor): void
+    public function repairZeroTerritoryPopulation(string $territoryFile, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $this->changeZeroTerritoryPopulation($territoryFile, false, $revisionEditor);
+    }
+
+    public function removeZeroTerritoryPopulation(string $territoryFile, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $this->changeZeroTerritoryPopulation($territoryFile, true, $revisionEditor);
+    }
+
+    private function changeZeroTerritoryPopulation(string $territoryFile, bool $remove, ConfigurationRevisionEditor $revisionEditor): void
     {
         $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
         $filename = strtolower(basename($territoryFile));
