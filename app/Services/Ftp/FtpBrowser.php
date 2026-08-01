@@ -34,7 +34,7 @@ use RuntimeException;
 class FtpBrowser
 {
     /** Folder names DayZ/hosting panels normally create; anything else is flagged "atypické". */
-    private const KNOWN_FOLDER_NAMES = ['db', 'env', 'storage_1', 'storage_2', 'backup', 'data'];
+    private const KNOWN_FOLDER_NAMES = ['db', 'env', 'custom', 'storage_1', 'storage_2', 'backup', 'data'];
 
     public function filesystem(Project $project): Filesystem
     {
@@ -87,9 +87,9 @@ class FtpBrowser
             throw new RuntimeException('Adresář se nepodařilo načíst: '.$exception->getMessage(), previous: $exception);
         }
 
-        $entries = array_map(function (StorageAttributes $item): array {
+        $entries = array_map(function (StorageAttributes $item) use ($path): array {
             $name = basename($item->path());
-            $classification = $item->isDir() ? $this->classifyFolder($name) : $this->classifyFile($name);
+            $classification = $item->isDir() ? $this->classifyFolder($name) : $this->classifyFile($name, $path);
 
             return [
                 'name' => $name,
@@ -108,6 +108,50 @@ class FtpBrowser
         return $entries;
     }
 
+    /**
+     * Deep (recursive) listing of every file under $path, used by "import all" so nested
+     * folders like env/ and custom/ aren't silently skipped. Directories are excluded from
+     * the result — callers only need files to import.
+     *
+     * @return list<array{name: string, path: string, type: string, size: ?int, known: bool, category: ?string}>
+     */
+    public function listFilesRecursive(Project $project, string $path = ''): array
+    {
+        return $this->listFilesRecursiveOn($this->filesystem($project), $path);
+    }
+
+    /** @return list<array{name: string, path: string, type: string, size: ?int, known: bool, category: ?string}> */
+    public function listFilesRecursiveOn(Filesystem $filesystem, string $path = ''): array
+    {
+        try {
+            $listing = $filesystem->listContents($path, true)->toArray();
+        } catch (UnableToListContents $exception) {
+            throw new RuntimeException('Adresář se nepodařilo načíst: '.$exception->getMessage(), previous: $exception);
+        }
+
+        $entries = [];
+        foreach ($listing as $item) {
+            if (! $item instanceof StorageAttributes || $item->isDir()) {
+                continue;
+            }
+            $name = basename($item->path());
+            $folder = trim(dirname($item->path()), '.');
+            $classification = $this->classifyFile($name, $folder);
+            $entries[] = [
+                'name' => $name,
+                'path' => $item->path(),
+                'type' => 'file',
+                'size' => $item instanceof FileAttributes ? $item->fileSize() : null,
+                'known' => $classification['known'],
+                'category' => $classification['category'],
+            ];
+        }
+
+        usort($entries, fn (array $a, array $b): int => strnatcasecmp($a['path'], $b['path']));
+
+        return $entries;
+    }
+
     public function read(Project $project, string $path): string
     {
         return $this->readOn($this->filesystem($project), $path);
@@ -122,9 +166,20 @@ class FtpBrowser
         }
     }
 
-    /** @return array{known: bool, category: ?string} */
-    public function classifyFile(string $filename): array
+    /**
+     * $folder is the directory the file lives in (e.g. "custom"), used to recognise gear
+     * presets that don't follow the *spawn-gear*.json naming convention — any JSON file
+     * living directly in a custom/ folder is treated as a gear preset regardless of name,
+     * since real presets can be named anything (e.g. "startovni-vybava.json").
+     *
+     * @return array{known: bool, category: ?string}
+     */
+    public function classifyFile(string $filename, ?string $folder = null): array
     {
+        if ($folder !== null && strtolower(basename($folder)) === 'custom' && strtolower(pathinfo($filename, PATHINFO_EXTENSION)) === 'json') {
+            return ['known' => true, 'category' => 'gear'];
+        }
+
         $lower = strtolower($filename);
         foreach (app(ConfigurationCatalog::class)->filesByArea() as $area => $files) {
             foreach ($files as $file) {
@@ -175,8 +230,19 @@ class FtpBrowser
 
         try {
             $uploadedFile = new UploadedFile($tempPath, $filename, null, null, true);
+            $import = $importer->import($project, $uploadedFile, $user);
 
-            return $importer->import($project, $uploadedFile, $user);
+            // Symfony's UploadedFile always reduces the given client name to a basename (a hard
+            // security constraint, not configurable), so the subfolder can't be passed in above —
+            // reattach it here instead. ServerFileLayout relies on original_filename keeping the
+            // subfolder (e.g. "env/wolf_territories.xml", "custom/startovni-vybava.json") so a
+            // later FTP push/ZIP export puts the file back where it actually came from.
+            $originalName = ltrim($path, '/');
+            if ($originalName !== $filename) {
+                $import->forceFill(['original_filename' => $originalName])->save();
+            }
+
+            return $import;
         } finally {
             if (file_exists($tempPath)) {
                 unlink($tempPath);

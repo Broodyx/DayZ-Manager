@@ -160,7 +160,9 @@ class ProjectResource extends Resource
                 ),
             Tables\Columns\TextColumn::make('updated_at')->label('Poslední změna')->since()->dateTimeTooltip()->sortable(),
         ])
-            ->recordUrl(fn (Project $record): string => static::getUrl('configuration', ['record' => $record]))
+            ->recordUrl(fn (Project $record): string => $record->revisions()->exists()
+                ? \App\Filament\Pages\MapEditor::getUrl(['project' => $record->id])
+                : static::getUrl('configuration', ['record' => $record]))
             ->filters([
                 Tables\Filters\SelectFilter::make('platform')->label('Platforma')->options([
                     'playstation' => 'PlayStation', 'xbox' => 'Xbox', 'steam' => 'PC / Steam', 'unknown' => 'Neurčeno',

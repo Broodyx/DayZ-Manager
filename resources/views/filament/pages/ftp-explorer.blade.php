@@ -20,15 +20,14 @@
         @if ($connected)
             <div class="dz-flash-success"><strong>Připojeno.</strong> Cesta: <code>/{{ $currentPath }}</code></div>
 
-            @php $fileCountInFolder = collect($entries)->where('type', 'file')->count(); @endphp
             <div class="dz-log-actions" style="margin-bottom:.85rem" wire:loading.class="dz-ftp-busy" wire:target="importAllInFolder,importFile">
                 <button type="button" wire:click="up" class="dz-secondary" @disabled($currentPath === '') wire:loading.attr="disabled" wire:target="importAllInFolder,importFile">← O úroveň výš</button>
                 <button type="button" wire:click="loadDirectory" class="dz-secondary" wire:loading.attr="disabled" wire:target="importAllInFolder,importFile">Obnovit</button>
-                @if ($fileCountInFolder > 0)
+                @if (count($entries) > 0)
                     <button type="button" class="dz-action" wire:loading.attr="disabled" wire:target="importAllInFolder,importFile"
-                        x-on:click="dzConfirm('Importovat všech {{ $fileCountInFolder }} souborů z téhle složky jako nové konfigurační revize? Nesestupuje do podsložek.').then((ok) => { if (ok) $wire.importAllInFolder(); })">
-                        <span wire:loading.remove wire:target="importAllInFolder">Importovat všechny soubory v této složce ({{ $fileCountInFolder }})</span>
-                        <span wire:loading wire:target="importAllInFolder">⏳ Importuji {{ $fileCountInFolder }} souborů, chvíli vydrž…</span>
+                        x-on:click="dzConfirm('Importovat všechny podporované soubory z téhle složky i jejích podsložek (např. db/, env/, custom/) jako nové konfigurační revize?').then((ok) => { if (ok) $wire.importAllInFolder(); })">
+                        <span wire:loading.remove wire:target="importAllInFolder">Importovat vše z této složky (i podsložky)</span>
+                        <span wire:loading wire:target="importAllInFolder">⏳ Importuji, chvíli vydrž…</span>
                     </button>
                 @endif
             </div>

@@ -301,6 +301,13 @@
     .dz-danger { border:1px solid #8b4b43; border-radius:.35rem; background:#281614; color:#ffb3a8; padding:.4rem .6rem; cursor:pointer; }
     .dz-flash-success { padding:.85rem 1rem; margin:0 0 1rem; border-left:3px solid #91c52b; border-radius:.3rem; color:#dbeacb; background:rgba(145,197,43,.07); }
     .dz-flash-warning { padding:.85rem 1rem; margin:0 0 1rem; border-left:3px solid #d97738; border-radius:.3rem; color:#e8c8b3; background:rgba(217,119,56,.08); }
+    .dz-map-intro { margin:0 0 1rem; padding:.9rem 1rem 1rem; border:1px solid #34472d; border-radius:.5rem; background:#111a14; }
+    .dz-map-intro strong { color:#e7f7d2; font-size:.95rem; }
+    .dz-map-intro > p { margin:.3rem 0 .75rem; }
+    .dz-map-intro-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(11rem,1fr)); gap:.6rem; }
+    .dz-map-intro-card { padding:.65rem .75rem; border:1px solid #2c3d27; border-radius:.4rem; background:#0d150f; }
+    .dz-map-intro-card b { display:block; color:#d8f57b; font-size:.82rem; margin-bottom:.25rem; }
+    .dz-map-intro-card small { color:#9aa99b; font-size:.76rem; line-height:1.4; }
     .dz-map-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:.65rem; margin-bottom:.85rem; }
     .dz-eyebrow { color:#a9df42; font-size:.7rem; letter-spacing:.16em; font-weight:700; margin:0; }
     .dz-muted { color:#9aa99b; font-size:.9rem; }

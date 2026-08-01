@@ -2,7 +2,7 @@
 
 namespace App\Filament\Actions;
 
-use App\Filament\Resources\ProjectResource;
+use App\Filament\Pages\MapEditor;
 use App\Models\Project;
 use Filament\Tables\Actions\Action;
 
@@ -15,6 +15,6 @@ final class EditProjectConfigurationAction
             ->icon('heroicon-o-code-bracket')
             ->color('primary')
             ->visible(fn (Project $record): bool => $record->revisions()->exists())
-            ->url(fn (Project $record): string => ProjectResource::getUrl('configuration', ['record' => $record]));
+            ->url(fn (Project $record): string => MapEditor::getUrl(['project' => $record->id]));
     }
 }

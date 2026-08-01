@@ -26,11 +26,11 @@
             <span class="dz-workspace-platform">{{ strtoupper($project->platform === 'steam' ? 'PC / STEAM' : $project->platform) }}</span>
         </div>
         <nav aria-label="Navigace aktivního serveru">
-            <a href="{{ url('/admin/projects/'.$project->id.'/configuration') }}" @class(['active' => request()->routeIs('filament.admin.resources.projects.configuration')])>
-                <x-filament::icon icon="heroicon-o-adjustments-horizontal" /> Soubory a editory
-            </a>
             <a href="{{ url('/admin/map-editor?project='.$project->id) }}" @class(['active' => request()->routeIs('filament.admin.pages.map-editor')])>
                 <x-filament::icon icon="heroicon-o-map" /> Mapa
+            </a>
+            <a href="{{ url('/admin/projects/'.$project->id.'/configuration') }}" @class(['active' => request()->routeIs('filament.admin.resources.projects.configuration')])>
+                <x-filament::icon icon="heroicon-o-adjustments-horizontal" /> Soubory a editory
             </a>
             <a href="{{ url('/admin/configuration-wizard?project='.$project->id) }}">
                 <x-filament::icon icon="heroicon-o-list-bullet" /> Checklist

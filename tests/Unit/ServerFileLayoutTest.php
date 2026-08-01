@@ -44,4 +44,33 @@ class ServerFileLayoutTest extends TestCase
 
         $this->assertSame('db/types.xml.2', $layout->relativePathForMissionFolder('types.xml', null, 'types.xml.2'));
     }
+
+    public function test_unrecognised_file_keeps_its_original_custom_subfolder(): void
+    {
+        $layout = new ServerFileLayout;
+
+        $this->assertSame('custom/startovni-vybava.json', $layout->relativePathForMissionFolder('custom/startovni-vybava.json', null));
+        $this->assertSame(
+            'dayzOffline.chernarusplus/custom/startovni-vybava.json',
+            $layout->relativePathForMissionFolder('custom/startovni-vybava.json', 'dayzOffline.chernarusplus'),
+        );
+    }
+
+    public function test_subfolder_qualified_db_and_env_files_do_not_double_nest(): void
+    {
+        $layout = new ServerFileLayout;
+
+        $this->assertSame('db/types.xml', $layout->relativePathForMissionFolder('db/types.xml', null));
+        $this->assertSame('env/wolf_territories.xml', $layout->relativePathForMissionFolder('env/wolf_territories.xml', null));
+    }
+
+    public function test_display_name_dedup_suffix_keeps_the_original_custom_subfolder(): void
+    {
+        $layout = new ServerFileLayout;
+
+        $this->assertSame(
+            'custom/startovni-vybava.2.json',
+            $layout->relativePathForMissionFolder('custom/startovni-vybava.json', null, 'startovni-vybava.2.json'),
+        );
+    }
 }

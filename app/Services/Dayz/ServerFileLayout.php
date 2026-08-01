@@ -48,14 +48,22 @@ final class ServerFileLayout
     }
 
     /**
-     * $filename decides which folder the file belongs in; pass $displayName when the actual
-     * written name needs to differ (e.g. a ".2" suffix to dedupe) without changing that
-     * classification — "types.xml.2" should still resolve to db/, not root.
+     * $filename decides which folder the file belongs in — classification always looks at its
+     * basename, so a subfolder-qualified filename (e.g. "custom/startovni-vybava.json", as FTP
+     * imports now preserve) still classifies correctly instead of double-nesting. Files that
+     * don't match a known db/env/root rule keep whatever folder they were originally imported
+     * from (e.g. "custom/") instead of being flattened to the mission root.
+     *
+     * Pass $displayName when the actual written name needs to differ (e.g. a ".2" suffix to
+     * dedupe) without changing that classification — "types.xml.2" should still resolve to
+     * db/, not root; it's always a bare filename, never a path.
      */
     public function relativePathForMissionFolder(string $filename, ?string $missionFolder, ?string $displayName = null): string
     {
-        $lower = strtolower($filename);
-        $name = $displayName ?? $filename;
+        $filename = str_replace('\\', '/', $filename);
+        $basename = basename($filename);
+        $lower = strtolower($basename);
+        $name = $displayName ?? $basename;
 
         if (in_array($lower, self::PROFILE_ROOT_FILES, true) || str_starts_with($lower, 'dayzps-settings-')) {
             return $name;
@@ -64,9 +72,17 @@ final class ServerFileLayout
         $relative = match (true) {
             in_array($lower, self::DB_FILES, true) => 'db/'.$name,
             str_ends_with($lower, '_territories.xml') => 'env/'.$name,
-            default => $name,
+            default => $this->withOriginalFolder($filename, $name),
         };
 
         return $missionFolder ? $missionFolder.'/'.$relative : $relative;
+    }
+
+    /** Re-attaches the original subfolder (e.g. "custom/") a file was imported from, if any. */
+    private function withOriginalFolder(string $filename, string $name): string
+    {
+        $folder = dirname($filename);
+
+        return $folder !== '.' && $folder !== '' ? $folder.'/'.$name : $name;
     }
 }

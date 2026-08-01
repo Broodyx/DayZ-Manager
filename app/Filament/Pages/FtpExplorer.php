@@ -88,7 +88,7 @@ class FtpExplorer extends Page
     /** Extensions ConfigurationFileStorage actually accepts — kept in sync manually since that class has no public accessor. */
     private const IMPORTABLE_EXTENSIONS = ['xml', 'json', 'zip', 'cfg', 'txt', 'c'];
 
-    /** Imports every importable file listed in the current folder (not subfolders) in one go. */
+    /** Imports every importable file found under the current folder, including subfolders like env/ or custom/, in one go. */
     public function importAllInFolder(FtpBrowser $browser, ConfigurationImporter $importer): void
     {
         $this->lastImportSummary = null;
@@ -97,7 +97,25 @@ class FtpExplorer extends Page
             return;
         }
 
-        $allFiles = collect($this->entries)->where('type', 'file');
+        try {
+            $filesystem = $browser->filesystem($project);
+        } catch (Throwable $exception) {
+            $message = $this->readableExceptionMessage($exception);
+            $this->lastImportSummary = ['imported' => [], 'failed' => ['Připojení selhalo: '.$message]];
+            Notification::make()->danger()->title('Připojení selhalo')->body($message)->send();
+
+            return;
+        }
+
+        try {
+            $allFiles = collect($browser->listFilesRecursiveOn($filesystem, $this->currentPath));
+        } catch (Throwable $exception) {
+            $message = $this->readableExceptionMessage($exception);
+            $this->lastImportSummary = ['imported' => [], 'failed' => ['Načtení souborů selhalo: '.$message]];
+            Notification::make()->danger()->title('Načtení souborů selhalo')->body($message)->send();
+
+            return;
+        }
         if ($allFiles->isEmpty()) {
             return;
         }
@@ -109,21 +127,11 @@ class FtpExplorer extends Page
             fn (array $entry): bool => in_array(strtolower(pathinfo($entry['name'], PATHINFO_EXTENSION)), self::IMPORTABLE_EXTENSIONS, true)
         );
 
-        $failed = $skipped->map(fn (array $entry): string => $entry['name'].': nepodporovaná přípona, přeskočeno')->values()->all();
+        $failed = $skipped->map(fn (array $entry): string => $entry['path'].': nepodporovaná přípona, přeskočeno')->values()->all();
 
         if ($files->isEmpty()) {
             $this->lastImportSummary = ['imported' => [], 'failed' => $failed];
-            Notification::make()->danger()->title('Nic k importu')->body('Žádný soubor v této složce nemá podporovanou příponu.')->send();
-
-            return;
-        }
-
-        try {
-            $filesystem = $browser->filesystem($project);
-        } catch (Throwable $exception) {
-            $message = $this->readableExceptionMessage($exception);
-            $this->lastImportSummary = ['imported' => [], 'failed' => array_merge($failed, ['Připojení selhalo: '.$message])];
-            Notification::make()->danger()->title('Připojení selhalo')->body($message)->send();
+            Notification::make()->danger()->title('Nic k importu')->body('V této složce ani jejích podsložkách není žádný soubor s podporovanou příponou.')->send();
 
             return;
         }
@@ -140,7 +148,7 @@ class FtpExplorer extends Page
                 $import = $browser->importFileOn($filesystem, $project, $entry['path'], auth()->user(), $importer);
                 $importedNames[] = $import->original_filename;
             } catch (Throwable $exception) {
-                $failed[] = $entry['name'].': '.$this->readableExceptionMessage($exception);
+                $failed[] = $entry['path'].': '.$this->readableExceptionMessage($exception);
             }
         }
 
@@ -203,8 +211,10 @@ class FtpExplorer extends Page
      */
     private function withImportHistory(array $entries, Project $project): array
     {
+        // Imports of subfolder files (env/, custom/) now keep their folder in original_filename,
+        // so match on its basename — the entry list here only ever carries bare filenames.
         $latestByFilename = $project->imports
-            ->groupBy(fn ($import): string => strtolower($import->original_filename))
+            ->groupBy(fn ($import): string => strtolower(basename(str_replace('\\', '/', $import->original_filename))))
             ->map(fn ($group) => $group->sortByDesc('imported_at')->first());
 
         return array_map(function (array $entry) use ($latestByFilename): array {

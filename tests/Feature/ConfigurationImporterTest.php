@@ -223,7 +223,9 @@ class ConfigurationImporterTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/projects')
             ->assertOk()
-            ->assertSee("/admin/projects/{$project->id}/configuration", false)
+            // A project with files already lands on the map now (it's the project landing page);
+            // the file editor is still one click away via "Soubory a editory" inside the workspace.
+            ->assertSee("/admin/map-editor?project={$project->id}", false)
             ->assertDontSee('Importovat konfiguraci');
 
         $this->actingAs($user)

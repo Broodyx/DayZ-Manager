@@ -100,6 +100,18 @@
                 </div>
             </div>
         </div>
+        <div class="dz-map-intro">
+            <strong>Co tady můžeš upravovat</strong>
+            <p class="dz-muted">Klikni na mapu (podrž <code>Ctrl</code>) a vyber typ bodu — každá úprava vytvoří novou revizi, originál zůstane zachovaný.</p>
+            <div class="dz-map-intro-grid">
+                @foreach ($this->mapCategoryIntro() as $category)
+                    <div class="dz-map-intro-card">
+                        <b>{{ $category['label'] }}</b>
+                        <small>{{ $category['help'] }}</small>
+                    </div>
+                @endforeach
+            </div>
+        </div>
         <div class="dz-map-toolbar">
             <label class="dz-map-server-picker"><span>Server</span><select class="dz-map-select" aria-label="Server" onchange="window.location.href='{{ url('/admin/map-editor') }}?project='+this.value">
                 @foreach ($projects as $id => $name)

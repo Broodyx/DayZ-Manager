@@ -75,6 +75,10 @@ class FtpExplorerPageTest extends TestCase
                 ['name' => 'events.xml', 'path' => 'events.xml', 'type' => 'file', 'size' => 200, 'known' => true, 'category' => 'events'],
             ]);
             $mock->shouldReceive('filesystem')->once()->andReturn($fakeFilesystem);
+            $mock->shouldReceive('listFilesRecursiveOn')->once()->andReturn([
+                ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
+                ['name' => 'events.xml', 'path' => 'events.xml', 'type' => 'file', 'size' => 200, 'known' => true, 'category' => 'events'],
+            ]);
             $mock->shouldReceive('importFileOn')
                 ->with($fakeFilesystem, Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'types.xml', Mockery::any(), Mockery::any())
                 ->once()
@@ -111,6 +115,10 @@ class FtpExplorerPageTest extends TestCase
                 ['name' => 'broken.xml', 'path' => 'broken.xml', 'type' => 'file', 'size' => 100, 'known' => false, 'category' => null],
             ]);
             $mock->shouldReceive('filesystem')->once()->andReturn($fakeFilesystem);
+            $mock->shouldReceive('listFilesRecursiveOn')->once()->andReturn([
+                ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
+                ['name' => 'broken.xml', 'path' => 'broken.xml', 'type' => 'file', 'size' => 100, 'known' => false, 'category' => null],
+            ]);
             $mock->shouldReceive('importFileOn')
                 ->with($fakeFilesystem, Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'types.xml', Mockery::any(), Mockery::any())
                 ->once()
@@ -147,6 +155,10 @@ class FtpExplorerPageTest extends TestCase
                 ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
             ]);
             $mock->shouldReceive('filesystem')->once()->andReturn($fakeFilesystem);
+            $mock->shouldReceive('listFilesRecursiveOn')->once()->andReturn([
+                ['name' => 'areaflags.map', 'path' => 'areaflags.map', 'type' => 'file', 'size' => 81920, 'known' => false, 'category' => null],
+                ['name' => 'types.xml', 'path' => 'types.xml', 'type' => 'file', 'size' => 100, 'known' => true, 'category' => 'economy'],
+            ]);
             // areaflags.map must never even be read/imported — only types.xml should reach importFileOn.
             $mock->shouldReceive('importFileOn')
                 ->with($fakeFilesystem, Mockery::on(fn ($arg): bool => $arg instanceof Project && $arg->id === $project->id), 'types.xml', Mockery::any(), Mockery::any())

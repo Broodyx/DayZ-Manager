@@ -69,6 +69,19 @@ class MapEditor extends Page
     {
         $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
         $this->projectId = request()->integer('project') ?: array_key_first($this->projects);
+
+        // A project with nothing uploaded yet has nothing to plot — send it through the
+        // Checklist first, same guard EditConfiguration::mount() already applies, so the map
+        // works as the project landing page without ever showing a confusingly empty state.
+        if ($this->projectId) {
+            $project = $this->projectQuery()->find($this->projectId);
+            if ($project && ! $project->revisions()->exists()) {
+                $this->redirect(ConfigurationWizard::getUrl(['project' => $project->id]));
+
+                return;
+            }
+        }
+
         $this->showDenseLayers = request()->boolean('dense');
         $this->classnameOptions = $classnameCatalog->names();
         $this->loadMarkers();
@@ -796,6 +809,35 @@ class MapEditor extends Page
         $this->loadEventCatalog();
         $this->loadSpawnPointWarnings();
         $this->loadEventSpawnWarnings();
+    }
+
+    /**
+     * Short "what can I add here" legend shown by default on the map — pulls its description
+     * text straight from pointTypeCatalog()'s own `help` strings instead of duplicating them,
+     * so the legend can't drift out of sync with what the "Přidat bod" modal actually does.
+     *
+     * @return list<array{key:string,label:string,help:string}>
+     */
+    public function mapCategoryIntro(): array
+    {
+        $labels = [
+            'animal' => 'Zvířata',
+            'infected' => 'Nakažení',
+            'loot' => 'Loot',
+            'dynamic' => 'Eventy a vozidla',
+            'player' => 'Spawn hráčů',
+            'contaminated' => 'Kontaminace',
+            'territory' => 'Území / základny',
+        ];
+
+        return collect($labels)
+            ->map(fn (string $label, string $key): array => [
+                'key' => $key,
+                'label' => $label,
+                'help' => explode('.', (string) ($this->pointTypeCatalog[$key]['help'] ?? ''))[0] ?? '',
+            ])
+            ->values()
+            ->all();
     }
 
     public function getTitle(): string

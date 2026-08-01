@@ -47,13 +47,13 @@ class AdminPanelProvider extends PanelProvider
             ->label('Mapový editor')
             ->icon('heroicon-o-map')
             ->url(fn (): string => MapEditor::getUrl())
-            ->sort(3)
+            ->sort(2)
             ->group('Správa serveru');
         $serverItems[] = NavigationItem::make('configuration-wizard')
             ->label('Nastavit server')
             ->icon('heroicon-o-sparkles')
             ->url(fn (): string => ConfigurationWizard::getUrl())
-            ->sort(2)
+            ->sort(3)
             ->group('Správa serveru');
         $serverItems[] = NavigationItem::make('log-analyzer')
             ->label('Log analyzátor')

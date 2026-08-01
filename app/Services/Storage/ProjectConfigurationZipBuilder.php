@@ -55,13 +55,13 @@ final class ProjectConfigurationZipBuilder
                 continue;
             }
             $filename = $revision->configurationImport?->original_filename ?? basename($revision->storage_path);
-            $filename = basename(str_replace('\\', '/', $filename));
+            $filename = str_replace('\\', '/', $filename);
 
             $entryName = $this->layout->relativePathForMissionFolder($filename, $missionFolder);
             $suffix = 1;
             while (isset($usedNames[$entryName])) {
                 $suffix++;
-                $entryName = $this->layout->relativePathForMissionFolder($filename, $missionFolder, $filename.'.'.$suffix);
+                $entryName = $this->layout->relativePathForMissionFolder($filename, $missionFolder, basename($filename).'.'.$suffix);
             }
             $usedNames[$entryName] = true;
 
