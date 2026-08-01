@@ -31,12 +31,12 @@
                 <div id="dz-event-catalog" class="dz-event-catalog" hidden>
                     <label>Možnosti pro vybraný typ</label>
                     <select></select>
+                    <div class="dz-point-target-status"></div>
                     <input class="dz-point-name" placeholder="Vlastní název (volitelné)">
                     <div class="dz-point-fields"></div>
                     <small class="dz-point-help"></small>
                     <div class="dz-event-settings" hidden></div>
                     <div class="dz-related-files" hidden></div>
-                    <div class="dz-point-target-status"></div>
                     <p class="dz-map-feedback" hidden></p>
                     <button type="button" class="dz-point-confirm">Umístit bod a vytvořit revizi</button>
                 </div>
@@ -101,16 +101,11 @@
             </div>
         </div>
         <div class="dz-map-intro">
-            <strong>Co tady můžeš upravovat</strong>
-            <p class="dz-muted">Klikni na mapu (podrž <code>Ctrl</code>) a vyber typ bodu — každá úprava vytvoří novou revizi, originál zůstane zachovaný.</p>
-            <div class="dz-map-intro-grid">
-                @foreach ($this->mapCategoryIntro() as $category)
-                    <div class="dz-map-intro-card">
-                        <b>{{ $category['label'] }}</b>
-                        <small>{{ $category['help'] }}</small>
-                    </div>
-                @endforeach
-            </div>
+            <b>Co tady můžeš upravovat:</b>
+            @foreach ($this->mapCategoryIntro() as $category)
+                <span class="dz-map-intro-chip" title="{{ $category['help'] }}">{{ $category['label'] }}</span>
+            @endforeach
+            <small class="dz-muted">Klikni na mapu (<code>Ctrl</code>) a vyber typ.</small>
         </div>
         <div class="dz-map-toolbar">
             <label class="dz-map-server-picker"><span>Server</span><select class="dz-map-select" aria-label="Server" onchange="window.location.href='{{ url('/admin/map-editor') }}?project='+this.value">
@@ -128,6 +123,33 @@
                 </div>
             </details>
         </div>
+        @php $undeployedSources = collect($mapSources)->filter(fn ($source) => $source['uploaded'] && $source['undeployed'])->values(); @endphp
+        @if ($undeployedSources->count())
+            <div class="dz-map-alert">
+                <div class="dz-map-alert-row">
+                    <strong>{{ $undeployedSources->count() }} soubor{{ $undeployedSources->count() > 1 ? 'y' : '' }} není nahráno na server.</strong>
+                    @if ($hasFtpConnection)
+                        <button type="button" class="dz-action" x-on:click="dzConfirm('Nahrát všech {{ $undeployedSources->count() }} nenahraných souborů přímo na živý server přes FTP? Přepíše odpovídající soubory na serveru.').then((ok) => { if (ok) $wire.pushAllUndeployedToFtp(); })">Nahrát vše na FTP</button>
+                    @endif
+                </div>
+                <span>Tyto revize vznikly v editoru, ale ještě nebyly stažené ani nahrané na živý server.</span>
+                <ul>
+                    @foreach ($undeployedSources as $source)
+                        <li>
+                            <div class="dz-map-alert-row">
+                                <span><strong>{{ $source['filename'] }}</strong></span>
+                                <span class="dz-map-alert-actions">
+                                    @if ($hasFtpConnection)
+                                        <button type="button" class="dz-secondary" x-on:click="dzConfirm('Nahrát {{ $source['filename'] }} přímo na živý server přes FTP? Přepíše aktuální soubor na serveru.').then((ok) => { if (ok) $wire.pushSourceToFtp({{ $source['revision_id'] }}); })">Nahrát</button>
+                                    @endif
+                                    <a class="dz-secondary" href="{{ route('configuration-revision.download', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Stáhnout</a>
+                                </span>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         @if (count($spawnPointWarnings))
             <div class="dz-map-alert">
                 <strong>Chybí spawn body hráčů.</strong>
@@ -218,7 +240,7 @@
                     @foreach ($mapSources as $source)
                         @if ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0 && $source['loaded'])
                             <article class="dz-map-layer-card">
-                                <label><input class="map-layer-toggle" type="checkbox" @checked($source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
+                                <label><input class="map-layer-toggle" type="checkbox" @checked($source['filename'] === 'cfgplayerspawnpoints.xml' && $source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
                                 <p>{{ $source['description'] }}</p>
                                 <div class="dz-layer-actions">
                                     <a href="{{ url('/admin/projects/'.$projectId.'/configuration?revision='.$source['revision_id']) }}">Upravit</a>
@@ -226,6 +248,10 @@
                                     <button type="button" class="dz-source-raw"
                                         data-filename="{{ $source['filename'] }}"
                                         data-url="{{ route('configuration-revision.raw', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Raw data</button>
+                                    @if ($hasFtpConnection && $source['undeployed'])
+                                        <button type="button" class="dz-source-ftp"
+                                            x-on:click="dzConfirm('Nahrát {{ $source['filename'] }} přímo na živý server přes FTP? Přepíše aktuální soubor na serveru.').then((ok) => { if (ok) $wire.pushSourceToFtp({{ $source['revision_id'] }}); })">Nahrát na FTP</button>
+                                    @endif
                                     <label class="dz-layer-label-toggle"><input type="checkbox" class="map-layer-label-toggle" data-layer="{{ $source['filename'] }}"> Popisky</label>
                                 </div>
                                 @if (in_array($source['filename'], ['cfgeventspawns.xml', 'cfgplayerspawnpoints.xml'], true))
@@ -271,6 +297,10 @@
                                     <button type="button" class="dz-source-raw"
                                         data-filename="{{ $source['filename'] }}"
                                         data-url="{{ route('configuration-revision.raw', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Raw data</button>
+                                    @if ($hasFtpConnection && $source['undeployed'])
+                                        <button type="button" class="dz-source-ftp"
+                                            x-on:click="dzConfirm('Nahrát {{ $source['filename'] }} přímo na živý server přes FTP? Přepíše aktuální soubor na serveru.').then((ok) => { if (ok) $wire.pushSourceToFtp({{ $source['revision_id'] }}); })">Nahrát na FTP</button>
+                                    @endif
                                 </div>
                             </article>
                         @else
@@ -607,6 +637,7 @@
                         mkEl('strong', {}, ['Zapíše se do: ', mkEl('code', {text:target})]),
                         mkEl('span', {text:'Uložení vytvoří novou revizi tohoto souboru; původní revize zůstane zachována.'}),
                     );
+                    catalogRoot.querySelector('.dz-map-feedback').hidden = true;
                 } else {
                     const names = missing.length ? missing.join(', ') : (definition.target_label || 'požadovaná konfigurace');
                     status.className = 'dz-point-target-status missing';
@@ -616,6 +647,9 @@
                     ];
                     if (uploadUrl) nodes.push(mkEl('a', {href:uploadUrl, text:'Nahrát aktuální konfiguraci →'}));
                     status.replaceChildren(...nodes);
+                    if (selectedCatalogOption || (definition.options || []).length === 0) {
+                        showFeedback(catalogRoot, 'Chybí ' + names + ' — nejdřív ho nahraj, jinak se bod neuloží.');
+                    }
                 }
                 const confirm = catalogRoot.querySelector('.dz-point-confirm');
                 confirm.disabled = !available || (!selectedCatalogOption && (definition.options || []).length > 0);

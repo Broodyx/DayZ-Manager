@@ -301,13 +301,10 @@
     .dz-danger { border:1px solid #8b4b43; border-radius:.35rem; background:#281614; color:#ffb3a8; padding:.4rem .6rem; cursor:pointer; }
     .dz-flash-success { padding:.85rem 1rem; margin:0 0 1rem; border-left:3px solid #91c52b; border-radius:.3rem; color:#dbeacb; background:rgba(145,197,43,.07); }
     .dz-flash-warning { padding:.85rem 1rem; margin:0 0 1rem; border-left:3px solid #d97738; border-radius:.3rem; color:#e8c8b3; background:rgba(217,119,56,.08); }
-    .dz-map-intro { margin:0 0 1rem; padding:.9rem 1rem 1rem; border:1px solid #34472d; border-radius:.5rem; background:#111a14; }
-    .dz-map-intro strong { color:#e7f7d2; font-size:.95rem; }
-    .dz-map-intro > p { margin:.3rem 0 .75rem; }
-    .dz-map-intro-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(11rem,1fr)); gap:.6rem; }
-    .dz-map-intro-card { padding:.65rem .75rem; border:1px solid #2c3d27; border-radius:.4rem; background:#0d150f; }
-    .dz-map-intro-card b { display:block; color:#d8f57b; font-size:.82rem; margin-bottom:.25rem; }
-    .dz-map-intro-card small { color:#9aa99b; font-size:.76rem; line-height:1.4; }
+    .dz-map-intro { display:flex; flex-wrap:wrap; align-items:center; gap:.4rem; margin:0 0 .7rem; padding:.5rem .7rem; border:1px solid #34472d; border-radius:.45rem; background:#111a14; font-size:.78rem; }
+    .dz-map-intro > b { color:#e7f7d2; }
+    .dz-map-intro-chip { padding:.2rem .55rem; border:1px solid #3f5636; border-radius:1rem; background:#182417; color:#d8f57b; font-size:.72rem; font-weight:700; cursor:help; }
+    .dz-map-intro > small { margin-left:auto; color:#9aa99b; }
     .dz-map-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:.65rem; margin-bottom:.85rem; }
     .dz-eyebrow { color:#a9df42; font-size:.7rem; letter-spacing:.16em; font-weight:700; margin:0; }
     .dz-muted { color:#9aa99b; font-size:.9rem; }
@@ -521,6 +518,8 @@
     .dz-layer-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.3rem; width:100%; margin-top:.15rem; padding-top:.4rem; border-top:1px solid rgba(190,209,175,.12); }
     .dz-layer-actions a,.dz-layer-actions button { min-height:2rem; padding:.38rem .48rem; border:1px solid #42583a; border-radius:.35rem; color:#cddac8; background:#111914; font-size:.58rem; font-weight:800; line-height:1.1; text-decoration:none; cursor:pointer; white-space:nowrap; display:grid; place-items:center; text-align:center; }
     .dz-layer-actions a:hover,.dz-layer-actions button:hover { border-color:var(--dz-lime); color:#11180e; background:var(--dz-lime); }
+    .dz-source-ftp { border-color:#4a7a3a !important; color:#c9f2b0 !important; }
+    .dz-source-ftp:hover { border-color:#91c52b !important; background:#91c52b !important; color:#11180e !important; }
     .dz-layer-label-toggle { grid-column:1/-1; display:flex; align-items:center; gap:.4rem; margin-top:.1rem; color:#aab6a4; font-size:.66rem; font-weight:700; cursor:pointer; }
     .dz-layer-label-toggle input { accent-color:#b8ed55; cursor:pointer; }
     .dz-map-label { border:0 !important; box-shadow:none !important; background:transparent !important; padding:0 !important; color:#f0f8e8; font:800 .68rem/1.15 ui-monospace,monospace; text-shadow:0 1px 2px #000,0 0 4px #000; white-space:nowrap; }

@@ -2,12 +2,15 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\ConfigurationRevision;
 use App\Models\Project;
 use App\Services\Dayz\ClassnameCatalog;
 use App\Services\Dayz\EnvironmentTargetCatalog;
 use App\Services\Dayz\EventsXmlEditor;
 use App\Services\Dayz\MapConfigurationEditor;
 use App\Services\Dayz\MapConfigurationReader;
+use App\Services\Dayz\ServerFileLayout;
+use App\Services\Ftp\FtpBrowser;
 use App\Services\Import\ConfigurationImporter;
 use App\Services\Revision\ConfigurationRevisionEditor;
 use App\Services\Revision\TypesXmlEditor;
@@ -40,6 +43,7 @@ class MapEditor extends Page
     public array $pointTypeCatalog = [];
     public array $mapSources = [];
     public array $markerCounts = [];
+    public bool $hasFtpConnection = false;
     public array $loadedSources = [];
     public array $layerScopes = [];
     public bool $showDenseLayers = false;
@@ -264,6 +268,7 @@ class MapEditor extends Page
             '*_territories.xml' => ['Teritoria zvířat podle druhu.', true],
         ];
         $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $this->hasFtpConnection = (bool) $project?->hasFtpConnection();
         $revisions = $this->latestRevisions($project);
         $this->mapSources = [];
         foreach ($definitions as $filename => [$description, $plottable]) {
@@ -702,6 +707,7 @@ class MapEditor extends Page
             'uploaded' => $revision !== null,
             'revision_id' => $revision?->id,
             'revision_number' => $revision?->revision_number,
+            'undeployed' => $revision !== null && $revision->downloaded_at === null,
             'marker_count' => $this->markerCounts[$filename] ?? 0,
             'loaded' => (bool) ($this->loadedSources[$filename] ?? false),
             'color' => $this->colorFor($filename),
@@ -838,6 +844,82 @@ class MapEditor extends Page
             ])
             ->values()
             ->all();
+    }
+
+    /** Pushes a single map layer's current (undeployed) revision straight to the live server over FTP — same action EditConfiguration offers per file, surfaced here so a changed layer can go live without leaving the map. */
+    public function pushSourceToFtp(int $revisionId, FtpBrowser $browser, ServerFileLayout $layout): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project || ! $project->hasFtpConnection()) {
+            return;
+        }
+
+        $revision = $project->revisions()->with('configurationImport')->find($revisionId);
+        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            Notification::make()->danger()->title('Revize nebyla nalezena.')->send();
+
+            return;
+        }
+
+        try {
+            $filename = $this->pushRevisionToFtp($project, $revision, $browser, $layout);
+        } catch (RuntimeException $exception) {
+            Notification::make()->danger()->title('Nahrání na server selhalo')->body($exception->getMessage())->send();
+
+            return;
+        }
+
+        $this->loadMapSources();
+        Notification::make()->success()->title('Nahráno na server')->body($filename)->send();
+    }
+
+    /** Pushes every currently undeployed map layer (changed here but never pushed/downloaded) to the live server over FTP in one go. */
+    public function pushAllUndeployedToFtp(FtpBrowser $browser, ServerFileLayout $layout): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project || ! $project->hasFtpConnection()) {
+            return;
+        }
+
+        $revisionIds = collect($this->mapSources)
+            ->filter(fn (array $source): bool => $source['uploaded'] && $source['undeployed'])
+            ->pluck('revision_id');
+        if ($revisionIds->isEmpty()) {
+            return;
+        }
+
+        $uploaded = [];
+        $failed = [];
+        foreach ($revisionIds as $revisionId) {
+            $revision = $project->revisions()->with('configurationImport')->find($revisionId);
+            if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+                continue;
+            }
+            try {
+                $uploaded[] = $this->pushRevisionToFtp($project, $revision, $browser, $layout);
+            } catch (RuntimeException $exception) {
+                $failed[] = ($revision->configurationImport?->original_filename ?? basename($revision->storage_path)).': '.$exception->getMessage();
+            }
+        }
+
+        $this->loadMapSources();
+        if ($uploaded !== []) {
+            Notification::make()->success()->title(count($uploaded).'× nahráno na server')->body(implode(', ', $uploaded))->send();
+        }
+        if ($failed !== []) {
+            Notification::make()->danger()->title(count($failed).'× se nepodařilo nahrát')->body(implode(' | ', $failed))->send();
+        }
+    }
+
+    /** @throws RuntimeException */
+    private function pushRevisionToFtp(Project $project, ConfigurationRevision $revision, FtpBrowser $browser, ServerFileLayout $layout): string
+    {
+        $filename = $revision->configurationImport?->original_filename ?? basename($revision->storage_path);
+        $path = $layout->relativePath($filename, $project);
+        $browser->write($project, $path, Storage::disk('dayz')->get($revision->storage_path));
+        $revision->forceFill(['downloaded_at' => now()])->save();
+
+        return $filename;
     }
 
     public function getTitle(): string

@@ -70,7 +70,11 @@ final class MapConfigurationEditor
                 $eventName = substr($scope, 6);
                 foreach ($xpath->query('/eventposdef/event') ?: [] as $event) {
                     if ($event instanceof DOMElement && hash_equals($event->getAttribute('name'), $eventName)) {
-                        return iterator_to_array($xpath->query('./pos', $event) ?: []);
+                        $positions = iterator_to_array($xpath->query('./pos', $event) ?: []);
+                        // A bare "<event name=".."/>" with no <pos> children has no positions to
+                        // strip — it's just the orphaned reference itself, so remove that instead
+                        // of reporting "nothing found" for something that's visibly still there.
+                        return $positions !== [] ? $positions : [$event];
                     }
                 }
             }

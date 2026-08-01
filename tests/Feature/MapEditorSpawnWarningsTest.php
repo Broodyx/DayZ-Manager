@@ -179,6 +179,29 @@ XML);
         $this->assertStringNotContainsString('GhostEvent', Storage::disk('dayz')->get($latest->storage_path));
     }
 
+    public function test_removing_event_spawn_positions_deletes_a_bare_event_with_no_positions(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEvents($project, $user, '<events><event name="StaticHeliCrash"><nominal>1</nominal></event></events>');
+        // VehicleTransitBus has no <pos> children at all — just an orphaned reference.
+        $this->seedEventSpawns($project, $user, '<eventposdef><event name="StaticHeliCrash"><pos x="1" z="2" a="0"/></event><event name="VehicleTransitBus"/></eventposdef>');
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadEventCatalog')
+            ->call('loadEventSpawnWarnings')
+            ->assertSet('eventSpawnWarnings', ['VehicleTransitBus'])
+            ->call('removeEventSpawnPositions', 'VehicleTransitBus')
+            ->assertSet('eventSpawnWarnings', []);
+
+        $latest = $project->revisions()->orderByDesc('revision_number')->first();
+        $this->assertStringNotContainsString('VehicleTransitBus', Storage::disk('dayz')->get($latest->storage_path));
+    }
+
     public function test_open_event_query_parameter_opens_the_add_event_modal(): void
     {
         Storage::fake('dayz');

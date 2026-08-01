@@ -46,7 +46,17 @@ class AdminPanelProvider extends PanelProvider
         $serverItems[] = NavigationItem::make('map-editor')
             ->label('Mapový editor')
             ->icon('heroicon-o-map')
-            ->url(fn (): string => MapEditor::getUrl())
+            // Without an explicit ?project=, the workspace tab strip above the page can't tell
+            // a project is active (it reads the query string, not the Livewire component's own
+            // default-first-project fallback) and silently doesn't render — so this always
+            // points at a concrete project, the same "most recently touched" one the dashboard
+            // highlights as the active server.
+            ->url(fn (): string => MapEditor::getUrl(array_filter([
+                'project' => \App\Models\Project::query()
+                    ->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))
+                    ->latest('updated_at')
+                    ->value('id'),
+            ])))
             ->sort(2)
             ->group('Správa serveru');
         $serverItems[] = NavigationItem::make('configuration-wizard')
