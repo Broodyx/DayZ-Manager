@@ -54,6 +54,8 @@ Route::post('/admin/map-editor/points', function (
     $parameters = $data['parameters'] ?? [];
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $eventTypes = ['vehicle','dynamic','heli','convoy','aerial'];
+    $eventBacked = [...$eventTypes, 'animal'];
+    $eventName = $data['type'] === 'animal' ? 'Animal'.$data['label'] : $data['label'];
     $filename = strtolower(basename($data['target_filename']));
     $revisions = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get();
     $filenameOf = fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
@@ -73,7 +75,7 @@ Route::post('/admin/map-editor/points', function (
     abort_unless($validTarget, 422, 'Zvolený typ nelze bezpečně zapsat do požadovaného souboru.');
     $source = $revisions->first(fn ($revision) => $filenameOf($revision) === $filename);
     abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422, "Nejprve importujte {$filename}.");
-    if (in_array($data['type'], $eventTypes, true)) {
+    if (in_array($data['type'], $eventBacked, true)) {
         $eventsRevision = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
             ->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? ''))) === 'events.xml');
         abort_unless($eventsRevision && Storage::disk('dayz')->exists($eventsRevision->storage_path), 422, 'Nejprve importujte aktuální events.xml.');
@@ -82,7 +84,7 @@ Route::post('/admin/map-editor/points', function (
         foreach ($eventsXml?->event ?? [] as $event) {
             $eventNames[] = (string) ($event['name'] ?? '');
         }
-        abort_unless(in_array($data['label'], $eventNames, true), 422, 'Vybraný event v aktuálním events.xml neexistuje.');
+        abort_unless(in_array($eventName, $eventNames, true), 422, 'Odpovídající event '.$eventName.' v aktuálním events.xml neexistuje.');
     }
     if ($data['type'] === 'loot') {
         $prototype = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
@@ -108,12 +110,12 @@ Route::post('/admin/map-editor/points', function (
         abort(422, $exception->getMessage());
     }
     $saved = $editor->save($project, $source, $content, 'Přidán mapový bod '.$data['label'], auth()->user());
-    if (in_array($data['type'], $eventTypes, true) && array_key_exists('event_nominal', $parameters)) {
+    if (in_array($data['type'], $eventBacked, true) && array_key_exists('event_nominal', $parameters)) {
         $eventsRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'events.xml');
         if ($eventsRevision && Storage::disk('dayz')->exists($eventsRevision->storage_path)) {
             $eventValues = collect($parameters)->filter(fn ($value, $key) => str_starts_with((string) $key, 'event_'))->mapWithKeys(fn ($value, $key) => [substr($key, 6) => $value])->all();
-            $eventContent = $eventsEditor->update(Storage::disk('dayz')->get($eventsRevision->storage_path), $data['label'], $eventValues);
-            $editor->save($project, $eventsRevision, $eventContent, 'Upraven event '.$data['label'].' při přidání mapového bodu', auth()->user());
+            $eventContent = $eventsEditor->update(Storage::disk('dayz')->get($eventsRevision->storage_path), $eventName, $eventValues);
+            $editor->save($project, $eventsRevision, $eventContent, 'Upraven event '.$eventName.' při přidání mapového bodu', auth()->user());
         }
     }
     $typesAdded = [];

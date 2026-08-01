@@ -654,6 +654,9 @@ class MapEditor extends Page
                 'target' => $item['file'],
                 'available' => isset($uploaded[$item['file']]),
                 'upload_url' => $uploadUrl($item['file']),
+                'event_name' => 'Animal'.$item['name'],
+                'event_settings' => collect($this->eventCatalog)->first(fn (array $event): bool => strtolower($event['name']) === strtolower('Animal'.$item['name']))['settings'] ?? [],
+                'children' => collect($this->eventCatalog)->first(fn (array $event): bool => strtolower($event['name']) === strtolower('Animal'.$item['name']))['children'] ?? [],
             ])->values()->all();
         $infectedOptions = collect($environmentTargets)
             ->filter(fn (array $item) => $item['is_infected'])
