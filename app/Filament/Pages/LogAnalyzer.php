@@ -6,6 +6,7 @@ use App\Models\ConfigurationRevision;
 use App\Models\LogAnalysis;
 use App\Models\Project;
 use App\Services\Dayz\MapConfigurationEditor;
+use App\Services\Dayz\ServerFileLayout;
 use App\Services\Dayz\ServerLogAnalyzer;
 use App\Services\Ftp\FtpBrowser;
 use App\Services\Revision\ConfigurationRevisionEditor;
@@ -315,6 +316,32 @@ class LogAnalyzer extends Page
             auth()->user(),
         );
         Notification::make()->success()->title("Pozice eventu {$eventName} odstraněny")->body("Vznikla revize #{$saved->revision_number}.")->send();
+    }
+
+    public function deployLatestConfiguration(string $filename, FtpBrowser $browser, ServerFileLayout $layout): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $revision = $this->latestRevisionByFilename($filename);
+        if (! $project || ! $revision || ! $project->hasFtpConnection() || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            Notification::make()->danger()->title('Opravu se nepodařilo nahrát')->body('Chybí FTP připojení nebo aktuální revize.')->send();
+
+            return;
+        }
+        try {
+            $path = $layout->relativePath($filename, $project);
+            $browser->write($project, $path, Storage::disk('dayz')->get($revision->storage_path));
+            $revision->forceFill(['downloaded_at' => now()])->save();
+            Notification::make()->success()->title('Oprava nahrána na server')->body($filename.' → '.$path)->send();
+        } catch (RuntimeException $exception) {
+            Notification::make()->danger()->title('Nahrání opravy selhalo')->body($exception->getMessage())->send();
+        }
+    }
+
+    public function latestConfigurationNeedsDeployment(string $filename): bool
+    {
+        $revision = $this->latestRevisionByFilename($filename);
+
+        return $revision !== null && $revision->downloaded_at === null;
     }
 
     private function latestRevisionByFilename(string $filename): ?ConfigurationRevision

@@ -103,6 +103,9 @@
                                         @if ($projectId)
                                             @php $removeOrphanConfirm = "Bezpečná oprava: odstranit pozice eventu '{$finding['target']}' z cfgeventspawns.xml, protože event v events.xml neexistuje (tyto pozice teď stejně nic nedělají). Vytvoří se nová revize. Opravdu pokračovat?"; @endphp
                                             <button type="button" class="dz-danger" x-on:click="dzConfirm(@js($removeOrphanConfirm)).then((ok) => { if (ok) $wire.removeOrphanEventSpawn(@js($finding['target'])); })">Bezpečně odstranit orphan pozice</button>
+                                            @if ($this->latestConfigurationNeedsDeployment('cfgeventspawns.xml'))
+                                                <button type="button" class="dz-secondary" wire:click="deployLatestConfiguration('cfgeventspawns.xml')">Nahrát opravu na server</button>
+                                            @endif
                                         @endif
                                     @elseif ($finding['link'] === 'map-editor')
                                         <a class="dz-secondary" href="{{ $this->mapEditorUrl() }}">Otevřít Mapový editor →</a>
@@ -111,6 +114,9 @@
                                         @if ($projectId)
                                             @php $removeTypeLogConfirm = "Bezpečná oprava: odebrat položku '{$finding['target']}' z types.xml. Hra ji stejně už teď nespawnuje, takže se chování serveru nezmění — jen zmizí tahle chyba z logu. Vytvoří se nová revize. Opravdu pokračovat?"; @endphp
                                             <button type="button" class="dz-danger" x-on:click="dzConfirm(@js($removeTypeLogConfirm)).then((ok) => { if (ok) $wire.removeTypeEntry(@js($finding['target'])); })">Bezpečně odebrat z types.xml</button>
+                                            @if ($this->latestConfigurationNeedsDeployment('types.xml'))
+                                                <button type="button" class="dz-secondary" wire:click="deployLatestConfiguration('types.xml')">Nahrát opravu na server</button>
+                                            @endif
                                         @endif
                                     @endif
                                 </div>
