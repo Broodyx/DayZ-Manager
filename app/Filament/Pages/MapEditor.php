@@ -766,6 +766,10 @@ class MapEditor extends Page
         $eventsBy = fn ($callback) => collect($this->eventCatalog)->filter($callback)->values();
         $eventFields = [
             ['name' => 'orientation', 'label' => 'Natočení objektu (°)', 'type' => 'number', 'min' => 0, 'max' => 359.999, 'step' => 0.001, 'default' => 0, 'required' => true, 'help' => 'Povinné. 0° míří na sever; hodnota určuje natočení kandidátní pozice.'],
+            ['name' => 'damage_min', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Minimální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => '0 = 100% funkční, 1 = zničené. Rozsah určuje náhodné poškození.'],
+            ['name' => 'damage_max', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Maximální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => 'Nastav 0–0 pro vždy plně funkční auto; například 0.4–0.8 znamená náhodné poškození 40–80 %.'],
+            ['name' => 'cargo_preset', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Cargo preset', 'type' => 'text', 'default' => '', 'help' => 'Volitelný preset nákladu, například mixHunter.'],
+            ['name' => 'attachments', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Attachmenty', 'type' => 'text', 'default' => '', 'help' => 'Volitelně oddělené čárkou, například SparkPlug,CarRadiator,CarBattery.'],
         ];
         $playerFields = [
             ['name' => 'spawn_mode', 'section' => 'Bod a skupina', 'label' => 'Režim spawnu', 'type' => 'select', 'default' => 'fresh', 'options' => [

@@ -154,7 +154,7 @@ Route::post('/admin/map-editor/points', function (
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'types_added'=>$typesAdded]);
 })->middleware('auth')->name('map-editor.points.store');
 
-Route::post('/admin/map-editor/points/update', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor) {
+Route::post('/admin/map-editor/points/update', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor, \App\Services\Revision\SpawnableTypesXmlEditor $spawnableEditor) {
     $data = $request->validate([
         'project_id'=>'required|integer','revision_id'=>'required|integer','filename'=>'required|string','path'=>'required|string|max:1000',
         'x'=>'required|numeric','z'=>'required|numeric','new_x'=>'required|numeric|min:0|max:15360','new_z'=>'required|numeric|min:0|max:15360',
@@ -170,6 +170,7 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         'parameters.enablegroups'=>'nullable|in:true,false','parameters.groups_as_regular'=>'nullable|in:true,false',
         'parameters.lifetime'=>'nullable|integer|min:-1','parameters.counter'=>'nullable|integer|min:-1',
         'parameters.orientation'=>'nullable|numeric|min:0|max:359.999',
+        'parameters.damage_min'=>'nullable|numeric|min:0|max:1','parameters.damage_max'=>'nullable|numeric|min:0|max:1','parameters.cargo_preset'=>'nullable|string|max:80','parameters.attachments'=>'nullable|string|max:2000',
         'parameters.pos_y'=>'nullable|numeric|min:-1000|max:5000',
         'parameters.pitch'=>'nullable|numeric|min:-360|max:360','parameters.yaw'=>'nullable|numeric|min:-360|max:360','parameters.roll'=>'nullable|numeric|min:-360|max:360',
         'parameters.zone_type'=>'nullable|string|max:60|regex:/^[A-Za-z0-9_.-]+$/','parameters.radius'=>'nullable|numeric|min:1|max:5000',
@@ -187,6 +188,19 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         abort(422, $exception->getMessage());
     }
     $saved = $editor->save($project, $source, $content, 'Upraven mapový bod X/Z', auth()->user());
+    if ($filename === 'cfgeventspawns.xml' && (array_key_exists('damage_min', $data['parameters'] ?? []) || array_key_exists('damage_max', $data['parameters'] ?? []) || array_key_exists('cargo_preset', $data['parameters'] ?? []) || array_key_exists('attachments', $data['parameters'] ?? []))) {
+        $spawnableRevision = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'cfgspawnabletypes.xml');
+        abort_unless($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path), 422, 'Nejprve importujte aktuální cfgspawnabletypes.xml.');
+        $parameters = $data['parameters'] ?? [];
+        $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
+        $spawnableContent = $spawnableEditor->update(Storage::disk('dayz')->get($spawnableRevision->storage_path), $data['label'], [
+            'damage_min' => $parameters['damage_min'] ?? 0,
+            'damage_max' => $parameters['damage_max'] ?? 0,
+            'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
+            'cargo' => trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : [],
+        ]);
+        $editor->save($project, $spawnableRevision, $spawnableContent, 'Upraveno nastavení vozidla '.$data['label'], auth()->user());
+    }
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number]);
 })->middleware('auth')->name('map-editor.points.update');
 
