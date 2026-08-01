@@ -103,6 +103,44 @@ class LogAnalyzer extends Page
         Notification::make()->success()->title('Log načten z FTP')->body(basename($path))->send();
     }
 
+    /** Loads and analyzes the newest server log in one action. */
+    public function analyzeLatestFtpLog(FtpBrowser $browser, ServerLogAnalyzer $analyzer): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        if (! $project || ! $project->hasFtpLogConnection()) {
+            Notification::make()->danger()->title('FTP cesta k logům není nastavená')->body('Doplň ji v Nastavení serveru.')->send();
+
+            return;
+        }
+
+        try {
+            $files = $browser->listLogFiles($project);
+            $latest = $files[0] ?? null;
+            if (! $latest) {
+                throw new RuntimeException('Ve složce nejsou žádné .RPT, .ADM ani .log soubory.');
+            }
+            $this->logContent = $browser->readLogFile($project, $latest['path']);
+        } catch (RuntimeException $exception) {
+            Notification::make()->danger()->title('Nejnovější log se nepodařilo načíst')->body($exception->getMessage())->send();
+
+            return;
+        }
+
+        $this->analyzed = true;
+        $this->viewingHistoryId = null;
+        $result = $analyzer->analyze($this->logContent);
+        $this->findings = $result['findings'];
+        $this->totalLines = $result['totalLines'];
+        $this->matchedLines = $result['matchedLines'];
+        $this->saveHistory($result);
+
+        Notification::make()
+            ->success()
+            ->title('Kontrola posledního restartu dokončena')
+            ->body($latest['name'].' · '.count($this->findings).' nálezů')
+            ->send();
+    }
+
     public function loadHistory(): void
     {
         $this->history = LogAnalysis::query()

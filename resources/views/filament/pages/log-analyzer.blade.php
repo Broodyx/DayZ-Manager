@@ -35,6 +35,10 @@
         @if ($this->currentProjectHasFtpLogConnection())
             <div class="dz-log-ftp">
                 <div class="dz-log-actions">
+                    <button type="button" wire:click="analyzeLatestFtpLog" wire:loading.attr="disabled" wire:target="analyzeLatestFtpLog" class="dz-action">
+                        <span wire:loading.remove wire:target="analyzeLatestFtpLog">Zkontrolovat poslední restart z FTP</span>
+                        <span wire:loading wire:target="analyzeLatestFtpLog">Načítám a kontroluji…</span>
+                    </button>
                     <button type="button" wire:click="loadFtpLogFiles" wire:loading.attr="disabled" wire:target="loadFtpLogFiles" class="dz-secondary">Načíst seznam logů z FTP</button>
                     <span wire:loading wire:target="loadFtpLogFiles" class="dz-muted">Načítám…</span>
                 </div>
