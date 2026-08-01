@@ -1041,7 +1041,7 @@
             <section class="dz-panel dz-event-spawns-editor">
                 <div class="dz-panel-head">
                     <strong>Umístění eventů · cfgeventspawns.xml</strong>
-                    <p class="dz-muted text-sm mt-1">Každá sekce představuje jeden event a obsahuje jeho kandidátní světové pozice. <b>Název propojuje soubor s events.xml</b>; X/Z jsou souřadnice Chernarus a A je natočení.</p>
+                    <p class="dz-muted text-sm mt-1">Každá sekce představuje jeden event a obsahuje jeho kandidátní světové pozice. <b>Název propojuje soubor s events.xml</b>; X/Z jsou souřadnice Chernarus a A je natočení. U velkých souborů se zde kvůli výkonu zobrazí nejvýše prvních 200 pozic; ostatní zůstanou v XML zachované. Pro práci se všemi body použijte Mapový editor.</p>
                     <input wire:model.live.debounce.250ms="eventSpawnSearch" class="dz-search mt-3" placeholder="Hledat event, například StaticHeliCrash… (nejvýše 200 výsledků)">
                 </div>
                 <div class="dz-event-spawn-guide">

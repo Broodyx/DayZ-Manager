@@ -1711,6 +1711,12 @@ class EditConfiguration extends Page
                 if (! $position instanceof \DOMElement || $position->tagName !== 'pos') {
                     continue;
                 }
+                // cfgeventspawns.xml commonly contains thousands of positions.
+                // Keep the Livewire snapshot/browser responsive; saveXml updates
+                // only the displayed paths and leaves the rest of rawContent intact.
+                if (array_sum(array_map(fn (array $item): int => count($item['positions']), $result)) + count($positions) >= 200) {
+                    break 2;
+                }
                 $positionIndex++;
                 $base = "/eventposdef[1]/event[{$eventIndex}]/pos[{$positionIndex}]";
                 $positions[] = ['x_path' => $base.'@x', 'z_path' => $base.'@z', 'a_path' => $base.'@a'];
