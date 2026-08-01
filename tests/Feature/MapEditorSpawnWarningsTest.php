@@ -401,6 +401,33 @@ XML;
             ->assertSet('animalTypeWarnings', []);
     }
 
+    /**
+     * The realistic case: a Herd species (like the real vanilla Deer) has no <agent> at all in
+     * cfgenvironment.xml — its classnames live in the matching events.xml event's <children>
+     * instead. This is the scenario an earlier version of loadAnimalTypeWarnings() silently
+     * missed entirely, since it only ever looked at cfgenvironment.xml's own agents.
+     */
+    public function test_animal_type_warning_checks_herd_classnames_from_the_matching_events_xml_children(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        // Deer has NO <agent> child here, matching the real vanilla cfgenvironment.xml shape.
+        $this->seedEnvironment($project, $user, '<env><territories><file path="env/red_deer_territories.xml" /><territory type="Herd" name="Deer" behavior="DZDeerGroupBeh"><file usable="red_deer_territories" /></territory></territories></env>');
+        $this->seedEvents($project, $user, '<events><event name="AnimalDeer"><nominal>9</nominal><min>2</min><max>4</max><limit>child</limit><active>1</active><children><child max="1" min="1" type="Animal_CervusElaphus"/><child max="3" min="1" type="Animal_CervusElaphusF"/></children></event></events>');
+        $this->seedTypes($project, $user, '<types><type name="Animal_CervusElaphus"><nominal>0</nominal></type></types>');
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadEventCatalog')
+            ->call('loadAnimalTypeWarnings')
+            ->assertSet('animalTypeWarnings', [
+                ['territory' => 'Deer', 'classname' => 'Animal_CervusElaphusF'],
+            ]);
+    }
+
     public function test_adding_an_animal_type_entry_clears_the_warning_and_writes_expected_defaults(): void
     {
         Storage::fake('dayz');

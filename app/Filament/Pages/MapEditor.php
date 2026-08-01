@@ -166,10 +166,17 @@ class MapEditor extends Page
     }
 
     /**
-     * Flags every classname a cfgenvironment.xml agent spawns (e.g. "Animal_CervusElaphus")
-     * that has no types.xml entry — the Central Economy needs a types.xml entry to track and
-     * persist anything it spawns, animals included, so a missing entry is another way an
-     * otherwise-correctly-configured animal never actually appears in game.
+     * Flags every classname an animal species actually spawns that has no types.xml entry —
+     * the Central Economy needs a types.xml entry to track and persist anything it spawns, so
+     * a missing entry is another way an otherwise-correctly-configured animal never appears.
+     *
+     * Where a species' classnames live differs by type, confirmed against a real vanilla
+     * cfgenvironment.xml/events.xml pair: Ambient/Infected species (hen, hare, fox, zombies)
+     * list them directly on cfgenvironment.xml's own <agent><spawn configName>. Herd species
+     * (deer, wolf, bear, …) have NO <agent> at all in cfgenvironment.xml — their classnames
+     * instead live in the matching events.xml event's <children><child type>, the same event
+     * loadAnimalPopulationWarnings() already looks for. Checking only cfgenvironment.xml's
+     * agents (as an earlier version of this method did) silently misses every Herd species.
      */
     public function loadAnimalTypeWarnings(): void
     {
@@ -199,26 +206,39 @@ class MapEditor extends Page
             return;
         }
 
+        $eventsByName = collect($this->eventCatalog)->keyBy(fn (array $event): string => strtolower($event['name']));
+
         $seen = [];
         foreach ($entries as $entry) {
             if ($entry['is_infected']) {
                 continue;
             }
+
+            $classnames = [];
             try {
                 $values = $environmentEditor->values($environmentContent, $entry['name']);
+                foreach ($values['agents'] as $agent) {
+                    foreach ($agent['spawns'] as $spawn) {
+                        $classnames[] = trim((string) ($spawn['configName'] ?? ''));
+                    }
+                }
             } catch (Throwable) {
-                continue;
+                // Fall through — the events.xml children below still get checked either way.
             }
-            foreach ($values['agents'] as $agent) {
-                foreach ($agent['spawns'] as $spawn) {
-                    $classname = trim((string) ($spawn['configName'] ?? ''));
-                    if ($classname === '' || isset($seen[$classname])) {
-                        continue;
-                    }
-                    $seen[$classname] = true;
-                    if (! in_array(strtolower($classname), $definedTypes, true)) {
-                        $this->animalTypeWarnings[] = ['territory' => $entry['name'], 'classname' => $classname];
-                    }
+
+            $expectedEvent = $entry['type'] === 'Ambient' ? $entry['name'] : 'Animal'.$entry['name'];
+            $event = $eventsByName->get(strtolower($expectedEvent));
+            foreach ($event['children'] ?? [] as $child) {
+                $classnames[] = trim((string) ($child['type'] ?? ''));
+            }
+
+            foreach (array_unique(array_filter($classnames, fn (string $name): bool => $name !== '')) as $classname) {
+                if (isset($seen[$classname])) {
+                    continue;
+                }
+                $seen[$classname] = true;
+                if (! in_array(strtolower($classname), $definedTypes, true)) {
+                    $this->animalTypeWarnings[] = ['territory' => $entry['name'], 'classname' => $classname];
                 }
             }
         }
