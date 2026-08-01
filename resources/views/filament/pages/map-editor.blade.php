@@ -890,7 +890,7 @@
                 const layers = layerGroups[marker.filename] ||= [];
                 const visualLayers = [];
                 if (marker.radius) {
-                    const area = L.circle([marker.worldZ, marker.worldX], { radius:Number(marker.radius), color, weight:1.5, fillColor:color, fillOpacity:.1 }).addTo(map);
+                    const area = L.circle([marker.worldZ, marker.worldX], { radius:Number(marker.radius), color, weight:1.5, fillColor:color, fillOpacity:.1, interactive:false }).addTo(map);
                     layers.push(area);
                     visualLayers.push({ layer:area, kind:'area' });
                 }
