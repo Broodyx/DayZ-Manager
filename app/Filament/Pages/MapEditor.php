@@ -202,6 +202,8 @@ class MapEditor extends Page
                         && (int) ($parameters['dmax'] ?? 0) === 0) {
                         $this->spawnValidationWarnings[] = [
                             'severity' => 'critical',
+                            'territory_file' => $filename,
+                            'zero_population' => true,
                             'title' => "{$marker['label']} nemá povolený počet zvířat",
                             'detail' => 'smax i dmax jsou 0. Territory se načte, ale hra v této zóně nemá povolený žádný statický ani dynamický spawn.',
                             'action' => 'Nastavte smax nebo dmax na hodnotu větší než 0; minima musí být nejvýše maximum.',
@@ -238,6 +240,56 @@ class MapEditor extends Page
             $grouped[$key]['occurrences']++;
         }
         $this->spawnValidationWarnings = array_values($grouped);
+    }
+
+    public function repairZeroTerritoryPopulation(string $territoryFile, bool $remove = false, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $filename = strtolower(basename($territoryFile));
+        $revision = $project ? $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === $filename) : null;
+        if (! $project || ! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
+            Notification::make()->danger()->title('Territory soubor nebyl nalezen')->body('Nejdřív nahrajte aktuální territory XML.')->send();
+            return;
+        }
+        $document = new \DOMDocument('1.0', 'UTF-8');
+        $document->preserveWhiteSpace = false;
+        $document->formatOutput = true;
+        if (! @$document->loadXML(Storage::disk('dayz')->get($revision->storage_path), LIBXML_NONET | LIBXML_COMPACT)) {
+            Notification::make()->danger()->title('Territory XML není validní')->send();
+            return;
+        }
+        $xpath = new \DOMXPath($document);
+        $zones = [];
+        foreach ($xpath->query('//*[local-name()="zone"]') ?: [] as $zone) {
+            if (! $zone instanceof \DOMElement) continue;
+            if ((int) ($zone->getAttribute('smax') ?: 0) !== 0 || (int) ($zone->getAttribute('dmax') ?: 0) !== 0) continue;
+            $zones[] = $zone;
+        }
+        if ($remove) {
+            foreach ($zones as $zone) {
+                $territory = $zone->parentNode;
+                $territory?->removeChild($zone);
+                if ($territory instanceof \DOMElement && $territory->childNodes->length === 0) $territory->parentNode?->removeChild($territory);
+            }
+        } else {
+            $max = 3;
+            $targets = app(EnvironmentTargetCatalog::class)->targets($this->latestRevisions($project), fn ($item) => $this->revisionFilename($item));
+            $target = collect($targets)->first(fn ($item) => strtolower((string) ($item['file'] ?? '')) === $filename);
+            $eventName = ($target['type'] ?? '') === 'Ambient' ? ($target['name'] ?? '') : 'Animal'.($target['name'] ?? '');
+            $event = collect($this->eventCatalog)->first(fn ($item) => strtolower((string) ($item['name'] ?? '')) === strtolower($eventName));
+            $max = max(1, min(3, (int) ($event['settings']['max'] ?? 3)));
+            foreach ($zones as $zone) {
+                $zone->setAttribute('smin', '1');
+                $zone->setAttribute('smax', (string) $max);
+                $zone->setAttribute('dmin', '1');
+                $zone->setAttribute('dmax', (string) $max);
+            }
+        }
+        $content = $document->saveXML();
+        $saved = $revisionEditor->save($project, $revision, $content ?: '', ($remove ? 'Odstraněny' : 'Opraveny').' zóny bez povoleného spawnu: '.$filename, auth()->user());
+        $this->loadMarkers();
+        $this->loadSpawnValidationWarnings();
+        Notification::make()->success()->title($remove ? 'Neaktivní zóny odstraněny' : 'Počet spawnů doplněn')->body(count($zones).'× zóna · revize #'.$saved->revision_number)->send();
     }
 
     public function repairEventPopulation(string $eventName, EventsXmlEditor $eventsEditor, ConfigurationRevisionEditor $revisionEditor): void
