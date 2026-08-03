@@ -187,6 +187,7 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
     $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
     $filename = strtolower(basename(str_replace('\\', '/', $data['filename'])));
     abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422);
+    abort_unless(strtolower(basename($source->configurationImport?->original_filename ?? '')) === $filename, 422, 'Vybraná revize nepatří k tomuto mapovému souboru. Obnovte Mapu a zkuste to znovu.');
     abort_if(str_ends_with(strtolower($data['filename']), '.json'), 422, 'JSON mapové body upravte ve vizuálním JSON editoru.');
     try {
         $content = $mapEditor->updateCoordinates($data['filename'], Storage::disk('dayz')->get($source->storage_path), $data['path'], (float) $data['new_x'], (float) $data['new_z'], $data['parameters'] ?? []);
@@ -216,7 +217,7 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         }
         $editor->save($project, $spawnableRevision, $spawnableContent, 'Upraveno nastavení vozidla '.$data['label'], auth()->user());
     }
-    return response()->json(['ok'=>true,'revision'=>$saved->revision_number]);
+    return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id]);
 })->middleware('auth')->name('map-editor.points.update');
 
 Route::post('/admin/map-editor/points/delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor) {
@@ -224,14 +225,15 @@ Route::post('/admin/map-editor/points/delete', function (Request $request, \App\
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
     abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422);
+    abort_unless(strtolower(basename($source->configurationImport?->original_filename ?? '')) === strtolower(basename($data['filename'])), 422, 'Vybraná revize nepatří k tomuto mapovému souboru. Obnovte Mapu a zkuste to znovu.');
     abort_if(str_ends_with(strtolower($data['filename']), '.json'), 422, 'JSON mapové body odstraňte ve vizuálním JSON editoru.');
     try {
         $content = $mapEditor->delete(Storage::disk('dayz')->get($source->storage_path), $data['path']);
     } catch (\RuntimeException $exception) {
         abort(422, $exception->getMessage());
     }
-    $editor->save($project, $source, $content, 'Odstraněn mapový bod', auth()->user());
-    return response()->json(['ok'=>true]);
+    $saved = $editor->save($project, $source, $content, 'Odstraněn mapový bod', auth()->user());
+    return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id]);
 })->middleware('auth')->name('map-editor.points.delete');
 
 Route::post('/admin/map-editor/points/bulk-delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor) {
