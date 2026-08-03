@@ -969,7 +969,7 @@
                     <div class="p-3">
                         @foreach (collect($jsonFields)->groupBy(fn ($field) => $field['group'] ?? $field['section']) as $section => $fields)
                             <details class="dz-group" @if ($loop->first) open @endif>
-                                <summary><span>{{ $section }}</span><span class="dz-badge dz-server-badge">{{ count($fields) }} nastavení</span></summary>
+                                <summary><span>{{ $this->jsonGroupLabel($section) }}</span><span class="dz-badge dz-server-badge">{{ count($fields) }} nastavení</span></summary>
                                 <div class="dz-fields">
                                     @foreach ($fields as $field)
                                         <label class="dz-field" data-tooltip="Raw JSON: {{ $field['path'] }}">

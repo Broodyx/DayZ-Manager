@@ -120,7 +120,7 @@ final class JsonConfigurationEditor
                     $this->flatten($value, $path, $fields, $group);
                 } elseif ($this->isObjectList($value)) {
                     foreach ($value as $index => $item) {
-                        $itemName = collect(['name', 'Name', 'areaName', 'AreaName', 'triggerName', 'TriggerName'])
+                        $itemName = collect(['name', 'Name', 'slotName', 'SlotName', 'itemType', 'ItemType', 'areaName', 'AreaName', 'triggerName', 'TriggerName'])
                             ->map(fn (string $name) => $item[$name] ?? null)
                             ->first(fn ($name) => is_scalar($name) && (string) $name !== '');
                         $itemGroup = str((string) $key)->headline()->toString()

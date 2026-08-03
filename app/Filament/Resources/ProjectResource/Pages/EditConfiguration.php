@@ -321,6 +321,29 @@ class EditConfiguration extends Page
         return $field['label'];
     }
 
+    public function jsonGroupLabel(string $group): string
+    {
+        if (! str_ends_with(strtolower($this->currentFilename), 'startovni-vybava.json')) {
+            return $group;
+        }
+
+        foreach (config('dayz_inventory_ps.slots', []) as $slot => $label) {
+            if (str_ends_with($group, ' · '.$slot)) {
+                return 'Slot postavy · '.$label.' ('.$slot.')';
+            }
+        }
+
+        return str_replace([
+            'Attachment Slot Item Sets',
+            'Discrete Unsorted Item Sets',
+            'Complex Children Types',
+        ], [
+            'Sloty postavy',
+            'Volný obsah inventáře',
+            'Obsah kontejneru',
+        ], $group);
+    }
+
     public function descriptionForFilename(string $filename): string
     {
         if (str_ends_with(strtolower($filename), '_territories.xml')) {
