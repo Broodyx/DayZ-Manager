@@ -407,7 +407,12 @@
             if (!el || el.dataset.ready) return;
             el.dataset.ready = '1';
             const worldSize = 15360;
-            const map = L.map(el, { crs: L.CRS.Simple, minZoom: -5, maxZoom: 1, zoomSnap: 0.25, inertia:false, preferCanvas:true });
+            // Thousands of event/territory points are rendered on this page. Force
+            // Leaflet's canvas renderer for both dots and circles; SVG creates one
+            // DOM node per point and makes pan/zoom effectively freeze on console
+            // maps containing stock territory data.
+            const canvasRenderer = L.canvas({ padding: 0.5 });
+            const map = L.map(el, { crs: L.CRS.Simple, minZoom: -5, maxZoom: 1, zoomSnap: 0.25, inertia:false, preferCanvas:true, renderer: canvasRenderer });
             const bounds = [[0, 0], [worldSize, worldSize]];
             L.imageOverlay('/maps/chernarus_big_hq.jpg', bounds).addTo(map);
             L.rectangle(bounds, { color: '#b8ed55', weight: 1, fill: false, opacity: .35 }).addTo(map);
@@ -925,11 +930,11 @@
                 const layers = layerGroups[marker.filename] ||= [];
                 const visualLayers = [];
                 if (marker.radius) {
-                    const area = L.circle([marker.worldZ, marker.worldX], { radius:Number(marker.radius), color, weight:1.5, fillColor:color, fillOpacity:.1, interactive:false }).addTo(map);
+                    const area = L.circle([marker.worldZ, marker.worldX], { renderer:canvasRenderer, radius:Number(marker.radius), color, weight:1.5, fillColor:color, fillOpacity:.1, interactive:false }).addTo(map);
                     layers.push(area);
                     visualLayers.push({ layer:area, kind:'area' });
                 }
-                const imported = L.circleMarker([marker.worldZ, marker.worldX], { radius: 6, color, fillColor: color, fillOpacity: .9 }).addTo(map);
+                const imported = L.circleMarker([marker.worldZ, marker.worldX], { renderer:canvasRenderer, radius: 6, color, fillColor: color, fillOpacity: .9 }).addTo(map);
                 layers.push(imported);
                 visualLayers.push({ layer:imported, kind:'point' });
                 markerRecords.push({ marker, color, visualLayers });

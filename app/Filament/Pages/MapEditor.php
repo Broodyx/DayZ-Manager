@@ -18,6 +18,7 @@ use App\Services\Revision\TypesXmlEditor;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\WithFileUploads;
@@ -1068,7 +1069,15 @@ class MapEditor extends Page
                 $this->markerCounts[$filename] = substr_count($content, '<group ');
                 continue;
             }
-            foreach ($reader->markers($filename, $content) as $marker) {
+            // Parsing the same large stock XML files on every request was the main
+            // source of the map's slow first paint. Revisions are immutable, so the
+            // parsed marker list is safe to cache until the revision changes.
+            $parsedMarkers = Cache::remember(
+                'dayz-map-markers:'.$revision->id.':'.($this->showDenseLayers ? 'dense' : 'normal'),
+                now()->addMinutes(10),
+                fn (): array => $reader->markers($filename, $content)
+            );
+            foreach ($parsedMarkers as $marker) {
                 $marker['revision_id'] = $revision->id;
                 if ($filename === 'cfgeventspawns.xml') {
                     $children = $eventChildren[$marker['label']] ?? [];
