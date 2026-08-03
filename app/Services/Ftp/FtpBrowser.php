@@ -341,6 +341,13 @@ class FtpBrowser
                 $import->forceFill(['original_filename' => $originalName])->save();
             }
 
+            // This revision was read from the live server, so it is already the
+            // deployed version. Without this marker the dashboard incorrectly
+            // reports every FTP-imported file as an undeployed local change.
+            $import->revisions()->latest('revision_number')->first()?->forceFill([
+                'downloaded_at' => now(),
+            ])->save();
+
             return $import;
         } finally {
             if (file_exists($tempPath)) {

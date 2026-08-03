@@ -48,9 +48,10 @@ class ConfigurationWizard extends Page
         foreach ($areas as $key => &$area) {
             $entries = collect($catalog->filesByArea()[$key] ?? [])->map(function (array $entry) use ($revisions, $project, $key) {
                 $matches = $revisions->filter(function ($revision) use ($entry) {
-                    $filename = strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
+                    $filename = strtolower(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path));
+                    $basename = basename($filename);
 
-                    return Str::is($entry['pattern'], $filename);
+                    return Str::is($entry['pattern'], $filename) || Str::is($entry['pattern'], $basename);
                 })->values();
                 $latest = $matches->first();
                 $entry['uploaded_count'] = $matches
@@ -69,9 +70,10 @@ class ConfigurationWizard extends Page
                 return $entry;
             })->all();
             $matches = $revisions->filter(function ($revision) use ($key, $catalog) {
-                $filename = strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
+                $filename = strtolower(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path));
+                $basename = basename($filename);
 
-                return collect($catalog->filesByArea()[$key] ?? [])->contains(fn ($entry) => Str::is($entry['pattern'], $filename));
+                return collect($catalog->filesByArea()[$key] ?? [])->contains(fn ($entry) => Str::is($entry['pattern'], $filename) || Str::is($entry['pattern'], $basename));
             })->values();
             $latest = $matches->first();
             $area['uploaded_count'] = $matches

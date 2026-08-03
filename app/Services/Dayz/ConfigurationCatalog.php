@@ -46,7 +46,7 @@ final class ConfigurationCatalog
             ],
             'gear' => [
                 'label' => 'Startovní výbava',
-                'files' => '*spawn-gear*.json · cfggameplay.json',
+                'files' => 'custom/startovni-vybava.json · *spawn-gear*.json · cfggameplay.json',
                 'description' => 'Presety postav, oblečení, attachmenty, cargo, množství, kondice a váhy výběru.',
                 'icon' => 'heroicon-o-briefcase',
             ],
@@ -121,6 +121,7 @@ final class ConfigurationCatalog
                 ['filename' => 'cfggameplay.json', 'pattern' => 'cfggameplay.json', 'description' => 'Gameplay serveru: stamina, damage, stavění, respawn, UI, mapa a pohyb hráče.'],
             ],
             'gear' => [
+                ['filename' => 'custom/startovni-vybava.json', 'pattern' => 'custom/startovni-vybava.json', 'description' => 'Vizuální editor VIP/startovní výbavy: postava, oblečení, quickbar, attachmenty, cargo, množství a kondice. Cesta musí být uvedena v PlayerData.spawnGearPresetFiles v cfggameplay.json.'],
                 ['filename' => '*spawn-gear*.json', 'pattern' => '*spawn-gear*.json', 'description' => 'Presety startovní výbavy: oblečení, quickbar, attachmenty, cargo, množství a kondice.'],
             ],
             'objects' => [
