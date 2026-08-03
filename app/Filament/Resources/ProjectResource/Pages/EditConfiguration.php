@@ -365,7 +365,7 @@ class EditConfiguration extends Page
             ->all();
     }
 
-    /** @return list<array{slot:string,label:string,path:string,item:string,children:list<array{path:string,item:string}>}> */
+    /** @return list<array{slot:string,label:string,path:string,item:string,children:list<array{path:string,item:string}>,container:bool}> */
     public function gearInventoryTree(): array
     {
         if (! str_ends_with(strtolower($this->currentFilename), 'startovni-vybava.json')) {
@@ -393,8 +393,26 @@ class EditConfiguration extends Page
                 'path' => $path,
                 'item' => (string) ($item['itemType'] ?? ''),
                 'children' => $children,
+                'container' => array_key_exists((string) ($item['itemType'] ?? ''), config('dayz_inventory_ps.containers', [])),
             ];
         }
+
+        $freePath = 'discreteUnsortedItemSets.0.complexChildrenTypes';
+        $freeItems = [];
+        foreach ((array) data_get($data, $freePath, []) as $childIndex => $child) {
+            $freeItems[] = [
+                'path' => 'discreteUnsortedItemSets.0.complexChildrenTypes.'.$childIndex,
+                'item' => (string) ($child['itemType'] ?? ''),
+            ];
+        }
+        $result[] = [
+            'slot' => 'freeInventory',
+            'label' => 'Volný inventář',
+            'path' => 'discreteUnsortedItemSets.0',
+            'item' => (string) data_get($data, 'discreteUnsortedItemSets.0.name', 'Volné položky'),
+            'children' => $freeItems,
+            'container' => false,
+        ];
 
         return $result;
     }
