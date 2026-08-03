@@ -344,6 +344,27 @@ class EditConfiguration extends Page
         ], $group);
     }
 
+    /** @return list<string> */
+    public function gearClassOptions(): array
+    {
+        $revision = $this->latestRevisionByFilename('types.xml');
+        if (! $revision) {
+            return [];
+        }
+
+        $xml = @simplexml_load_string(app(ConfigurationRevisionEditor::class)->content($revision));
+        if (! $xml) {
+            return [];
+        }
+
+        return collect($xml->type)
+            ->map(fn ($type): string => trim((string) ($type['name'] ?? '')))
+            ->filter()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
     public function descriptionForFilename(string $filename): string
     {
         if (str_ends_with(strtolower($filename), '_territories.xml')) {
@@ -1806,6 +1827,31 @@ class EditConfiguration extends Page
                     if (is_string($required) && ! $byName(basename($required))) {
                         $warnings[] = "{$key} odkazuje na chybějící soubor {$required}.";
                     }
+                }
+            }
+
+            $preset = $revisions->first(fn ($revision) => strtolower(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? '')) === 'custom/startovni-vybava.json');
+            if ($preset) {
+                $gearFiles = data_get($decoded, 'PlayerData.spawnGearPresetFiles', []);
+                $gearFiles = is_array($gearFiles) ? array_map(static fn ($value): string => strtolower(str_replace('\\', '/', (string) $value)), $gearFiles) : [];
+                if (! in_array('custom/startovni-vybava.json', $gearFiles, true)) {
+                    $warnings[] = 'custom/startovni-vybava.json je nahraný, ale není uvedený v PlayerData.spawnGearPresetFiles. Hra tento preset nepoužije.';
+                }
+            }
+        }
+
+        if (strtolower(str_replace('\\', '/', $filename)) === 'custom/startovni-vybava.json') {
+            $gameplay = $byName('cfggameplay.json');
+            if ($gameplay) {
+                try {
+                    $gameplayData = json_decode(app(ConfigurationRevisionEditor::class)->content($gameplay), true, flags: JSON_THROW_ON_ERROR);
+                    $gearFiles = data_get($gameplayData, 'PlayerData.spawnGearPresetFiles', []);
+                    $gearFiles = is_array($gearFiles) ? array_map(static fn ($value): string => strtolower(str_replace('\\', '/', (string) $value)), $gearFiles) : [];
+                    if (! in_array('custom/startovni-vybava.json', $gearFiles, true)) {
+                        $warnings[] = 'Tento preset není aktivní: doplň custom/startovni-vybava.json do PlayerData.spawnGearPresetFiles v cfggameplay.json.';
+                    }
+                } catch (Throwable) {
+                    $warnings[] = 'Nelze ověřit vazbu na cfggameplay.json, protože soubor obsahuje neplatný JSON.';
                 }
             }
         }

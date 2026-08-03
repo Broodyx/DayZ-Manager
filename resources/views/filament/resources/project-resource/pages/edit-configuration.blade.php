@@ -980,6 +980,19 @@
                                                     <input type="number" wire:model="jsonValues.{{ $field['path'] }}">
                                                 @elseif ($field['type'] === 'json')
                                                     <textarea rows="8" wire:model="jsonValues.{{ $field['path'] }}" spellcheck="false"></textarea>
+                                                @elseif (str_ends_with(strtolower($currentFilename), 'startovni-vybava.json') && $field['label'] === 'Item Type')
+                                                    <select wire:model="jsonValues.{{ $field['path'] }}">
+                                                        <option value="">Vyber classname z types.xml…</option>
+                                                        @foreach ($this->gearClassOptions() as $gearClass)
+                                                            <option value="{{ $gearClass }}">{{ $gearClass }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                @elseif (str_ends_with(strtolower($currentFilename), 'startovni-vybava.json') && $field['label'] === 'Slot Name')
+                                                    <select wire:model="jsonValues.{{ $field['path'] }}">
+                                                        @foreach (config('dayz_inventory_ps.slots', []) as $gearSlot => $gearSlotLabel)
+                                                            <option value="{{ $gearSlot }}">{{ $gearSlotLabel }} ({{ $gearSlot }})</option>
+                                                        @endforeach
+                                                    </select>
                                                 @else
                                                     <input type="text" wire:model="jsonValues.{{ $field['path'] }}">
                                                 @endif
