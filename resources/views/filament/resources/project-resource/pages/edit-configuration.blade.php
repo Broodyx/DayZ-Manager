@@ -441,7 +441,8 @@
                     @if ($selectedEvent)
                         <div class="dz-panel-head">
                             @php
-                                $isAnimalEvent = str_starts_with($selectedEvent, 'Animal');
+                                $isAnimalEvent = str_starts_with($selectedEvent, 'Animal')
+                                    || in_array($selectedEvent, ['AmbientHen', 'AmbientHare', 'AmbientFox'], true);
                                 $childrenMin = collect($eventForm['children'] ?? [])->sum(fn ($child) => (int) ($child['min'] ?? 0));
                                 $childrenMax = collect($eventForm['children'] ?? [])->sum(fn ($child) => (int) ($child['max'] ?? 0));
                                 $nominal = (int) ($eventForm['nominal'] ?? 0);
