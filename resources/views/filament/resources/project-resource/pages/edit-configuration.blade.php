@@ -108,6 +108,23 @@
         .dz-control input,.dz-control select { width:100%; border:1px solid rgba(190,209,175,.2); border-radius:.3rem; padding:.65rem .75rem; color:#edf2e9; background:#090d0a }
         .dz-checks { display:flex; gap:.5rem; flex-wrap:wrap }
         .dz-check { display:flex; align-items:center; gap:.35rem; padding:.4rem .55rem; border:1px solid rgba(190,209,175,.14); border-radius:.25rem; color:#cbd5c0; background:#0d130f }
+        .dz-gear-inventory-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+        .dz-gear-slot { border:1px solid rgba(182,233,79,.22); border-radius:.55rem; overflow:hidden; background:linear-gradient(145deg,#172219,#0b110d); box-shadow:0 8px 22px rgba(0,0,0,.2) }
+        .dz-gear-slot summary { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.1rem; color:#eaffd2; cursor:pointer; list-style:none; font-size:1rem }
+        .dz-gear-slot summary::-webkit-details-marker { display:none }
+        .dz-gear-slot summary::after { content:'+'; color:#b6e94f; font-size:1.4rem; font-weight:300 }
+        .dz-gear-slot[open] summary::after { content:'−' }
+        .dz-gear-slot summary span { color:#b6e94f; font:700 .78rem ui-monospace,monospace; text-align:right; overflow-wrap:anywhere }
+        .dz-gear-slot-body { padding:1rem 1.1rem 1.1rem; border-top:1px solid rgba(182,233,79,.14); color:#cbd5c0; background:rgba(0,0,0,.12) }
+        .dz-gear-slot-body .dz-control { display:block; margin:0; }
+        .dz-gear-slot-body .dz-control span { display:block; margin-bottom:.35rem; color:#b6e94f; font-size:.75rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em }
+        .dz-gear-slot-body select { width:100%; min-height:2.55rem; border:1px solid rgba(182,233,79,.28); border-radius:.3rem; padding:.5rem .65rem; color:#edf2e9; background:#090d0a; font:inherit }
+        .dz-gear-child { display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-top:.45rem; padding:.55rem .65rem; border:1px solid rgba(190,209,175,.13); border-radius:.3rem; color:#edf2e9; background:#0d130f; font:700 .8rem ui-monospace,monospace; overflow-wrap:anywhere }
+        .dz-gear-child select { min-width:0; flex:1; border-color:rgba(190,209,175,.2); font-size:.78rem }
+        .dz-gear-child button { flex:0 0 auto; border:1px solid rgba(224,85,74,.35); border-radius:.25rem; padding:.28rem .45rem; color:#f2a49c; background:rgba(224,85,74,.1); font-size:.7rem; cursor:pointer }
+        .dz-gear-slot-body .dz-secondary { margin-top:.8rem; width:100%; }
+        .dz-gear-mode .dz-generic-json { display:none; }
+        @media(max-width:900px){.dz-gear-inventory-grid{grid-template-columns:1fr}}
         @media(max-width:900px){
             .dz-editor-grid,.dz-fields,.dz-add-grid{grid-template-columns:1fr}
             .dz-editor-grid{gap:.75rem}
@@ -809,7 +826,7 @@
                         'snowfall' => ['Sněžení', 0, 1, 0.01],
                     ];
                 @endphp
-                <section class="dz-panel dz-server-settings">
+                <section class="dz-panel dz-server-settings {{ str_ends_with(strtolower($currentFilename), 'startovni-vybava.json') ? 'dz-gear-mode' : '' }}">
                     <div class="dz-panel-head">
                         <div class="flex items-center justify-between gap-4 flex-wrap">
                             <div>
@@ -823,7 +840,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="p-3">
+                    <div class="p-3 dz-generic-json">
                         @foreach ($weatherSections as $section => [$label, $rangeMin, $rangeMax, $step])
                             <details class="dz-group" open>
                                 <summary>
@@ -970,11 +987,17 @@
                                 <details class="dz-gear-slot" wire:key="gear-slot-{{ $gearSlot['slot'] }}">
                                     <summary><strong>{{ $gearSlot['label'] }}</strong><span>{{ $gearSlot['item'] ?: 'Prázdný slot' }}</span></summary>
                                     <div class="dz-gear-slot-body">
-                                        <p class="dz-muted text-sm">Vybrané vybavení: <strong>{{ $gearSlot['item'] ?: 'není vybráno' }}</strong></p>
+                                        <label class="dz-control"><span>Vybavení ve slotu</span><select wire:model="jsonValues.{{ $gearSlot['path'] }}.itemType">
+                                            <option value="">Vyber vybavení…</option>
+                                            @foreach ($this->gearClassOptions() as $gearClass)<option value="{{ $gearClass }}">{{ $gearClass }}</option>@endforeach
+                                        </select></label>
                                         @if ($gearSlot['children'] !== [])
                                             <strong>Obsah kontejneru</strong>
                                             @foreach ($gearSlot['children'] as $child)
-                                                <div class="dz-gear-child"><span>{{ $child['item'] ?: 'Nová položka — vyber classname níže' }}</span><button type="button" wire:click="removeGearChild('{{ $gearSlot['path'] }}.complexChildrenTypes', {{ $loop->index }})">Odebrat</button></div>
+                                                <div class="dz-gear-child"><select wire:model="jsonValues.{{ $child['path'] }}.itemType">
+                                                    <option value="">Vyber item…</option>
+                                                    @foreach ($this->gearClassOptions() as $gearClass)<option value="{{ $gearClass }}">{{ $gearClass }}</option>@endforeach
+                                                </select><button type="button" wire:click="removeGearChild('{{ $gearSlot['path'] }}.complexChildrenTypes', {{ $loop->index }})">Odebrat</button></div>
                                             @endforeach
                                         @else
                                             <p class="dz-muted text-sm">Tento slot zatím nemá vnořený obsah.</p>
