@@ -512,12 +512,18 @@
                                     @foreach ($eventForm['children'] ?? [] as $index => $child)
                                         <article class="dz-event-child" wire:key="event-child-{{ $index }}">
                                             <header>
-                                                <span><small>OBJEKT {{ $index + 1 }}</small></span>
+                                                @php
+                                                    $childClass = (string) ($child['type'] ?? '');
+                                                    $animalRole = $isAnimalEvent
+                                                        ? (str_ends_with($childClass, 'F') ? 'Samice' : 'Samec')
+                                                        : null;
+                                                @endphp
+                                                <span><small>{{ $isAnimalEvent ? 'ZVÍŘE' : 'OBJEKT' }} {{ $index + 1 }}</small>@if ($animalRole)<strong>{{ $animalRole }}</strong>@endif</span>
                                                 <button type="button" wire:click="removeEventChild({{ $index }})" class="dz-danger">Odebrat</button>
                                             </header>
                                             <label><span>Classname</span><input type="text" wire:model="eventForm.children.{{ $index }}.type" placeholder="Např. Wreck_UH1Y"></label>
-                                            <label><span>Min</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.min"></label>
-                                            <label><span>Max</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.max"></label>
+                                            <label><span>{{ $isAnimalEvent ? 'Minimum kusů v jedné skupině' : 'Min' }}</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.min"></label>
+                                            <label><span>{{ $isAnimalEvent ? 'Maximum kusů v jedné skupině' : 'Max' }}</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.max"></label>
                                             @if (! $isAnimalEvent)
                                                 <label><span>Loot min</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.lootmin"></label>
                                                 <label><span>Loot max</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.lootmax"></label>
