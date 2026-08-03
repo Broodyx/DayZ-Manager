@@ -881,10 +881,10 @@
                         </div>
                         <div class="dz-weather-presets mt-3">
                             <strong>Rychlé předvolby počasí</strong>
-                            <button type="button" wire:click="applyWeatherPreset('sunny')">☀️ Slunečno</button>
-                            <button type="button" wire:click="applyWeatherPreset('rain')">🌧️ Déšť</button>
-                            <button type="button" wire:click="applyWeatherPreset('storm')">⛈️ Bouřka</button>
-                            <button type="button" wire:click="applyWeatherPreset('winter')">❄️ Zima / sníh</button>
+                            <button type="button" class="{{ $selectedWeatherPreset === 'sunny' ? 'active' : '' }}" wire:click="applyWeatherPreset('sunny')">☀️ Slunečno</button>
+                            <button type="button" class="{{ $selectedWeatherPreset === 'rain' ? 'active' : '' }}" wire:click="applyWeatherPreset('rain')">🌧️ Déšť</button>
+                            <button type="button" class="{{ $selectedWeatherPreset === 'storm' ? 'active' : '' }}" wire:click="applyWeatherPreset('storm')">⛈️ Bouřka</button>
+                            <button type="button" class="{{ $selectedWeatherPreset === 'winter' ? 'active' : '' }}" wire:click="applyWeatherPreset('winter')">❄️ Zima / sníh</button>
                             <small class="dz-muted">Předvolba pouze vyplní hodnoty. Uložení potvrď dole jako novou revizi.</small>
                         </div>
                     </div>

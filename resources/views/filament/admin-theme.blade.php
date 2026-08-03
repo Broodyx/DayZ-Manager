@@ -715,6 +715,10 @@
     .dz-confirm-button.dz-confirm-error { background:#e0554a !important; color:#fff !important; border-color:#e0554a !important; }
     .dz-action { display:inline-flex; align-items:center; justify-content:center; padding:.7rem 1.15rem; border-radius:.25rem; color:#17210d; background:#b6e94f; font-weight:800; text-transform:uppercase; letter-spacing:.03em; border:0; cursor:pointer; }
     .dz-secondary { display:inline-flex; align-items:center; justify-content:center; padding:.65rem 1rem; border:1px solid rgba(182,233,79,.25); border-radius:.25rem; color:#b6e94f; background:#151e17; font-weight:700; text-decoration:none; cursor:pointer; }
+    .dz-weather-presets { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+    .dz-weather-presets button { padding:.55rem .8rem; border:1px solid rgba(182,233,79,.25); border-radius:.3rem; color:#b6e94f; background:#151e17; font-weight:700; cursor:pointer; }
+    .dz-weather-presets button.active { color:#10170b; background:#b6e94f; border-color:#b6e94f; }
+    .dz-weather-presets small { flex-basis:100%; }
     .dz-info { padding:.85rem 1rem; border-left:3px solid #91c52b; color:#dbeacb; background:rgba(145,197,43,.07); }
     .dz-log-page { display:grid; gap:1.25rem; }
     .dz-log-server-picker { display:grid; gap:.35rem; max-width:24rem; color:#d8f57b; font-size:.78rem; font-weight:800; }

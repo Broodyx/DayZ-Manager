@@ -83,6 +83,8 @@ class EditConfiguration extends Page
     /** @var array<string, mixed> */
     public array $weatherForm = [];
 
+    public ?string $selectedWeatherPreset = null;
+
     public array $serverConfig = [];
     public array $whitelistEntries = [];
     public string $newWhitelistId = '';
@@ -1654,6 +1656,7 @@ class EditConfiguration extends Page
 
     public function applyWeatherPreset(string $preset): void
     {
+        $this->selectedWeatherPreset = in_array($preset, ['sunny', 'rain', 'storm', 'winter'], true) ? $preset : 'sunny';
         $levels = match ($preset) {
             'rain' => ['overcast' => .75, 'fog' => .2, 'rain' => .7, 'snowfall' => 0, 'storm_density' => 0],
             'storm' => ['overcast' => .95, 'fog' => .45, 'rain' => 1, 'snowfall' => 0, 'storm_density' => .8],
