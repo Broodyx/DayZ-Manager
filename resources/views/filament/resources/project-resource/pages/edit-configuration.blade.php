@@ -440,7 +440,20 @@
                 <section class="dz-panel">
                     @if ($selectedEvent)
                         <div class="dz-panel-head">
+                            @php
+                                $isAnimalEvent = str_starts_with($selectedEvent, 'Animal');
+                                $childrenMin = collect($eventForm['children'] ?? [])->sum(fn ($child) => (int) ($child['min'] ?? 0));
+                                $childrenMax = collect($eventForm['children'] ?? [])->sum(fn ($child) => (int) ($child['max'] ?? 0));
+                                $nominal = (int) ($eventForm['nominal'] ?? 0);
+                            @endphp
                             <strong>{{ $selectedEvent }}</strong>
+                            @if ($isAnimalEvent)
+                                <p class="dz-muted text-sm mt-2">
+                                    Animal event · nominal {{ $nominal }} = cílový počet současných skupin.
+                                    Přibližně {{ $nominal * $childrenMin }}–{{ $nominal * $childrenMax }} zvířat podle nastavení children.
+                                    Teritoria pouze určují kandidátní oblasti, ne počet zvířat.
+                                </p>
+                            @endif
                         </div>
                         <div class="dz-fields">
                             @foreach ([
@@ -501,8 +514,12 @@
                                             <label><span>Classname</span><input type="text" wire:model="eventForm.children.{{ $index }}.type" placeholder="Např. Wreck_UH1Y"></label>
                                             <label><span>Min</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.min"></label>
                                             <label><span>Max</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.max"></label>
-                                            <label><span>Loot min</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.lootmin"></label>
-                                            <label><span>Loot max</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.lootmax"></label>
+                                            @if (! $isAnimalEvent)
+                                                <label><span>Loot min</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.lootmin"></label>
+                                                <label><span>Loot max</span><input type="number" min="0" wire:model="eventForm.children.{{ $index }}.lootmax"></label>
+                                            @else
+                                                <small class="dz-muted">U zvířat Min/Max znamená počet kusů v jedné skupině. Loot se zde nepoužívá.</small>
+                                            @endif
                                         </article>
                                     @endforeach
                                     <button type="button" wire:click="addEventChild" class="dz-secondary">+ Přidat objekt</button>
