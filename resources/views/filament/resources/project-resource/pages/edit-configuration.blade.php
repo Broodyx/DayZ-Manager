@@ -996,14 +996,14 @@
                                     <div class="dz-gear-slot-body">
                                         @if ($gearSlot['slot'] !== 'freeInventory')<label class="dz-control"><span>Vybavení ve slotu</span><select wire:model="jsonValues.{{ $gearSlot['path'] }}.itemType">
                                             <option value="">Vyber vybavení…</option>
-                                            @foreach ($this->gearClassOptions() as $gearClass)<option value="{{ $gearClass }}">{{ $gearClass }}</option>@endforeach
+                                            @foreach ($this->gearClassOptions() as $gearClass)<option value="{{ $gearClass }}" @selected($gearSlot['item'] === $gearClass)>{{ $gearClass }}</option>@endforeach
                                         </select></label>@endif
                                         @if ($gearSlot['slot'] === 'freeInventory')
                                             <strong>Položky přímo v inventáři hráče</strong>
                                             @foreach ($gearSlot['children'] as $child)
                                                 <div class="dz-gear-child"><select wire:model="jsonValues.{{ $child['path'] }}.itemType">
                                                     <option value="">Vyber item…</option>
-                                                    @foreach ($this->gearClassOptions() as $gearClass)<option value="{{ $gearClass }}">{{ $gearClass }}</option>@endforeach
+                                                    @foreach ($this->gearClassOptions() as $gearClass)<option value="{{ $gearClass }}" @selected($child['item'] === $gearClass)>{{ $gearClass }}</option>@endforeach
                                                 </select><button type="button" wire:click="removeGearChild('discreteUnsortedItemSets.0.complexChildrenTypes', {{ $loop->index }})">Odebrat</button></div>
                                             @endforeach
                                             <button type="button" class="dz-secondary mt-2" wire:click="addGearChild('discreteUnsortedItemSets.0.complexChildrenTypes')">+ Přidat item do volného inventáře</button>
@@ -1012,7 +1012,7 @@
                                             @foreach ($gearSlot['children'] as $child)
                                                 <div class="dz-gear-child"><select wire:model="jsonValues.{{ $child['path'] }}.itemType">
                                                     <option value="">Vyber item…</option>
-                                                    @foreach ($this->gearClassOptions() as $gearClass)<option value="{{ $gearClass }}">{{ $gearClass }}</option>@endforeach
+                                                    @foreach ($this->gearClassOptions() as $gearClass)<option value="{{ $gearClass }}" @selected($child['item'] === $gearClass)>{{ $gearClass }}</option>@endforeach
                                                 </select><button type="button" wire:click="removeGearChild('{{ $gearSlot['path'] }}.complexChildrenTypes', {{ $loop->index }})">Odebrat</button></div>
                                             @endforeach
                                             <button type="button" class="dz-secondary mt-2" wire:click="addGearChild('{{ $gearSlot['path'] }}.complexChildrenTypes')">+ Přidat item do {{ $gearSlot['label'] }}</button>

@@ -347,19 +347,38 @@ class EditConfiguration extends Page
     /** @return list<string> */
     public function gearClassOptions(): array
     {
+        $options = collect();
         $revision = $this->latestRevisionByFilename('types.xml');
-        if (! $revision) {
-            return [];
+        if ($revision) {
+            $xml = @simplexml_load_string(app(ConfigurationRevisionEditor::class)->content($revision));
+            if ($xml) {
+                $options = collect($xml->type)
+                    ->map(fn ($type): string => trim((string) ($type['name'] ?? '')))
+                    ->filter();
+            }
         }
 
-        $xml = @simplexml_load_string(app(ConfigurationRevisionEditor::class)->content($revision));
-        if (! $xml) {
-            return [];
-        }
+        // Keep values already used by the preset even when types.xml is missing,
+        // stale, or intentionally does not contain a non-spawn inventory item.
+        $data = json_decode($this->rawContent, true);
+        $used = collect();
+        $collectItems = function ($value) use (&$collectItems, $used): void {
+            if (! is_array($value)) {
+                return;
+            }
+            if (isset($value['itemType']) && is_string($value['itemType'])) {
+                $used->push(trim($value['itemType']));
+            }
+            foreach ($value as $child) {
+                $collectItems($child);
+            }
+        };
+        $collectItems($data);
 
-        return collect($xml->type)
-            ->map(fn ($type): string => trim((string) ($type['name'] ?? '')))
-            ->filter()
+        return $options->merge($used)
+            ->filter(fn ($name): bool => is_string($name) && trim($name) !== '')
+            ->map(fn ($name): string => trim($name))
+            ->unique()
             ->sort()
             ->values()
             ->all();
