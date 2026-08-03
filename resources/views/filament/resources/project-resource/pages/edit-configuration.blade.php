@@ -538,7 +538,10 @@
                         </div>
                         <div class="dz-savebar">
                             <input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny (např. snížení nominal)">
-                            <x-dz-confirm-button call="saveEvent()" label="Uložit novou revizi" class="dz-action" />
+                            <button type="button" wire:click="saveEvent" wire:loading.attr="disabled" wire:target="saveEvent" class="dz-confirm-button dz-action">
+                                <span wire:loading.remove wire:target="saveEvent">Uložit novou revizi</span>
+                                <span wire:loading wire:target="saveEvent">Ukládám…</span>
+                            </button>
                         </div>
                     @else
                         <div class="p-10 text-center">
