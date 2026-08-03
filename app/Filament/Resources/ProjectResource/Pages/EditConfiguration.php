@@ -1652,6 +1652,27 @@ class EditConfiguration extends Page
             ->send();
     }
 
+    public function applyWeatherPreset(string $preset): void
+    {
+        $levels = match ($preset) {
+            'rain' => ['overcast' => .75, 'fog' => .2, 'rain' => .7, 'snowfall' => 0, 'storm_density' => 0],
+            'storm' => ['overcast' => .95, 'fog' => .45, 'rain' => 1, 'snowfall' => 0, 'storm_density' => .8],
+            'winter' => ['overcast' => .7, 'fog' => .3, 'rain' => 0, 'snowfall' => .8, 'storm_density' => 0],
+            default => ['overcast' => .1, 'fog' => .05, 'rain' => 0, 'snowfall' => 0, 'storm_density' => 0],
+        };
+        foreach ($levels as $section => $value) {
+            $this->weatherForm[$section.'_current_actual'] = $value;
+            $this->weatherForm[$section.'_limits_min'] = $value;
+            $this->weatherForm[$section.'_limits_max'] = $value;
+            $this->weatherForm[$section.'_changelimits_min'] = 0;
+            $this->weatherForm[$section.'_changelimits_max'] = 0;
+        }
+        $this->weatherForm['enable'] = true;
+        $this->weatherForm['reset'] = true;
+        $this->weatherForm['storm_threshold'] = $preset === 'storm' ? .6 : 1;
+        $this->weatherForm['storm_timeout'] = $preset === 'storm' ? 1 : 0;
+    }
+
     public function saveJson(JsonConfigurationEditor $jsonEditor, ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
     {
         $content = $jsonEditor->update($this->latestEditContent(), $this->flattenJsonValues($this->jsonValues));

@@ -879,6 +879,14 @@
                                 <label class="dz-check"><input type="checkbox" wire:model="weatherForm.reset"> Reset počasí po restartu</label>
                             </div>
                         </div>
+                        <div class="dz-weather-presets mt-3">
+                            <strong>Rychlé předvolby počasí</strong>
+                            <button type="button" wire:click="applyWeatherPreset('sunny')">☀️ Slunečno</button>
+                            <button type="button" wire:click="applyWeatherPreset('rain')">🌧️ Déšť</button>
+                            <button type="button" wire:click="applyWeatherPreset('storm')">⛈️ Bouřka</button>
+                            <button type="button" wire:click="applyWeatherPreset('winter')">❄️ Zima / sníh</button>
+                            <small class="dz-muted">Předvolba pouze vyplní hodnoty. Uložení potvrď dole jako novou revizi.</small>
+                        </div>
                     </div>
                     <div class="p-3 dz-generic-json">
                         @foreach ($weatherSections as $section => [$label, $rangeMin, $rangeMax, $step])
