@@ -790,6 +790,18 @@ class EditConfiguration extends Page
         )), 0, 200);
     }
 
+    public function eventDisplayName(string $event): string
+    {
+        return [
+            'AnimalDeer' => 'Jelen', 'AnimalRoeDeer' => 'Srnec', 'AnimalBear' => 'Medvěd',
+            'AnimalCow' => 'Kráva', 'AnimalGoat' => 'Koza', 'AnimalSheep' => 'Ovce',
+            'AnimalWolf' => 'Vlk', 'AnimalWildBoar' => 'Divočák', 'AnimalPig' => 'Prase',
+            'AmbientHen' => 'Slepice', 'AmbientHare' => 'Zajíc', 'AmbientFox' => 'Liška',
+            'InfectedArmy' => 'Vojenská nákaza', 'InfectedCity' => 'Městská nákaza',
+            'StaticHeliCrash' => 'Helikoptéra – havárie',
+        ][$event] ?? $event;
+    }
+
     /** @return array{file:string,count:int}|null */
     public function animalTerritoryInfo(string $event): ?array
     {

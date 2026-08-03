@@ -428,7 +428,7 @@
                     <div class="dz-list">
                         @foreach ($this->filteredEvents() as $entry)
                             <button type="button" wire:click="selectEvent(@js($entry['name']))" class="dz-item {{ $selectedEvent === $entry['name'] ? 'active' : '' }}">
-                                <span>{{ $entry['name'] }}</span>
+                                <span>{{ $this->eventDisplayName($entry['name']) }} <small class="dz-muted">{{ $entry['name'] }}</small></span>
                                 <span class="dz-item-meta">
                                     <small>{{ $entry['nominal'] }} nominal · {{ $entry['children_count'] }} objektů</small>
                                 </span>
@@ -447,7 +447,8 @@
                                 $nominal = (int) ($eventForm['nominal'] ?? 0);
                                 $territoryInfo = $isAnimalEvent ? $this->animalTerritoryInfo($selectedEvent) : null;
                             @endphp
-                            <strong>{{ $selectedEvent }}</strong>
+                            <strong>{{ $this->eventDisplayName($selectedEvent) }}</strong>
+                            <small class="dz-muted d-block">{{ $selectedEvent }}</small>
                             @if ($isAnimalEvent)
                                 <p class="dz-muted text-sm mt-2">
                                     Animal event · nominal {{ $nominal }} = cílový počet současných skupin.
