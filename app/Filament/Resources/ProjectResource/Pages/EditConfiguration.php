@@ -299,6 +299,28 @@ class EditConfiguration extends Page
         return app(ConfigurationFieldMetadata::class)->json($field);
     }
 
+    public function jsonFieldLabel(array $field): string
+    {
+        if (str_ends_with(strtolower($this->currentFilename), 'startovni-vybava.json')) {
+            return match ($field['label']) {
+                'Item Type' => 'Položka / classname',
+                'Spawn Weight' => 'Šance varianty',
+                'Quick Bar Slot' => 'Slot rychlé lišty',
+                'Character Types' => 'Povolené postavy',
+                'Attachment Slot Item Sets' => 'Výbava ve slotech postavy',
+                'Discrete Unsorted Item Sets' => 'Volné položky v inventáři',
+                'Complex Children Types' => 'Obsah tohoto kontejneru',
+                'Health Min' => 'Minimální stav',
+                'Health Max' => 'Maximální stav',
+                'Quantity Min' => 'Minimální množství',
+                'Quantity Max' => 'Maximální množství',
+                default => $field['label'],
+            };
+        }
+
+        return $field['label'];
+    }
+
     public function descriptionForFilename(string $filename): string
     {
         if (str_ends_with(strtolower($filename), '_territories.xml')) {

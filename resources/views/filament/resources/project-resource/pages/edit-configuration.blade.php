@@ -959,6 +959,13 @@
                 @endphp
                 <section class="dz-panel dz-server-settings">
                     <div class="dz-panel-head"><strong>{{ $currentFilename }} · vizuální editor</strong><p class="dz-muted text-sm mt-1">Nastavení je rozdělené podle sekcí JSON. Pole jsou odvozena přímo z importovaného souboru.</p></div>
+                    @if (str_ends_with(strtolower($currentFilename), 'startovni-vybava.json'))
+                        <div class="dz-info m-3">
+                            <strong>Jak sestavit výbavu postavy</strong>
+                            <p class="dz-muted text-sm mt-1">Nejdřív vyber vybavení ve slotech postavy: hlava, tělo, batoh, kalhoty, rukavice, zbraň a další. U každého vybraného kontejneru se jeho obsah zobrazí jako „Obsah tohoto kontejneru“ — tam přidej povolené itemy, například zásobníky, náboje nebo zdravotní předměty.</p>
+                            <p class="dz-muted text-sm mt-1">Kapacitu batohu, vesty a oblečení určuje hra podle jejich reálné konfigurace. Editor proto nepovolí slíbit více prostoru, než skutečný item nabízí; pokud obsah překročí kapacitu, DayZ část obsahu při spawnu odmítne.</p>
+                        </div>
+                    @endif
                     <div class="p-3">
                         @foreach (collect($jsonFields)->groupBy(fn ($field) => $field['group'] ?? $field['section']) as $section => $fields)
                             <details class="dz-group" @if ($loop->first) open @endif>
@@ -966,7 +973,7 @@
                                 <div class="dz-fields">
                                     @foreach ($fields as $field)
                                         <label class="dz-field" data-tooltip="Raw JSON: {{ $field['path'] }}">
-                                            <span class="dz-field-top"><span><strong>{{ $field['label'] }}</strong><br><small class="dz-muted">{{ $this->jsonFieldDescription($field) }}</small></span>
+                                            <span class="dz-field-top"><span><strong>{{ $this->jsonFieldLabel($field) }}</strong><br><small class="dz-muted">{{ $this->jsonFieldDescription($field) }}</small></span>
                                                 @if ($field['type'] === 'boolean')
                                                     <label class="dz-switch-control" x-data="{ enabled: @js((bool) data_get($jsonValues, $field['path'], false)) }"><input type="checkbox" wire:model.live="jsonValues.{{ $field['path'] }}" x-model="enabled"><span class="dz-toggle-button" :class="enabled ? 'on' : 'off'" x-text="enabled ? 'Zapnuto' : 'Vypnuto'"></span></label>
                                                 @elseif ($field['type'] === 'number')
