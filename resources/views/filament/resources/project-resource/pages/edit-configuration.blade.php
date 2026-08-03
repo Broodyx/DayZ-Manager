@@ -109,6 +109,9 @@
         .dz-checks { display:flex; gap:.5rem; flex-wrap:wrap }
         .dz-check { display:flex; align-items:center; gap:.35rem; padding:.4rem .55rem; border:1px solid rgba(190,209,175,.14); border-radius:.25rem; color:#cbd5c0; background:#0d130f }
         .dz-gear-inventory-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+        .dz-gear-profile { display:flex; gap:1rem; flex-wrap:wrap; padding:1rem 1.1rem; border:1px solid rgba(182,233,79,.22); border-radius:.55rem; background:#111813; }
+        .dz-gear-profile > div { flex:1 1 14rem; display:grid; gap:.2rem; }
+        .dz-gear-profile strong { color:#eaffd2; font-size:1.05rem; overflow-wrap:anywhere }
         .dz-gear-slot { border:1px solid rgba(182,233,79,.22); border-radius:.55rem; overflow:hidden; background:linear-gradient(145deg,#172219,#0b110d); box-shadow:0 8px 22px rgba(0,0,0,.2) }
         .dz-gear-slot summary { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.1rem; color:#eaffd2; cursor:pointer; list-style:none; font-size:1rem }
         .dz-gear-slot summary::-webkit-details-marker { display:none }
@@ -977,6 +980,10 @@
                 <section class="dz-panel dz-server-settings">
                     <div class="dz-panel-head"><strong>{{ $currentFilename }} · vizuální editor</strong><p class="dz-muted text-sm mt-1">Nastavení je rozdělené podle sekcí JSON. Pole jsou odvozena přímo z importovaného souboru.</p></div>
                     @if (str_ends_with(strtolower($currentFilename), 'startovni-vybava.json'))
+                        <div class="dz-gear-profile m-3">
+                            <div><span class="dz-muted text-sm">Název profilu výbavy</span><strong>{{ data_get($jsonValues, 'name', 'Bez názvu') }}</strong></div>
+                            <div><span class="dz-muted text-sm">Povolené postavy</span><strong>{{ count((array) data_get($jsonValues, 'characterTypes', [])) }}</strong></div>
+                        </div>
                         <div class="dz-info m-3">
                             <strong>Jak sestavit výbavu postavy</strong>
                             <p class="dz-muted text-sm mt-1">Nejdřív vyber vybavení ve slotech postavy: hlava, tělo, batoh, kalhoty, rukavice, zbraň a další. U každého vybraného kontejneru se jeho obsah zobrazí jako „Obsah tohoto kontejneru“ — tam přidej povolené itemy, například zásobníky, náboje nebo zdravotní předměty.</p>
@@ -1009,6 +1016,7 @@
                         </div>
                     @endif
                     <div class="p-3">
+                        @if (! str_ends_with(strtolower($currentFilename), 'startovni-vybava.json'))
                         @foreach (collect($jsonFields)->groupBy(fn ($field) => $field['group'] ?? $field['section']) as $section => $fields)
                             <details class="dz-group" @if ($loop->first) open @endif>
                                 <summary><span>{{ $this->jsonGroupLabel($section) }}</span><span class="dz-badge dz-server-badge">{{ count($fields) }} nastavení</span></summary>
@@ -1044,6 +1052,7 @@
                                 </div>
                             </details>
                         @endforeach
+                        @endif
                     </div>
                     <div class="dz-savebar"><input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny JSON konfigurace"><x-dz-confirm-button call="saveJson()" label="Validovat a uložit JSON revizi" class="dz-action" /></div>
                 </section>
