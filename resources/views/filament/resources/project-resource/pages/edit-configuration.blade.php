@@ -449,7 +449,7 @@
                                 $territoryInfo = $isAnimalEvent ? $this->animalTerritoryInfo($selectedEvent) : null;
                             @endphp
                             <strong>{{ $this->eventDisplayName($selectedEvent) }}</strong>
-                            <small class="dz-muted d-block">{{ $selectedEvent }}</small>
+                            <small class="dz-muted d-block"><strong>{{ $selectedEvent }}</strong></small>
                             @if ($isAnimalEvent)
                                 <p class="dz-muted text-sm mt-2">
                                     Animal event · nominal {{ $nominal }} = cílový počet současných skupin.

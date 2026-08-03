@@ -1,5 +1,23 @@
 <x-filament-widgets::widget>
     <section class="dz-command-center">
+        <div class="dz-server-selector" x-data x-init="if (!$wire.selectedProjectId && localStorage.dzSelectedProject) $wire.selectedProjectId = Number(localStorage.dzSelectedProject)">
+            @php($selectedProject = $projects->firstWhere('id', $selectedProjectId))
+            <label><strong>Aktivní DayZ server</strong>
+                <select wire:model.live="selectedProjectId" x-on:change="localStorage.dzSelectedProject = $event.target.value" wire:change="refreshStatus($event.target.value)" wire:poll.45s="refreshStatus({{ $selectedProjectId ?: ($activeProject?->id ?? 0) }})">
+                    <option value="">Vyber server…</option>
+                    @foreach ($projects as $project)<option value="{{ $project->id }}">{{ $project->name }} · {{ ucfirst($project->platform) }}</option>@endforeach
+                </select>
+            </label>
+            @if ($selectedProjectId && $serverStatus)
+                <div class="dz-server-status"><strong class="{{ ($serverStatus['online'] ?? false) ? 'online' : 'offline' }}">{{ ($serverStatus['online'] ?? false) ? 'ONLINE' : 'OFFLINE' }}</strong>
+                    @if ($serverStatus['online'] ?? false)<span>{{ $serverStatus['name'] ?? '—' }} · {{ $serverStatus['players'] }}/{{ $serverStatus['max_players'] }} hráčů · {{ $serverStatus['map'] ?? '—' }} · {{ $serverStatus['ping_ms'] ?? '—' }} ms</span>@else<span>{{ $serverStatus['error'] ?? 'Stav není dostupný.' }}</span>@endif
+                </div>
+            @endif
+            @if ($selectedProject)
+                <small>{{ $selectedProject->query_host ?: 'Query IP není nastavená' }}:{{ $selectedProject->game_port ?: '—' }} · Query {{ $selectedProject->query_port ?: '—' }} · RCON {{ $selectedProject->rcon_port ?: '—' }}</small>
+            @endif
+            @if ($selectedProjectId)<button type="button" wire:click="refreshStatus({{ $selectedProjectId }})">Obnovit stav</button>@endif
+        </div>
         <div class="dz-command-copy">
             <p class="dz-kicker">DAYZ MANAGER</p>
             <h2>{{ $projectsCount ? 'Pokračujte tam, kde jste skončili' : 'Připravte svůj první DayZ server' }}</h2>

@@ -719,6 +719,11 @@
     .dz-weather-presets button { padding:.55rem .8rem; border:1px solid rgba(182,233,79,.25); border-radius:.3rem; color:#b6e94f; background:#151e17; font-weight:700; cursor:pointer; }
     .dz-weather-presets button.active { color:#10170b; background:#b6e94f; border-color:#b6e94f; }
     .dz-weather-presets small { flex-basis:100%; }
+    .dz-server-selector { display:flex; align-items:end; gap:1rem; flex-wrap:wrap; margin-bottom:1.25rem; padding:1rem; border:1px solid rgba(182,233,79,.2); border-radius:.5rem; background:rgba(12,24,16,.7); }
+    .dz-server-selector label { display:grid; gap:.35rem; min-width:18rem; }
+    .dz-server-selector select, .dz-server-selector button { padding:.65rem .8rem; border:1px solid rgba(182,233,79,.3); border-radius:.3rem; background:#101b13; color:#dfffa0; }
+    .dz-server-status { display:grid; gap:.2rem; }
+    .dz-server-status .online { color:#b6e94f; } .dz-server-status .offline { color:#ff9b8f; }
     .dz-info { padding:.85rem 1rem; border-left:3px solid #91c52b; color:#dbeacb; background:rgba(145,197,43,.07); }
     .dz-log-page { display:grid; gap:1.25rem; }
     .dz-log-server-picker { display:grid; gap:.35rem; max-width:24rem; color:#d8f57b; font-size:.78rem; font-weight:800; }

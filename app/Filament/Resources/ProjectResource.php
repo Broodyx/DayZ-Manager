@@ -75,6 +75,10 @@ class ProjectResource extends Resource
                         ->datalist(['Nitrado', 'GTX Gaming', 'G-Portal', 'Survival Servers', 'Vlastní server (self-hosted)'])
                         ->helperText('Napiš nebo vyber z nabídky. U Nitrado appka navíc rozpozná jejich specifický export nastavení (dayzps-settings-*.json).')
                         ->maxLength(100),
+                    Forms\Components\TextInput::make('query_host')->label('Query IP / hostname')->helperText('Např. 95.156.224.215. Backend se dotazuje pouze tohoto uloženého serveru.')->maxLength(255),
+                    Forms\Components\TextInput::make('game_port')->label('Game port')->numeric()->minValue(1)->maxValue(65535),
+                    Forms\Components\TextInput::make('query_port')->label('Query port')->numeric()->minValue(1)->maxValue(65535),
+                    Forms\Components\TextInput::make('rcon_port')->label('RCON port (informativní)')->numeric()->minValue(1)->maxValue(65535)->helperText('RCON se zde neovládá; dostupnost závisí na hostingu a konzoli.'),
                 ])
                 ->columns(2),
             Forms\Components\Section::make('Poznámka pro administrátory')

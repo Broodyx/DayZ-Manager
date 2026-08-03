@@ -12,7 +12,7 @@ class Project extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'name', 'platform', 'platform_confidence', 'map',
+        'user_id', 'name', 'platform', 'platform_confidence', 'map', 'query_host', 'game_port', 'query_port', 'rcon_port',
         'game_version', 'hosting', 'description',
         'ftp_protocol', 'ftp_host', 'ftp_port', 'ftp_username', 'ftp_password', 'ftp_root_path', 'ftp_log_path',
     ];
@@ -25,6 +25,7 @@ class Project extends Model
             'platform_confidence' => 'integer',
             'ftp_port' => 'integer',
             'ftp_password' => 'encrypted',
+            'game_port' => 'integer', 'query_port' => 'integer', 'rcon_port' => 'integer',
         ];
     }
 
