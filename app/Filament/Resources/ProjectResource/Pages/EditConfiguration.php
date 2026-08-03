@@ -950,7 +950,7 @@ class EditConfiguration extends Page
         }
 
         try {
-            $content = $editor->update($this->rawContent, $this->selectedEnvironmentTerritory, $validated);
+            $content = $editor->update($this->latestEditContent(), $this->selectedEnvironmentTerritory, $validated);
         } catch (RuntimeException $exception) {
             throw ValidationException::withMessages(['environmentForm.behavior' => $exception->getMessage()]);
         }
@@ -976,7 +976,7 @@ class EditConfiguration extends Page
             return;
         }
         $name = $this->selectedEnvironmentTerritory;
-        $content = $editor->removeTerritory($this->rawContent, $name);
+        $content = $editor->removeTerritory($this->latestEditContent(), $name);
         $revision = $revisionEditor->save(
             $this->getRecord(),
             $this->sourceRevision(),
@@ -1039,7 +1039,7 @@ class EditConfiguration extends Page
         }
 
         try {
-            $content = $editor->addTerritory($this->rawContent, $validated);
+            $content = $editor->addTerritory($this->latestEditContent(), $validated);
         } catch (RuntimeException $exception) {
             throw ValidationException::withMessages(['newAnimalForm.name' => $exception->getMessage()]);
         }
@@ -1282,7 +1282,7 @@ class EditConfiguration extends Page
             );
             unset($values[$key.'_csv']);
         }
-        $content = $typesEditor->update($this->rawContent, $this->selectedType, $values);
+        $content = $typesEditor->update($this->latestEditContent(), $this->selectedType, $values);
         $compatibility->assertEditable($this->getRecord(), $content, ['types.xml']);
         $revision = $revisionEditor->save(
             $this->getRecord(),
@@ -1331,7 +1331,7 @@ class EditConfiguration extends Page
         TypesXmlEditor $typesEditor,
         ConfigurationRevisionEditor $revisionEditor,
     ): void {
-        $content = $typesEditor->remove($this->rawContent, $name);
+        $content = $typesEditor->remove($this->latestEditContent(), $name);
         $revision = $revisionEditor->save(
             $this->getRecord(),
             $this->sourceRevision(),
@@ -1405,7 +1405,7 @@ class EditConfiguration extends Page
                 $this->serverConfig[$secret] = $original[$secret] ?? '';
             }
         }
-        $content = $editor->update($this->rawContent, $this->serverConfig);
+        $content = $editor->update($this->latestEditContent(), $this->serverConfig);
         $saved = $revisionEditor->save($project, $revision, $content, 'Úprava serverDZ.cfg ve vizuálním editoru', auth()->user());
         $this->loadRevision($saved);
     }
@@ -1536,7 +1536,7 @@ class EditConfiguration extends Page
         $document = new \DOMDocument('1.0', 'UTF-8');
         $document->preserveWhiteSpace = false;
         $document->formatOutput = true;
-        if (! @$document->loadXML($this->rawContent, LIBXML_NONET | LIBXML_COMPACT)) {
+        if (! @$document->loadXML($this->latestEditContent(), LIBXML_NONET | LIBXML_COMPACT)) {
             throw ValidationException::withMessages(['rawContent' => 'messages.xml není platné XML.']);
         }
         $root = $document->documentElement;
@@ -1581,7 +1581,7 @@ class EditConfiguration extends Page
             }
             $text->nodeValue = (string) ($entry['text'] ?? '');
         }
-        $content = $document->saveXML() ?: $this->rawContent;
+        $content = $document->saveXML() ?: $this->latestEditContent();
         $compatibility->assertEditable($this->getRecord(), $content, ['messages.xml']);
         $revision = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, $this->changeSummary ?: 'Úprava messages.xml', auth()->user());
         $this->loadRevision($revision);
@@ -1622,7 +1622,7 @@ class EditConfiguration extends Page
             }
         }
 
-        $content = $weatherEditor->update($this->rawContent, $validated['weatherForm']);
+        $content = $weatherEditor->update($this->latestEditContent(), $validated['weatherForm']);
         $compatibility->assertEditable($this->getRecord(), $content, ['cfgweather.xml']);
         $revision = $revisionEditor->save(
             $this->getRecord(),
@@ -1642,7 +1642,7 @@ class EditConfiguration extends Page
 
     public function saveJson(JsonConfigurationEditor $jsonEditor, ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
     {
-        $content = $jsonEditor->update($this->rawContent, $this->flattenJsonValues($this->jsonValues));
+        $content = $jsonEditor->update($this->latestEditContent(), $this->flattenJsonValues($this->jsonValues));
         $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
         $revision = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, $this->changeSummary ?: 'Úprava JSON konfigurace', auth()->user());
         $this->loadRevision($revision);
@@ -1667,7 +1667,7 @@ class EditConfiguration extends Page
 
     public function saveXml(XmlConfigurationEditor $xmlEditor, ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
     {
-        $content = $xmlEditor->update($this->rawContent, $this->xmlValues);
+        $content = $xmlEditor->update($this->latestEditContent(), $this->xmlValues);
         $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
         $revision = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, $this->changeSummary ?: 'Úprava XML konfigurace', auth()->user());
         $this->loadRevision($revision);
@@ -1780,7 +1780,7 @@ class EditConfiguration extends Page
                 'newEventChildTypes.'.$groupIndex => 'Zadejte platný DayZ classname nového objektu.',
             ]);
         }
-        $content = $xmlEditor->update($this->rawContent, $this->xmlValues);
+        $content = $xmlEditor->update($this->latestEditContent(), $this->xmlValues);
         $content = $eventGroupsEditor->addChild($content, $groupIndex, $type);
         $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
         $revision = $revisionEditor->save(
@@ -1802,7 +1802,7 @@ class EditConfiguration extends Page
         ConfigurationRevisionEditor $revisionEditor,
         PlatformCompatibility $compatibility,
     ): void {
-        $content = $xmlEditor->update($this->rawContent, $this->xmlValues);
+        $content = $xmlEditor->update($this->latestEditContent(), $this->xmlValues);
         $content = $eventGroupsEditor->removeChild($content, $groupIndex, $childIndex);
         $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
         $revision = $revisionEditor->save(
@@ -2058,6 +2058,10 @@ class EditConfiguration extends Page
 
     private function sourceRevision(): ConfigurationRevision
     {
+        $latest = $this->latestRevisionByFilename(basename(str_replace('\\', '/', $this->currentFilename)));
+        if ($latest) {
+            return $latest;
+        }
         $revision = $this->getRecord()->revisions()
             ->with('configurationImport')
             ->findOrFail($this->revisionId);
@@ -2067,5 +2071,15 @@ class EditConfiguration extends Page
         }
 
         return $revision;
+    }
+
+    private function latestEditRevision(): ConfigurationRevision
+    {
+        return $this->sourceRevision();
+    }
+
+    private function latestEditContent(): string
+    {
+        return app(ConfigurationRevisionEditor::class)->content($this->latestEditRevision());
     }
 }
