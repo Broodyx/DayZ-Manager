@@ -790,6 +790,32 @@ class EditConfiguration extends Page
         )), 0, 200);
     }
 
+    /** @return array{file:string,count:int}|null */
+    public function animalTerritoryInfo(string $event): ?array
+    {
+        $files = [
+            'AnimalDeer' => 'red_deer_territories.xml',
+            'AnimalRoeDeer' => 'roe_deer_territories.xml',
+            'AnimalBear' => 'bear_territories.xml',
+            'AnimalCow' => 'cattle_territories.xml',
+            'AnimalGoat' => 'sheep_goat_territories.xml',
+            'AnimalSheep' => 'sheep_goat_territories.xml',
+            'AnimalWolf' => 'wolf_territories.xml',
+            'AnimalWildBoar' => 'wild_boar_territories.xml',
+            'AnimalPig' => 'pig_territories.xml',
+            'AnimalFox' => 'fox_territories.xml',
+            'AnimalHare' => 'hare_territories.xml',
+            'AnimalHen' => 'hen_territories.xml',
+        ];
+        $file = $files[$event] ?? null;
+        $revision = $file ? $this->latestRevisionByFilename($file) : null;
+        if (! $file || ! $revision) {
+            return $file ? ['file' => $file, 'count' => 0] : null;
+        }
+        $xml = @simplexml_load_string(app(ConfigurationRevisionEditor::class)->content($revision));
+        return ['file' => $file, 'count' => $xml ? count($xml->xpath('//*[@x and @z]') ?: []) : 0];
+    }
+
     public function selectEvent(string $name, EventsXmlEditor $editor): void
     {
         if (! collect($this->eventEntries)->firstWhere('name', $name)) {

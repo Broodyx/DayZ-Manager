@@ -445,6 +445,7 @@
                                 $childrenMin = collect($eventForm['children'] ?? [])->sum(fn ($child) => (int) ($child['min'] ?? 0));
                                 $childrenMax = collect($eventForm['children'] ?? [])->sum(fn ($child) => (int) ($child['max'] ?? 0));
                                 $nominal = (int) ($eventForm['nominal'] ?? 0);
+                                $territoryInfo = $isAnimalEvent ? $this->animalTerritoryInfo($selectedEvent) : null;
                             @endphp
                             <strong>{{ $selectedEvent }}</strong>
                             @if ($isAnimalEvent)
@@ -452,6 +453,9 @@
                                     Animal event · nominal {{ $nominal }} = cílový počet současných skupin.
                                     Přibližně {{ $nominal * $childrenMin }}–{{ $nominal * $childrenMax }} zvířat podle nastavení children.
                                     Teritoria pouze určují kandidátní oblasti, ne počet zvířat.
+                                    @if ($territoryInfo)
+                                        V mapě je nyní {{ $territoryInfo['count'] }} kandidátních oblastí v {{ $territoryInfo['file'] }}.
+                                    @endif
                                 </p>
                             @endif
                         </div>
