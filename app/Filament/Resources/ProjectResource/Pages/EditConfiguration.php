@@ -865,6 +865,12 @@ class EditConfiguration extends Page
         $this->selectEvent($this->selectedEvent, $editor);
 
         Notification::make()->success()->title("Event {$this->selectedEvent} byl uložen")->body("Vznikla revize #{$revision->revision_number}.")->send();
+        // Keep a manual browser reload on the newly-created revision. Otherwise the
+        // old ?revision= URL loads the previous XML and makes a successful save look lost.
+        $this->redirect(request()->fullUrlWithQuery([
+            'revision' => $revision->id,
+            'event' => $this->selectedEvent,
+        ]), navigate: true);
     }
 
     public function addEventChild(): void
