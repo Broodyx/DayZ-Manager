@@ -501,6 +501,8 @@
                                             <option value="unlimited">unlimited</option>
                                             <option value="nearest">nearest</option>
                                             <option value="farthest">farthest</option>
+                                            <option value="custom">custom</option>
+                                            <option value="child">child</option>
                                         </select>
                                     </label>
                                     <label><span><strong>Active</strong><small>0 = event je v souboru, ale server ho nepoužívá.</small></span><select wire:model="eventForm.active"><option value="1">1 · aktivní</option><option value="0">0 · vypnuto</option></select></label>
@@ -536,6 +538,9 @@
                                 </div>
                             </details>
                         </div>
+                        @if ($errors->has('eventForm.*'))
+                            <div class="dz-error mt-3">Formulář obsahuje neplatnou hodnotu. Zkontroluj zvýrazněná pole.</div>
+                        @endif
                         <div class="dz-savebar">
                             <input wire:model="changeSummary" class="dz-summary" placeholder="Popis změny (např. snížení nominal)">
                             <button type="button" wire:click="saveEvent" wire:loading.attr="disabled" wire:target="saveEvent" class="dz-confirm-button dz-action">
