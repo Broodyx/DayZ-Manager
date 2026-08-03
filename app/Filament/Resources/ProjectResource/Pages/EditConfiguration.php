@@ -853,10 +853,15 @@ class EditConfiguration extends Page
             'eventForm.children.*.lootmax' => ['required', 'integer', 'min:0', 'max:1000'],
         ]);
 
-        $content = $editor->update($this->rawContent, $this->selectedEvent, $validated['eventForm']);
+        // The editor can be opened with an older revision in the query string. Always
+        // apply event changes to the current events.xml, otherwise a reload appears to
+        // undo the edit by selecting an older branch of the file.
+        $source = $this->latestRevisionByFilename('events.xml') ?? $this->sourceRevision();
+        $baseContent = app(ConfigurationRevisionEditor::class)->content($source);
+        $content = $editor->update($baseContent, $this->selectedEvent, $validated['eventForm']);
         $revision = $revisionEditor->save(
             $this->getRecord(),
-            $this->sourceRevision(),
+            $source,
             $content,
             "Upraven event {$this->selectedEvent}",
             auth()->user(),
@@ -867,10 +872,15 @@ class EditConfiguration extends Page
         Notification::make()->success()->title("Event {$this->selectedEvent} byl uložen")->body("Vznikla revize #{$revision->revision_number}.")->send();
         // Keep a manual browser reload on the newly-created revision. Otherwise the
         // old ?revision= URL loads the previous XML and makes a successful save look lost.
-        $this->redirect(request()->fullUrlWithQuery([
-            'revision' => $revision->id,
-            'event' => $this->selectedEvent,
-        ]), navigate: true);
+        $pageUrl = request()->headers->get('referer') ?: url('/admin/projects/'.$this->getRecord()->id.'/configuration');
+        $parts = parse_url($pageUrl) ?: [];
+        parse_str((string) ($parts['query'] ?? ''), $query);
+        $query['revision'] = $revision->id;
+        $query['event'] = $this->selectedEvent;
+        $target = ($parts['scheme'] ?? request()->getScheme()).'://'.($parts['host'] ?? request()->getHost())
+            .($parts['path'] ?? '/admin/projects/'.$this->getRecord()->id.'/configuration')
+            .'?'.http_build_query($query);
+        $this->redirect($target, navigate: true);
     }
 
     public function addEventChild(): void
