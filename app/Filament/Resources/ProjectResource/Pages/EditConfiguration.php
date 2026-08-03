@@ -1661,6 +1661,10 @@ class EditConfiguration extends Page
             default => ['overcast' => .1, 'fog' => .05, 'rain' => 0, 'snowfall' => 0, 'storm_density' => 0],
         };
         foreach ($levels as $section => $value) {
+            if ($section === 'storm_density') {
+                $this->weatherForm['storm_density'] = $value;
+                continue;
+            }
             $this->weatherForm[$section.'_current_actual'] = $value;
             $this->weatherForm[$section.'_limits_min'] = $value;
             $this->weatherForm[$section.'_limits_max'] = $value;
