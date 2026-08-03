@@ -126,7 +126,6 @@ class AdminPanelProvider extends PanelProvider
                 DayzOverview::class,
                 ItemCategoriesChart::class,
                 RecentProjects::class,
-                Widgets\AccountWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class, AddQueuedCookiesToResponse::class, StartSession::class,
