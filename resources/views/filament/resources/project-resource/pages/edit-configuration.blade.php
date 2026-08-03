@@ -965,6 +965,25 @@
                             <p class="dz-muted text-sm mt-1">Nejdřív vyber vybavení ve slotech postavy: hlava, tělo, batoh, kalhoty, rukavice, zbraň a další. U každého vybraného kontejneru se jeho obsah zobrazí jako „Obsah tohoto kontejneru“ — tam přidej povolené itemy, například zásobníky, náboje nebo zdravotní předměty.</p>
                             <p class="dz-muted text-sm mt-1">Kapacitu batohu, vesty a oblečení určuje hra podle jejich reálné konfigurace. Editor proto nepovolí slíbit více prostoru, než skutečný item nabízí; pokud obsah překročí kapacitu, DayZ část obsahu při spawnu odmítne.</p>
                         </div>
+                        <div class="dz-gear-inventory-grid m-3">
+                            @foreach ($this->gearInventoryTree() as $gearSlot)
+                                <details class="dz-gear-slot" wire:key="gear-slot-{{ $gearSlot['slot'] }}">
+                                    <summary><strong>{{ $gearSlot['label'] }}</strong><span>{{ $gearSlot['item'] ?: 'Prázdný slot' }}</span></summary>
+                                    <div class="dz-gear-slot-body">
+                                        <p class="dz-muted text-sm">Vybrané vybavení: <strong>{{ $gearSlot['item'] ?: 'není vybráno' }}</strong></p>
+                                        @if ($gearSlot['children'] !== [])
+                                            <strong>Obsah kontejneru</strong>
+                                            @foreach ($gearSlot['children'] as $child)
+                                                <div class="dz-gear-child"><span>{{ $child['item'] ?: 'Nová položka — vyber classname níže' }}</span><button type="button" wire:click="removeGearChild('{{ $gearSlot['path'] }}.complexChildrenTypes', {{ $loop->index }})">Odebrat</button></div>
+                                            @endforeach
+                                        @else
+                                            <p class="dz-muted text-sm">Tento slot zatím nemá vnořený obsah.</p>
+                                        @endif
+                                        <button type="button" class="dz-secondary mt-2" wire:click="addGearChild('{{ $gearSlot['path'] }}.complexChildrenTypes')">+ Přidat item do {{ $gearSlot['label'] }}</button>
+                                    </div>
+                                </details>
+                            @endforeach
+                        </div>
                     @endif
                     <div class="p-3">
                         @foreach (collect($jsonFields)->groupBy(fn ($field) => $field['group'] ?? $field['section']) as $section => $fields)

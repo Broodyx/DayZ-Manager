@@ -365,6 +365,74 @@ class EditConfiguration extends Page
             ->all();
     }
 
+    /** @return list<array{slot:string,label:string,path:string,item:string,children:list<array{path:string,item:string}>}> */
+    public function gearInventoryTree(): array
+    {
+        if (! str_ends_with(strtolower($this->currentFilename), 'startovni-vybava.json')) {
+            return [];
+        }
+
+        $data = json_decode($this->rawContent, true);
+        $slots = config('dayz_inventory_ps.slots', []);
+        $result = [];
+        foreach ((array) data_get($data, 'attachmentSlotItemSets', []) as $slotIndex => $slot) {
+            $slotName = (string) ($slot['slotName'] ?? '');
+            $items = (array) ($slot['discreteItemSets'] ?? []);
+            $item = $items[0] ?? [];
+            $path = "attachmentSlotItemSets.{$slotIndex}.discreteItemSets.0";
+            $children = [];
+            foreach ((array) ($item['complexChildrenTypes'] ?? []) as $childIndex => $child) {
+                $children[] = [
+                    'path' => $path.'.complexChildrenTypes.'.$childIndex,
+                    'item' => (string) ($child['itemType'] ?? ''),
+                ];
+            }
+            $result[] = [
+                'slot' => $slotName,
+                'label' => $slots[$slotName] ?? $slotName,
+                'path' => $path,
+                'item' => (string) ($item['itemType'] ?? ''),
+                'children' => $children,
+            ];
+        }
+
+        return $result;
+    }
+
+    public function addGearChild(string $parentPath, ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
+    {
+        $data = json_decode($this->rawContent, true);
+        $children = data_get($data, $parentPath, []);
+        if (! is_array($children)) {
+            return;
+        }
+        $children[] = [
+            'itemType' => '',
+            'attributes' => ['healthMin' => 1.0, 'healthMax' => 1.0, 'quantityMin' => 1.0, 'quantityMax' => 1.0],
+            'quickBarSlot' => -1,
+        ];
+        data_set($data, $parentPath, $children);
+        $content = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE).PHP_EOL;
+        $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
+        $revision = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, 'Přidán item do inventáře', auth()->user());
+        $this->loadRevision($revision);
+    }
+
+    public function removeGearChild(string $parentPath, int $childIndex, ConfigurationRevisionEditor $revisionEditor, PlatformCompatibility $compatibility): void
+    {
+        $data = json_decode($this->rawContent, true);
+        $children = data_get($data, $parentPath, []);
+        if (! is_array($children) || ! array_key_exists($childIndex, $children)) {
+            return;
+        }
+        unset($children[$childIndex]);
+        data_set($data, $parentPath, array_values($children));
+        $content = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE).PHP_EOL;
+        $compatibility->assertEditable($this->getRecord(), $content, [$this->currentFilename]);
+        $revision = $revisionEditor->save($this->getRecord(), $this->sourceRevision(), $content, 'Odebrán item z inventáře', auth()->user());
+        $this->loadRevision($revision);
+    }
+
     public function descriptionForFilename(string $filename): string
     {
         if (str_ends_with(strtolower($filename), '_territories.xml')) {
