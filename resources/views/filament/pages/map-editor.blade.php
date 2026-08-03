@@ -414,7 +414,10 @@
             const canvasRenderer = L.canvas({ padding: 0.5 });
             const map = L.map(el, { crs: L.CRS.Simple, minZoom: -5, maxZoom: 1, zoomSnap: 0.25, inertia:false, preferCanvas:true, renderer: canvasRenderer });
             const bounds = [[0, 0], [worldSize, worldSize]];
-            L.imageOverlay('/maps/chernarus_big_hq.jpg', bounds).addTo(map);
+            // Chernarus HQ is a square 4000×4000 map aligned to the DayZ
+            // world bounds. X remains horizontal and Z remains vertical; no
+            // marker coordinates are transformed here.
+            L.imageOverlay('/maps/chernarus_hq.jpg?v=1', bounds).addTo(map);
             L.rectangle(bounds, { color: '#b8ed55', weight: 1, fill: false, opacity: .35 }).addTo(map);
             map.fitBounds(bounds);
             L.control.scale({ imperial: false }).addTo(map);
