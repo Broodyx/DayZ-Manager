@@ -62,6 +62,10 @@ class MapEditor extends Page
     public array $addEventForm = [];
     public array $lootCategoryLegend = [];
 
+    /** Request-local cache: mount loads the same latest-revision set many times. */
+    private ?int $latestRevisionProjectId = null;
+    private $latestRevisionCache = null;
+
     private const CATEGORY_COLORS = [
         'weapons' => '#e96a5f',
         'medical' => '#80b8ff',
@@ -120,6 +124,8 @@ class MapEditor extends Page
 
     public function updatedProjectId(): void
     {
+        $this->latestRevisionProjectId = null;
+        $this->latestRevisionCache = null;
         $this->loadMarkers();
         $this->loadEventCatalog();
         $this->loadMapSources();
@@ -301,6 +307,7 @@ class MapEditor extends Page
         }
         $content = $document->saveXML();
         $saved = $revisionEditor->save($project, $revision, $content ?: '', ($remove ? 'Odstraněny' : 'Opraveny').' zóny bez povoleného spawnu: '.$filename, auth()->user());
+        $this->forgetLatestRevisions();
         // Do not reload every map layer in the same Livewire request. Large stock
         // territory files contain thousands of markers and made the repair button
         // appear stuck even though the revision had already been saved.
@@ -329,6 +336,7 @@ class MapEditor extends Page
             'max' => max(1, (int) ($settings['max'] ?? 0), (int) ($settings['min'] ?? 0)),
         ]);
         $saved = $revisionEditor->save($project, $revision, $updated, 'Automatická oprava populace eventu '.$eventName, auth()->user());
+        $this->forgetLatestRevisions();
         $this->loadEventCatalog();
         $this->loadSpawnValidationWarnings();
         Notification::make()->success()->title("Event {$eventName} opraven")->body("active=1, nominal/min/max > 0 · revize #{$saved->revision_number}")->send();
@@ -505,6 +513,7 @@ class MapEditor extends Page
         }
 
         $saved = $revisionEditor->save($project, $revision, $updated, "Přidána položka {$classname} (zvíře z cfgenvironment.xml)", auth()->user());
+        $this->forgetLatestRevisions();
         $this->loadAnimalTypeWarnings();
         Notification::make()->success()->title("Položka {$classname} přidána do types.xml")->body("Vznikla revize #{$saved->revision_number}.")->send();
     }
@@ -561,6 +570,7 @@ class MapEditor extends Page
             return;
         }
         $saved = $revisionEditor->save($project, $revision, $result['content'], "Odstraněny pozice eventu {$eventName}", auth()->user());
+        $this->forgetLatestRevisions();
         $this->loadMarkers();
         $this->loadMapSources();
         $this->loadEventSpawnWarnings();
@@ -635,6 +645,7 @@ class MapEditor extends Page
             return;
         }
         $saved = $revisionEditor->save($project, $revision, $updated, "Přidán event {$this->addEventName}", auth()->user());
+        $this->forgetLatestRevisions();
         $this->showAddEventModal = false;
         $this->loadEventCatalog();
         $this->loadEventSpawnWarnings();
@@ -1187,12 +1198,32 @@ class MapEditor extends Page
 
     private function latestRevisions(?Project $project)
     {
-        return $project?->revisions()
+        if (! $project) {
+            return collect();
+        }
+
+        if ($this->latestRevisionProjectId === $project->id && $this->latestRevisionCache !== null) {
+            return $this->latestRevisionCache;
+        }
+
+        // Do this once per Livewire request. The map page asks for the same
+        // revision set from nine loaders; previously every loader ran the
+        // query and hydrated the complete revision history again.
+        $this->latestRevisionProjectId = $project->id;
+        $this->latestRevisionCache = $project->revisions()
             ->with('configurationImport')
             ->orderByDesc('revision_number')
             ->get()
             ->unique(fn ($revision) => $this->revisionFilename($revision))
-            ->values() ?? collect();
+            ->values();
+
+        return $this->latestRevisionCache;
+    }
+
+    private function forgetLatestRevisions(): void
+    {
+        $this->latestRevisionProjectId = null;
+        $this->latestRevisionCache = null;
     }
 
     private function revisionFilename($revision): string

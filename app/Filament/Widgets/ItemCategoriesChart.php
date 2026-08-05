@@ -8,10 +8,13 @@ use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 
 class ItemCategoriesChart extends ChartWidget
 {
-    protected static bool $isLazy = false;
+    // Parsing every latest types.xml is useful but not part of the critical
+    // dashboard render. Filament loads this widget after the shell is visible.
+    protected static bool $isLazy = true;
 
     protected static ?string $heading = 'Položky v ekonomice serverů';
 
@@ -22,6 +25,13 @@ class ItemCategoriesChart extends ChartWidget
     protected static ?string $maxHeight = '320px';
 
     protected function getData(): array
+    {
+        $cacheKey = 'dayz.dashboard.item-categories.'.(auth()->id() ?? 'guest').'.'.(auth()->user()?->is_admin ? 'admin' : 'user');
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), fn (): array => $this->buildData());
+    }
+
+    private function buildData(): array
     {
         $counts = [];
         $editor = app(TypesXmlEditor::class);
