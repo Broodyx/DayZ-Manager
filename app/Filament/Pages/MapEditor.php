@@ -730,9 +730,16 @@ class MapEditor extends Page
 
     public function loadEventCatalog(): void
     {
-        $this->eventCatalog = [];
         $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
         $revisions = $this->latestRevisions($project);
+        $cacheKey = 'dayz.map.event-catalog.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-');
+        if (Cache::has($cacheKey)) {
+            $this->eventCatalog = Cache::get($cacheKey, []);
+
+            return;
+        }
+
+        $this->eventCatalog = [];
         $byName = fn (string $name) => $revisions->first(fn ($item) => $this->revisionFilename($item) === $name);
         $events = $byName('events.xml');
         if ($events && Storage::disk('dayz')->exists($events->storage_path)) {
@@ -797,12 +804,20 @@ class MapEditor extends Page
                 }
             }
         }
+
+        Cache::put($cacheKey, $this->eventCatalog, now()->addMinutes(15));
     }
 
     public function loadPointTypeCatalog(): void
     {
         $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
         $revisions = $this->latestRevisions($project);
+        $cacheKey = 'dayz.map.point-catalog.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-');
+        if (Cache::has($cacheKey)) {
+            $this->pointTypeCatalog = Cache::get($cacheKey, []);
+
+            return;
+        }
         $uploaded = $revisions->mapWithKeys(fn ($revision) => [
             $this->revisionFilename($revision) => [
                 'revision_id' => $revision->id,
@@ -1028,6 +1043,8 @@ class MapEditor extends Page
             ],
             '_spawnable_suggestions' => $spawnableSuggestions,
         ];
+
+        Cache::put($cacheKey, $this->pointTypeCatalog, now()->addMinutes(15));
     }
 
     public function loadMarkers(): void
