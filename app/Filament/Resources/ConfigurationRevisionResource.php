@@ -4,7 +4,10 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ConfigurationRevisionResource\Pages;
 use App\Models\ConfigurationRevision;
+use App\Services\Dayz\ServerFileLayout;
+use App\Services\Ftp\FtpBrowser;
 use App\Services\Revision\ConfigurationRevisionEditor;
+use Filament\Notifications\Notification;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,6 +15,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class ConfigurationRevisionResource extends Resource
 {
@@ -84,12 +88,16 @@ class ConfigurationRevisionResource extends Resource
         ])
         ->actions([
             Tables\Actions\Action::make('editor')
-                ->label('Otevřít editor')
+                ->label('')
+                ->tooltip('Otevřít editor')
                 ->icon('heroicon-o-pencil-square')
+                ->iconButton()
                 ->url(fn (ConfigurationRevision $record): string => url('/admin/projects/'.$record->project_id.'/configuration?revision='.$record->id)),
             Tables\Actions\Action::make('download')
-                ->label('Stáhnout')
+                ->label('')
+                ->tooltip('Stáhnout revizi do počítače')
                 ->icon('heroicon-o-arrow-down-tray')
+                ->iconButton()
                 ->action(function (ConfigurationRevision $record) {
                     $record->forceFill(['downloaded_at' => now()])->save();
 
@@ -98,7 +106,40 @@ class ConfigurationRevisionResource extends Resource
                         app(ConfigurationRevisionEditor::class)->downloadName($record),
                     );
                 }),
-            Tables\Actions\EditAction::make()->label('Detail')->icon('heroicon-o-eye'),
+            Tables\Actions\Action::make('restore')
+                ->label('')
+                ->tooltip('Vrátit tuto revizi jako novou aktuální revizi')
+                ->icon('heroicon-o-arrow-uturn-left')
+                ->iconButton()
+                ->requiresConfirmation()
+                ->modalHeading('Vrátit starší revizi?')
+                ->modalDescription('Vytvoří se nová revize z tohoto souboru. Historie zůstane zachována.')
+                ->action(function (ConfigurationRevision $record, ConfigurationRevisionEditor $editor): void {
+                    $record->loadMissing(['project', 'configurationImport']);
+                    $editor->save($record->project, $record, $editor->content($record), 'Obnovena revize #'.$record->revision_number, auth()->user());
+                    Notification::make()->success()->title('Revize obnovena')->body('Byla vytvořena nová aktuální revize.')->send();
+                }),
+            Tables\Actions\Action::make('deploy')
+                ->label('')
+                ->tooltip('Nahrát tuto revizi na FTP server')
+                ->icon('heroicon-o-cloud-arrow-up')
+                ->iconButton()
+                ->requiresConfirmation()
+                ->modalHeading('Nahrát tuto revizi na FTP?')
+                ->modalDescription('Tímto se vybraný starší obsah zapíše na server. Doporučujeme nejprve ověřit číslo revize.')
+                ->action(function (ConfigurationRevision $record, FtpBrowser $browser, ServerFileLayout $layout): void {
+                    $record->loadMissing(['project', 'configurationImport']);
+                    $filename = $record->configurationImport?->original_filename ?? basename($record->storage_path);
+                    $path = $layout->relativePath($filename, $record->project);
+                    $content = Storage::disk('dayz')->get($record->storage_path);
+                    $browser->write($record->project, $path, $content);
+                    if (hash('sha256', $content) !== hash('sha256', $browser->read($record->project, $path))) {
+                        throw new RuntimeException('Server po zápisu vrátil jiný obsah souboru.');
+                    }
+                    $record->forceFill(['downloaded_at' => now()])->save();
+                    Notification::make()->success()->title('Revize nahrána na FTP')->body($filename.' · revize #'.$record->revision_number)->send();
+                }),
+            Tables\Actions\EditAction::make()->label('')->tooltip('Zobrazit detail')->icon('heroicon-o-eye')->iconButton(),
         ])
         ->emptyStateHeading('Zatím neexistuje žádná revize')
         ->emptyStateDescription('První revize vznikne automaticky při importu konfiguračního souboru.')
