@@ -475,7 +475,7 @@ XML);
             ->assertSet('spawnValidationWarnings', fn (array $warnings): bool => ! collect($warnings)->contains(fn (array $warning) => ($warning['zero_population'] ?? false) === true));
     }
 
-    public function test_zero_smax_dmax_is_still_flagged_for_an_ambient_territory(): void
+    public function test_zero_dmax_is_flagged_as_a_warning_not_a_critical_error_for_an_ambient_territory(): void
     {
         Storage::fake('dayz');
         $user = User::factory()->create(['is_admin' => true]);
@@ -495,6 +495,27 @@ XML);
         Livewire::actingAs($user)->test(MapEditor::class, [])
             ->set('projectId', $project->id)
             ->call('loadSpawnValidationWarnings')
-            ->assertSet('spawnValidationWarnings', fn (array $warnings): bool => collect($warnings)->contains(fn (array $warning) => ($warning['zero_population'] ?? false) === true));
+            ->assertSet('spawnValidationWarnings', fn (array $warnings): bool => collect($warnings)->contains(
+                fn (array $warning) => $warning['severity'] === 'warning' && empty($warning['zero_population']) && str_contains($warning['detail'], 'dynamicky spawnovaných')
+            ));
+    }
+
+    public function test_zero_smax_dmax_is_not_flagged_at_all_when_no_cfgenvironment_is_uploaded_and_the_file_matches_a_known_herd_species(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        // No cfgenvironment.xml uploaded at all — EnvironmentTargetCatalog's own fallback
+        // list must still classify wild_boar_territories.xml as Herd.
+        $this->seedFile($project, $user, 'wild_boar_territories.xml', <<<'XML'
+<territory-type><territory color="1"><zone name="Graze" smin="0" smax="0" dmin="0" dmax="0" x="1" z="2" r="60"/></territory></territory-type>
+XML);
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadSpawnValidationWarnings')
+            ->assertSet('spawnValidationWarnings', fn (array $warnings): bool => ! collect($warnings)->contains(fn (array $warning) => ($warning['zero_population'] ?? false) === true));
     }
 }

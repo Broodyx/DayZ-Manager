@@ -199,9 +199,17 @@ class MapEditor extends Page
         $this->spawnValidationWarnings = [];
         $filenameOf = fn ($revision): string => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
         $hasEnvironmentFile = $revisions->contains(fn ($revision) => $filenameOf($revision) === 'cfgenvironment.xml');
-        $environmentTargets = $hasEnvironmentFile ? app(EnvironmentTargetCatalog::class)->targets($revisions, $filenameOf) : [];
-        $registeredTerritoryFiles = collect($environmentTargets)->pluck('file')->map(fn ($file) => strtolower(basename((string) $file)))->all();
-        $territoryTypeByFile = collect($environmentTargets)->mapWithKeys(fn ($target) => [strtolower(basename((string) ($target['file'] ?? ''))) => (string) ($target['type'] ?? '')])->all();
+        // EnvironmentTargetCatalog::targets() already falls back to a hardcoded list of the
+        // known vanilla species (see its FALLBACK constant) when there's no cfgenvironment.xml
+        // to parse — call it unconditionally so species-type classification (Herd vs Ambient,
+        // below) still works without one. Only the "is this file actually registered"
+        // check further down needs to stay gated behind a real upload, since the fallback
+        // list doesn't reflect what's genuinely wired up in this project.
+        $knownTerritoryTargets = app(EnvironmentTargetCatalog::class)->targets($revisions, $filenameOf);
+        $registeredTerritoryFiles = $hasEnvironmentFile
+            ? collect($knownTerritoryTargets)->pluck('file')->map(fn ($file) => strtolower(basename((string) $file)))->all()
+            : [];
+        $territoryTypeByFile = collect($knownTerritoryTargets)->mapWithKeys(fn ($target) => [strtolower(basename((string) ($target['file'] ?? ''))) => (string) ($target['type'] ?? '')])->all();
         $unregisteredTerritoryFiles = [];
         if (! $hasEnvironmentFile && collect($this->markers)->contains(fn (array $marker): bool => ($marker['type'] ?? '') === 'territory')) {
             $this->spawnValidationWarnings[] = ['severity' => 'warning', 'title' => 'Nelze ověřit registraci territory souborů', 'detail' => 'Projekt nemá nahraný cfgenvironment.xml. Manager proto nemůže ověřit, ke kterému druhu a behavioru patří jednotlivé *_territories.xml.', 'action' => 'Nahrajte aktuální cfgenvironment.xml; bez něj lze zkontrolovat pouze syntaxi a hodnoty v territory souborech.'];
@@ -228,12 +236,25 @@ class MapEditor extends Page
                     if ((float) ($parameters['radius'] ?? 0) <= 0) {
                         $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Zóna zvířat nemá platný poloměr', 'detail' => "{$marker['label']} má poloměr 0 nebo zápornou hodnotu.", 'action' => 'Nastavte poloměr alespoň 1 metr.'];
                     }
-                    // Herd species (deer, wolf, bear, wild boar, ...) don't need smax/dmax at
-                    // all — their population is driven entirely by events.xml (nominal/min/max),
-                    // the same thing loadAnimalPopulationWarnings() already checks. Only
-                    // Ambient/dynamic zones actually rely on smax/dmax to spawn anything.
-                    if (! str_contains($filename, 'zombie')
-                        && ($territoryTypeByFile[basename($filename)] ?? '') !== 'Herd'
+                    // Herd species (deer, wolf, bear, wild boar, cattle, sheep/goat, pig, ...)
+                    // routinely ship with smin/smax/dmin/dmax all 0 in real vanilla data —
+                    // their population comes entirely from events.xml (nominal/min/max), the
+                    // same thing loadAnimalPopulationWarnings() already checks; smax/dmax=0 is
+                    // not a misconfiguration for them and doesn't stop anything from spawning.
+                    // Ambient species (hare/hen/fox) do rely on dmax to spawn — but only dmax
+                    // (dynamic), not smax, and it's worth a look rather than a hard error, since
+                    // the actual count can also be governed by an ambient spawner elsewhere.
+                    $territoryType = $territoryTypeByFile[basename($filename)] ?? null;
+                    if (! str_contains($filename, 'zombie') && $territoryType === 'Ambient' && (int) ($parameters['dmax'] ?? 0) === 0) {
+                        $this->spawnValidationWarnings[] = [
+                            'severity' => 'warning',
+                            'territory_file' => $filename,
+                            'title' => "{$marker['label']} má dmax 0",
+                            'detail' => 'Tato zóna sama neurčuje počet dynamicky spawnovaných entit.',
+                            'action' => 'Ověř nastavení ambient spawneru — dmax zde není jediné místo, které počet řídí.',
+                        ];
+                    } elseif (! str_contains($filename, 'zombie')
+                        && $territoryType !== 'Herd' && $territoryType !== 'Ambient'
                         && (int) ($parameters['smax'] ?? 0) === 0
                         && (int) ($parameters['dmax'] ?? 0) === 0) {
                         $this->spawnValidationWarnings[] = [
