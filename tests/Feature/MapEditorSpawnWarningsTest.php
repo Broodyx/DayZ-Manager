@@ -518,4 +518,96 @@ XML);
             ->call('loadSpawnValidationWarnings')
             ->assertSet('spawnValidationWarnings', fn (array $warnings): bool => ! collect($warnings)->contains(fn (array $warning) => ($warning['zero_population'] ?? false) === true));
     }
+
+    public function test_an_unregistered_territory_file_produces_one_warning_with_a_zone_count_not_one_per_zone(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        // A real, registered species (so $registeredTerritoryFiles isn't empty) — wild_boar
+        // deliberately isn't registered here.
+        $this->seedEnvironment($project, $user, <<<'XML'
+<env><territories>
+    <file path="env/red_deer_territories.xml" />
+    <territory type="Herd" name="Deer"><file usable="red_deer_territories" /></territory>
+</territories></env>
+XML);
+        $this->seedFile($project, $user, 'wild_boar_territories.xml', <<<'XML'
+<territory-type><territory color="1">
+    <zone name="Graze" smin="0" smax="5" dmin="0" dmax="5" x="1" z="2" r="60"/>
+    <zone name="Graze" smin="0" smax="5" dmin="0" dmax="5" x="3" z="4" r="60"/>
+    <zone name="Graze" smin="0" smax="5" dmin="0" dmax="5" x="5" z="6" r="60"/>
+</territory></territory-type>
+XML);
+
+        $unregistered = Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadSpawnValidationWarnings')
+            ->get('spawnValidationWarnings');
+
+        $matches = collect($unregistered)->filter(fn (array $warning) => ($warning['unregistered'] ?? false) === true);
+        $this->assertCount(1, $matches, 'expected exactly one warning for the whole file, not one per zone');
+        $this->assertSame(3, $matches->first()['zone_count']);
+    }
+
+    public function test_ignoring_a_territory_file_persists_on_the_project_and_suppresses_the_warning(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEnvironment($project, $user, <<<'XML'
+<env><territories>
+    <file path="env/red_deer_territories.xml" />
+    <territory type="Herd" name="Deer"><file usable="red_deer_territories" /></territory>
+</territories></env>
+XML);
+        $this->seedFile($project, $user, 'wild_boar_territories.xml', <<<'XML'
+<territory-type><territory color="1"><zone name="Graze" smin="0" smax="5" dmin="0" dmax="5" x="1" z="2" r="60"/></territory></territory-type>
+XML);
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadSpawnValidationWarnings')
+            ->assertSet('spawnValidationWarnings', fn (array $warnings): bool => collect($warnings)->contains(fn (array $warning) => ($warning['unregistered'] ?? false) === true))
+            ->call('ignoreUnregisteredTerritoryFile', 'wild_boar_territories.xml')
+            ->assertSet('spawnValidationWarnings', fn (array $warnings): bool => ! collect($warnings)->contains(fn (array $warning) => ($warning['unregistered'] ?? false) === true));
+
+        $this->assertSame(['wild_boar_territories.xml'], $project->fresh()->ignored_territory_files);
+    }
+
+    public function test_deleting_a_territory_file_removes_its_import_revisions_and_storage(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEnvironment($project, $user, <<<'XML'
+<env><territories>
+    <file path="env/red_deer_territories.xml" />
+    <territory type="Herd" name="Deer"><file usable="red_deer_territories" /></territory>
+</territories></env>
+XML);
+        $this->seedFile($project, $user, 'wild_boar_territories.xml', <<<'XML'
+<territory-type><territory color="1"><zone name="Graze" smin="0" smax="5" dmin="0" dmax="5" x="1" z="2" r="60"/></territory></territory-type>
+XML);
+        $import = ConfigurationImport::query()->where('project_id', $project->id)
+            ->where('original_filename', 'wild_boar_territories.xml')->firstOrFail();
+        $storagePath = $import->storage_path;
+        $this->assertTrue(Storage::disk('dayz')->exists($storagePath));
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadSpawnValidationWarnings')
+            ->call('deleteUnregisteredTerritoryFile', 'wild_boar_territories.xml')
+            ->assertSet('spawnValidationWarnings', fn (array $warnings): bool => ! collect($warnings)->contains(fn (array $warning) => ($warning['unregistered'] ?? false) === true));
+
+        $this->assertModelMissing($import);
+        $this->assertDatabaseMissing('configuration_revisions', ['project_id' => $project->id, 'configuration_import_id' => $import->id]);
+        Storage::disk('dayz')->assertMissing($storagePath);
+    }
 }

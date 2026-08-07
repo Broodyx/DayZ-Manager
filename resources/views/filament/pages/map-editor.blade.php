@@ -258,6 +258,12 @@
                                 <span><strong>{{ $warning['occurrences'] > 1 ? $warning['occurrences'].'× ' : '' }}{{ $warning['title'] }}</strong> — {{ $warning['detail'] }}<br><small>Co udělat: {{ $warning['action'] }}</small></span>
                                 @if (!empty($warning['event_name']))
                                     <x-dz-confirm-button call="repairEventPopulation('{{ $warning['event_name'] }}')" label="Automaticky opravit event" saved-label="Opraveno" class="dz-secondary" />
+                                @elseif (!empty($warning['unregistered']))
+                                    <a class="dz-secondary" href="{{ url('/admin/projects/'.$projectId.'/configuration?register_territory='.rawurlencode($warning['territory_file'])) }}">Ručně registrovat</a>
+                                    @php $ignoreConfirm = "Označit {$warning['territory_file']} jako nepoužívaný? Validátor ho přestane kontrolovat, dokud ho zase neodebereš ze seznamu."; @endphp
+                                    <button type="button" class="dz-secondary" x-on:click="dzConfirm(@js($ignoreConfirm)).then((ok) => { if (ok) $wire.ignoreUnregisteredTerritoryFile(@js($warning['territory_file'])); })">Ignorovat jako nepoužívaný</button>
+                                    @php $deleteConfirm = "Trvale smazat {$warning['territory_file']} i celou jeho historii revizí? Tohle se nedá vrátit."; @endphp
+                                    <button type="button" class="dz-danger" x-on:click="dzConfirm(@js($deleteConfirm)).then((ok) => { if (ok) $wire.deleteUnregisteredTerritoryFile(@js($warning['territory_file'])); })">Smazat soubor</button>
                                 @elseif (!empty($warning['territory_file']))
                                     @if (!empty($warning['zero_population']))
                                         <x-dz-confirm-button call="repairZeroTerritoryPopulation('{{ $warning['territory_file'] }}')" label="Doplnit spawny (1–3)" saved-label="Opraveno" class="dz-secondary" />

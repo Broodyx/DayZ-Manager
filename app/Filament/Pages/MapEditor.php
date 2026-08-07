@@ -20,6 +20,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\WithFileUploads;
@@ -189,7 +190,10 @@ class MapEditor extends Page
     {
         $project = $this->project();
         $revisions = $project ? $this->latestRevisions($project) : collect();
-        $cacheKey = 'dayz.map.spawn-validation.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-');
+        // The ignore list is state on Project, not a new revision — folding it into the
+        // cache key (instead of just project id + revision ids) is what makes toggling it
+        // actually take effect immediately rather than serving a stale cached result.
+        $cacheKey = 'dayz.map.spawn-validation.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-').'.'.md5(json_encode($project?->ignored_territory_files ?? []));
         if (Cache::has($cacheKey)) {
             $this->spawnValidationWarnings = Cache::get($cacheKey, []);
 
@@ -210,7 +214,12 @@ class MapEditor extends Page
             ? collect($knownTerritoryTargets)->pluck('file')->map(fn ($file) => strtolower(basename((string) $file)))->all()
             : [];
         $territoryTypeByFile = collect($knownTerritoryTargets)->mapWithKeys(fn ($target) => [strtolower(basename((string) ($target['file'] ?? ''))) => (string) ($target['type'] ?? '')])->all();
-        $unregisteredTerritoryFiles = [];
+        // Territory files a user has explicitly told us aren't actually wired up (see
+        // ignoreUnregisteredTerritoryFile()) never generate any warning at all — otherwise
+        // a genuinely unused leftover file (e.g. one superseded by per-species files that
+        // already do its job) would reappear on every load with no way to silence it.
+        $ignoredTerritoryFiles = collect($project?->ignored_territory_files ?? [])->map(fn ($name) => strtolower((string) $name))->all();
+        $unregisteredFileZoneCounts = [];
         if (! $hasEnvironmentFile && collect($this->markers)->contains(fn (array $marker): bool => ($marker['type'] ?? '') === 'territory')) {
             $this->spawnValidationWarnings[] = ['severity' => 'warning', 'title' => 'Nelze ověřit registraci territory souborů', 'detail' => 'Projekt nemá nahraný cfgenvironment.xml. Manager proto nemůže ověřit, ke kterému druhu a behavioru patří jednotlivé *_territories.xml.', 'action' => 'Nahrajte aktuální cfgenvironment.xml; bez něj lze zkontrolovat pouze syntaxi a hodnoty v territory souborech.'];
         }
@@ -218,10 +227,12 @@ class MapEditor extends Page
             $parameters = $marker['parameters'] ?? [];
             if (($marker['type'] ?? '') === 'territory') {
                 $filename = strtolower((string) ($marker['filename'] ?? ''));
+                if (in_array(basename($filename), $ignoredTerritoryFiles, true)) {
+                    continue;
+                }
                 if (str_ends_with($filename, '_territories.xml')) {
-                    if ($hasEnvironmentFile && $registeredTerritoryFiles !== [] && ! in_array(basename($filename), $registeredTerritoryFiles, true) && ! in_array(basename($filename), $unregisteredTerritoryFiles, true)) {
-                        $unregisteredTerritoryFiles[] = basename($filename);
-                        $this->spawnValidationWarnings[] = ['severity' => 'critical', 'territory_file' => $filename, 'title' => 'Territory soubor není registrovaný v cfgenvironment.xml', 'detail' => "Soubor {$filename} je sice nahraný, ale cfgenvironment.xml ho nepřiřazuje žádnému druhu ani behavioru. Nahrání souboru samo o sobě nestačí — hra ho ignoruje.", 'action' => 'Otevřete průvodce registrací, zkontrolujte navržený druh a behavior a uložte. Tím se zapíše jak <file path="env/'.$filename.'" />, tak <territory><file usable="'.pathinfo($filename, PATHINFO_FILENAME).'" /></territory>.'];
+                    if ($hasEnvironmentFile && $registeredTerritoryFiles !== [] && ! in_array(basename($filename), $registeredTerritoryFiles, true)) {
+                        $unregisteredFileZoneCounts[basename($filename)] = ($unregisteredFileZoneCounts[basename($filename)] ?? 0) + 1;
                     }
                     $zone = (string) ($parameters['zone_type'] ?? '');
                     $knownZones = $this->zoneTypeCatalog();
@@ -269,6 +280,20 @@ class MapEditor extends Page
                 }
             }
         }
+        // One warning per unregistered file, not per zone — a stock territory file can
+        // easily carry 100+ identical zones, and a file-level problem (not registered at
+        // all) deserves a file-level message with a zone count, not a wall of duplicates.
+        foreach ($unregisteredFileZoneCounts as $unregisteredFilename => $zoneCount) {
+            $this->spawnValidationWarnings[] = [
+                'severity' => 'critical',
+                'territory_file' => $unregisteredFilename,
+                'unregistered' => true,
+                'zone_count' => $zoneCount,
+                'title' => "{$unregisteredFilename} není registrovaný v cfgenvironment.xml",
+                'detail' => "Soubor je nahraný a obsahuje {$zoneCount} ".($zoneCount === 1 ? 'zónu' : ($zoneCount < 5 ? 'zóny' : 'zón')).", ale cfgenvironment.xml ho nepřiřazuje žádnému druhu ani behavioru — hra ho ignoruje.",
+                'action' => 'Buď ho ručně zaregistruj (přiřaď druh a behavior), označ jako nepoužívaný, nebo smaž, pokud je nahrazený jiným souborem.',
+            ];
+        }
         foreach ($this->eventCatalog as $event) {
             $name = (string) ($event['name'] ?? '');
             if (! Str::startsWith($name, ['Animal', 'Vehicle'])) continue;
@@ -298,6 +323,72 @@ class MapEditor extends Page
         }
         $this->spawnValidationWarnings = array_values($grouped);
         Cache::put($cacheKey, $this->spawnValidationWarnings, now()->addMinutes(15));
+    }
+
+    /** Marks a territory file as intentionally unused — the validator stops warning about it entirely, instead of re-flagging it every load with no way to silence it. */
+    public function ignoreUnregisteredTerritoryFile(string $territoryFile): void
+    {
+        $project = $this->project();
+        if (! $project) {
+            return;
+        }
+
+        $ignored = collect($project->ignored_territory_files ?? [])
+            ->map(fn ($name) => strtolower((string) $name))
+            ->push(strtolower(basename($territoryFile)))
+            ->unique()
+            ->values()
+            ->all();
+        $project->forceFill(['ignored_territory_files' => $ignored])->save();
+
+        $this->loadSpawnValidationWarnings();
+        Notification::make()->success()
+            ->title(basename($territoryFile).' označen jako nepoužívaný')
+            ->body('Validátor tenhle soubor přestane kontrolovat. Napiš mi, pokud ho budeš chtít zase začít sledovat.')
+            ->send();
+    }
+
+    /** Permanently deletes an unregistered territory file's entire revision history — not just its content, the file itself stops existing in the project. */
+    public function deleteUnregisteredTerritoryFile(string $territoryFile, ConfigurationRevisionEditor $revisionEditor): void
+    {
+        $project = $this->project();
+        if (! $project) {
+            return;
+        }
+
+        $target = strtolower(basename($territoryFile));
+        $imports = $project->imports()->with('revisions')->get()
+            ->filter(fn ($import) => strtolower(basename(str_replace('\\', '/', (string) $import->original_filename))) === $target);
+
+        if ($imports->isEmpty()) {
+            Notification::make()->danger()->title('Soubor nenalezen')->body('Možná už byl smazán dřív.')->send();
+            $this->loadSpawnValidationWarnings();
+
+            return;
+        }
+
+        $revisionCount = $imports->sum(fn ($import) => $import->revisions->count());
+        foreach ($imports as $import) {
+            foreach ($import->revisions as $revision) {
+                Storage::disk('dayz')->delete($revision->storage_path);
+            }
+            Storage::disk('dayz')->delete($import->storage_path);
+        }
+        DB::transaction(function () use ($imports): void {
+            foreach ($imports as $import) {
+                $import->revisions()->delete();
+                $import->delete();
+            }
+        });
+
+        $this->forgetLatestRevisions();
+        $this->loadMarkers();
+        $this->loadMapSources();
+        $this->loadSpawnValidationWarnings();
+        Notification::make()->success()
+            ->title(basename($territoryFile).' smazán')
+            ->body("Odstraněno {$revisionCount} ".($revisionCount === 1 ? 'revize' : 'revizí').' i uložené soubory.')
+            ->send();
     }
 
     public function repairZeroTerritoryPopulation(string $territoryFile, ConfigurationRevisionEditor $revisionEditor): void
