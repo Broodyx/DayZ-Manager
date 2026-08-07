@@ -1,21 +1,25 @@
 @php
+    // The active project persists in session (App\Support\ActiveProject) instead of only
+    // living in the current page's own ?project= query string — a project picked once (via
+    // the switcher below, or any page's own project select) stays active across every page,
+    // including ones that never pass ?project= themselves (FTP prohlížeč, Log analyzátor,
+    // Dashboard…). A project route-parameter (e.g. /admin/projects/{record}/edit) counts as
+    // an explicit request too, same priority as an explicit ?project=.
     $routeRecord = request()->route('record');
     $routeProjectId = $routeRecord instanceof \App\Models\Project ? $routeRecord->id : (is_numeric($routeRecord) ? (int) $routeRecord : null);
-    $projectId = request()->integer('project') ?: $routeProjectId;
-    $showWorkspace = $projectId && (
-        request()->routeIs('filament.admin.resources.projects.configuration')
-        || request()->routeIs('filament.admin.resources.projects.edit')
-        || request()->routeIs('filament.admin.pages.map-editor')
-        || request()->routeIs('filament.admin.pages.configuration-import')
-        || request()->routeIs('filament.admin.pages.configuration-wizard')
-    );
-    $project = $showWorkspace
+    $explicitProjectId = request()->integer('project') ?: $routeProjectId;
+    $isAdmin = (bool) auth()->user()?->is_admin;
+    $projectOptions = \App\Models\Project::query()
+        ->when(! $isAdmin, fn ($query) => $query->where('user_id', auth()->id()))
+        ->orderBy('name')
+        ->pluck('name', 'id');
+    $projectId = \App\Support\ActiveProject::resolve($explicitProjectId ?: null, $projectOptions->keys()->all());
+    $project = $projectId
         ? \App\Models\Project::query()
-            ->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))
+            ->when(! $isAdmin, fn ($query) => $query->where('user_id', auth()->id()))
             ->withCount(['imports', 'revisions'])
             ->find($projectId)
         : null;
-    $isAdmin = (bool) auth()->user()?->is_admin;
 @endphp
 <div class="dz-main-nav">
     @if ($project)
@@ -87,4 +91,18 @@
             @endif
         </div>
     </details>
+    @if ($projectOptions->count())
+        <label class="dz-map-server-picker dz-nav-server-switch">
+            <span>Server</span>
+            <select class="dz-map-select" aria-label="Aktivní server" onchange="
+                const u = new URL(window.location.href);
+                u.searchParams.set('project', this.value);
+                window.location.href = u.toString();
+            ">
+                @foreach ($projectOptions as $id => $name)
+                    <option value="{{ $id }}" @selected((int) $projectId === (int) $id)>{{ $name }}</option>
+                @endforeach
+            </select>
+        </label>
+    @endif
 </div>

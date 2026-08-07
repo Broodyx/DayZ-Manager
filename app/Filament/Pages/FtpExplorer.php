@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\Project;
 use App\Services\Ftp\FtpBrowser;
 use App\Services\Import\ConfigurationImporter;
+use App\Support\ActiveProject;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Validation\ValidationException;
@@ -34,16 +35,14 @@ class FtpExplorer extends Page
     public function mount(): void
     {
         $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
-        $requestedProject = request()->integer('project');
-        $this->projectId = array_key_exists($requestedProject, $this->projects)
-            ? $requestedProject
-            : array_key_first($this->projects);
+        $this->projectId = ActiveProject::resolve(request()->integer('project') ?: null, array_keys($this->projects));
         $this->currentPath = trim((string) request()->string('path'), '/');
         $this->loadDirectory();
     }
 
     public function updatedProjectId(): void
     {
+        ActiveProject::set($this->projectId);
         $this->currentPath = '';
         $this->loadDirectory();
     }

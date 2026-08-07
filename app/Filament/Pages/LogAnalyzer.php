@@ -11,6 +11,7 @@ use App\Services\Dayz\ServerLogAnalyzer;
 use App\Services\Ftp\FtpBrowser;
 use App\Services\Revision\ConfigurationRevisionEditor;
 use App\Services\Revision\TypesXmlEditor;
+use App\Support\ActiveProject;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
@@ -51,15 +52,13 @@ class LogAnalyzer extends Page
     public function mount(): void
     {
         $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
-        $requestedProject = request()->integer('project');
-        $this->projectId = array_key_exists($requestedProject, $this->projects)
-            ? $requestedProject
-            : array_key_first($this->projects);
+        $this->projectId = ActiveProject::resolve(request()->integer('project') ?: null, array_keys($this->projects));
         $this->loadHistory();
     }
 
     public function updatedProjectId(): void
     {
+        ActiveProject::set($this->projectId);
         $this->loadHistory();
         $this->ftpLogFiles = [];
         $this->ftpLogsLoaded = false;

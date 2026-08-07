@@ -15,6 +15,7 @@ use App\Services\Import\ConfigurationImporter;
 use App\Services\Revision\ConfigurationRevisionEditor;
 use App\Services\Revision\EnvironmentXmlEditor;
 use App\Services\Revision\TypesXmlEditor;
+use App\Support\ActiveProject;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
@@ -99,7 +100,7 @@ class MapEditor extends Page
     public function mount(ClassnameCatalog $classnameCatalog): void
     {
         $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
-        $this->projectId = request()->integer('project') ?: array_key_first($this->projects);
+        $this->projectId = ActiveProject::resolve(request()->integer('project') ?: null, array_keys($this->projects));
 
         // A project with nothing uploaded yet has nothing to plot — send it through the
         // Checklist first, same guard EditConfiguration::mount() already applies, so the map
@@ -133,6 +134,7 @@ class MapEditor extends Page
 
     public function updatedProjectId(): void
     {
+        ActiveProject::set($this->projectId);
         $this->latestRevisionProjectId = null;
         $this->latestRevisionCache = null;
         $this->projectCacheId = null;

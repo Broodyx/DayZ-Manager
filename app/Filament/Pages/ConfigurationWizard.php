@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\Project;
 use App\Services\Dayz\ConfigurationCatalog;
+use App\Support\ActiveProject;
 use Filament\Pages\Page;
 use Illuminate\Support\Str;
 
@@ -25,10 +26,7 @@ class ConfigurationWizard extends Page
             ->when(! auth()->user()?->is_admin, fn ($builder) => $builder->where('user_id', auth()->id()))
             ->orderBy('name');
         $this->projects = $query->pluck('name', 'id')->all();
-        $requestedProject = request()->integer('project');
-        $this->projectId = array_key_exists($requestedProject, $this->projects)
-            ? $requestedProject
-            : array_key_first($this->projects);
+        $this->projectId = ActiveProject::resolve(request()->integer('project') ?: null, array_keys($this->projects));
         $this->areas = $this->buildAreas($catalog);
     }
 
