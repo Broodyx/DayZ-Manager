@@ -903,12 +903,18 @@ class MapEditor extends Page
             foreach ($matches as $revision) {
                 $actualName = $this->revisionFilename($revision);
                 $entryDescription = $description;
+                $displayLabel = $actualName;
                 if (str_contains($filename, '_territories.xml') && isset($speciesNameByFile[$actualName])) {
                     $speciesName = $speciesNameByFile[$actualName];
                     $speciesLabel = self::TERRITORY_SPECIES_CZ[$speciesName] ?? null;
                     $entryDescription = ($speciesLabel ? "{$speciesLabel} ({$speciesName})" : $speciesName).' – '.$description;
+                    if ($speciesLabel) {
+                        $displayLabel = "{$speciesLabel} · {$actualName}";
+                    }
                 }
-                $this->mapSources[] = $this->source($actualName, $entryDescription, $plottable, $revision);
+                $source = $this->source($actualName, $entryDescription, $plottable, $revision);
+                $source['display_label'] = $displayLabel;
+                $this->mapSources[] = $source;
             }
         }
     }
@@ -1452,6 +1458,7 @@ class MapEditor extends Page
     {
         return [
             'filename' => $filename,
+            'display_label' => $filename,
             'description' => $description,
             'plottable' => $plottable,
             'uploaded' => $revision !== null,

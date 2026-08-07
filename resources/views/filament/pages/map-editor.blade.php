@@ -335,7 +335,9 @@
                     @foreach ($mapSources as $source)
                         @if ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0 && $source['loaded'])
                             <article class="dz-map-layer-card">
-                                <label title="{{ $source['description'] }}"><input class="map-layer-toggle" type="checkbox" @checked(($source['filename'] === 'cfgplayerspawnpoints.xml' || $source['filename'] === request()->string('show')->toString()) && $source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
+                                <label title="{{ $source['description'] }}"><input class="map-layer-toggle" type="checkbox" @checked(($source['filename'] === 'cfgplayerspawnpoints.xml' || $source['filename'] === request()->string('show')->toString()) && $source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><b>{{ $source['display_label'] }}</b></label>
+                                <div class="dz-map-layer-meta">
+                                    <small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small>
                                 <details class="dz-layer-details">
                                     <summary>Detaily a akce</summary>
                                     <p>{{ $source['description'] }}</p>
@@ -376,6 +378,7 @@
                                         </details>
                                     @endif
                                 </details>
+                                </div>
                             </article>
                         @elseif ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0)
                             <a class="dz-load-dense" href="{{ url('/admin/map-editor?project='.$projectId.'&dense=1') }}" data-count="{{ $source['marker_count'] }}" data-filename="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span>Načíst {{ $source['filename'] }}<small>{{ number_format($source['marker_count'], 0, ',', ' ') }} hustých bodů</small></span></a>
@@ -986,7 +989,10 @@
                     .addTo(map);
                 placeLabelLayers.push(label);
             });
-            const updatePlaceLabelVisibility = () => el.classList.toggle('dz-hide-place-labels', map.getZoom() < 2);
+            const updatePlaceLabelVisibility = () => {
+                el.classList.toggle('dz-hide-place-labels', map.getZoom() < 2);
+                el.style.setProperty('--dz-zoom', map.getZoom());
+            };
             map.on('zoomend', updatePlaceLabelVisibility);
             updatePlaceLabelVisibility();
             const markerRecords = [];
