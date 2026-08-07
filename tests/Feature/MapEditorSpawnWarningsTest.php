@@ -451,4 +451,50 @@ XML;
         $this->assertStringContainsString('name="Animal_CervusElaphus"', $content);
         $this->assertMatchesRegularExpression('/Animal_CervusElaphus.*?<nominal>0<\/nominal>/s', $content);
     }
+
+    public function test_zero_smax_dmax_is_not_flagged_for_a_herd_territory_since_events_xml_drives_its_population(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEnvironment($project, $user, <<<'XML'
+<env><territories>
+    <file path="env/wild_boar_territories.xml" />
+    <territory type="Herd" name="WildBoar" behavior="DZWildBoarGroupBeh"><file usable="wild_boar_territories" /></territory>
+</territories></env>
+XML);
+        $this->seedFile($project, $user, 'wild_boar_territories.xml', <<<'XML'
+<territory-type><territory color="1"><zone name="Graze" smin="0" smax="0" dmin="0" dmax="0" x="9058.75" z="13568.8" r="60"/></territory></territory-type>
+XML);
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadSpawnValidationWarnings')
+            ->assertSet('spawnValidationWarnings', fn (array $warnings): bool => ! collect($warnings)->contains(fn (array $warning) => ($warning['zero_population'] ?? false) === true));
+    }
+
+    public function test_zero_smax_dmax_is_still_flagged_for_an_ambient_territory(): void
+    {
+        Storage::fake('dayz');
+        $user = User::factory()->create(['is_admin' => true]);
+        $project = Project::query()->create([
+            'user_id' => $user->id, 'name' => 'Chernarus test', 'platform' => 'playstation', 'map' => 'ChernarusPlus',
+        ]);
+        $this->seedEnvironment($project, $user, <<<'XML'
+<env><territories>
+    <file path="env/hen_territories.xml" />
+    <territory type="Ambient" name="Hen"><file usable="hen_territories" /></territory>
+</territories></env>
+XML);
+        $this->seedFile($project, $user, 'hen_territories.xml', <<<'XML'
+<territory-type><territory color="1"><zone name="Graze" smin="0" smax="0" dmin="0" dmax="0" x="1" z="2" r="60"/></territory></territory-type>
+XML);
+
+        Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadSpawnValidationWarnings')
+            ->assertSet('spawnValidationWarnings', fn (array $warnings): bool => collect($warnings)->contains(fn (array $warning) => ($warning['zero_population'] ?? false) === true));
+    }
 }

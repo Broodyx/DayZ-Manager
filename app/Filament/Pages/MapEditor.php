@@ -199,6 +199,7 @@ class MapEditor extends Page
         $hasEnvironmentFile = $revisions->contains(fn ($revision) => $filenameOf($revision) === 'cfgenvironment.xml');
         $environmentTargets = $hasEnvironmentFile ? app(EnvironmentTargetCatalog::class)->targets($revisions, $filenameOf) : [];
         $registeredTerritoryFiles = collect($environmentTargets)->pluck('file')->map(fn ($file) => strtolower(basename((string) $file)))->all();
+        $territoryTypeByFile = collect($environmentTargets)->mapWithKeys(fn ($target) => [strtolower(basename((string) ($target['file'] ?? ''))) => (string) ($target['type'] ?? '')])->all();
         $unregisteredTerritoryFiles = [];
         if (! $hasEnvironmentFile && collect($this->markers)->contains(fn (array $marker): bool => ($marker['type'] ?? '') === 'territory')) {
             $this->spawnValidationWarnings[] = ['severity' => 'warning', 'title' => 'Nelze ověřit registraci territory souborů', 'detail' => 'Projekt nemá nahraný cfgenvironment.xml. Manager proto nemůže ověřit, ke kterému druhu a behavioru patří jednotlivé *_territories.xml.', 'action' => 'Nahrajte aktuální cfgenvironment.xml; bez něj lze zkontrolovat pouze syntaxi a hodnoty v territory souborech.'];
@@ -225,7 +226,12 @@ class MapEditor extends Page
                     if ((float) ($parameters['radius'] ?? 0) <= 0) {
                         $this->spawnValidationWarnings[] = ['severity' => 'critical', 'title' => 'Zóna zvířat nemá platný poloměr', 'detail' => "{$marker['label']} má poloměr 0 nebo zápornou hodnotu.", 'action' => 'Nastavte poloměr alespoň 1 metr.'];
                     }
+                    // Herd species (deer, wolf, bear, wild boar, ...) don't need smax/dmax at
+                    // all — their population is driven entirely by events.xml (nominal/min/max),
+                    // the same thing loadAnimalPopulationWarnings() already checks. Only
+                    // Ambient/dynamic zones actually rely on smax/dmax to spawn anything.
                     if (! str_contains($filename, 'zombie')
+                        && ($territoryTypeByFile[basename($filename)] ?? '') !== 'Herd'
                         && (int) ($parameters['smax'] ?? 0) === 0
                         && (int) ($parameters['dmax'] ?? 0) === 0) {
                         $this->spawnValidationWarnings[] = [
