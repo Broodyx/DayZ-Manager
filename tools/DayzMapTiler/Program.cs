@@ -20,7 +20,108 @@ if (args.Length > 0 && args[0] == "preview")
     return RunPreview(args[1..]);
 }
 
+if (args.Length > 0 && args[0] == "find-border")
+{
+    return RunFindBorder(args[1..]);
+}
+
 return RunTile(args);
+
+static int RunFindBorder(string[] args)
+{
+    // args: <sourcePath>
+    var src = args[0];
+    using var image = Image.Load<Rgba32>(src);
+    var w = image.Width;
+    var h = image.Height;
+    Console.WriteLine($"Image: {w}x{h}");
+
+    // "Border" heuristic: the iZurvive frame/watermark background is a flat mid-dark gray
+    // (measured ~34,34,34) — real terrain/sea pixels always have visible R/G/B separation
+    // (greens, browns, blues), a flat near-equal-channel gray does not occur in map content.
+    bool IsDark(Rgba32 p) => p.R < 45 && p.G < 45 && p.B < 45 && Math.Abs(p.R - p.G) < 6 && Math.Abs(p.G - p.B) < 6;
+
+    image.ProcessPixelRows(accessor =>
+    {
+        var midY = h / 2;
+        var midX = w / 2;
+        var rowMid = accessor.GetRowSpan(midY);
+
+        int left = 0;
+        while (left < w && IsDark(rowMid[left])) left++;
+
+        int right = w - 1;
+        while (right > 0 && IsDark(rowMid[right])) right--;
+
+        int top = 0;
+        for (; top < h; top++)
+        {
+            if (!IsDark(accessor.GetRowSpan(top)[midX])) break;
+        }
+
+        int bottom = h - 1;
+        for (; bottom > 0; bottom--)
+        {
+            if (!IsDark(accessor.GetRowSpan(bottom)[midX])) break;
+        }
+
+        Console.WriteLine($"Scanning from center row/col: left={left} right={right} top={top} bottom={bottom}");
+
+        // Cross-check at several other lines, in case the midline hit a lake/coast pixel
+        // that happened to look border-like (or vice versa).
+        foreach (var fraction in new[] { 0.1, 0.25, 0.75, 0.9 })
+        {
+            var y = (int) (h * fraction);
+            var row = accessor.GetRowSpan(y);
+            int t = 0; while (t < w && IsDark(row[t])) t++;
+            var x = (int) (w * fraction);
+            int topAt = 0; for (; topAt < h; topAt++) { if (!IsDark(accessor.GetRowSpan(topAt)[x])) break; }
+            int rightAt = w - 1; { var rowAtY = accessor.GetRowSpan((int)(h * fraction)); while (rightAt > 0 && IsDark(rowAtY[rightAt])) rightAt--; }
+            Console.WriteLine($"  at fraction={fraction}: topBorderAtX{x}={topAt}, rightBorderAtY{(int)(h*fraction)}={rightAt}");
+        }
+    });
+
+    // Also print raw pixel samples along the very first/last 60px of each edge at the
+    // midline, in case the border isn't pure black (e.g. dark green sea / gradient).
+    image.ProcessPixelRows(accessor =>
+    {
+        var midY = h / 2;
+        var row = accessor.GetRowSpan(midY);
+        Console.WriteLine("Top-left horizontal samples (x, R,G,B) at midY:");
+        for (var x = 0; x < 80; x += 4)
+        {
+            var p = row[x];
+            Console.WriteLine($"  x={x}: {p.R},{p.G},{p.B}");
+        }
+        Console.WriteLine("Right edge horizontal samples (x from right, R,G,B) at midY:");
+        for (var dx = 0; dx < 200; dx += 8)
+        {
+            var x = w - 1 - dx;
+            var p = row[x];
+            Console.WriteLine($"  x={x} (w-{dx}): {p.R},{p.G},{p.B}");
+        }
+    });
+
+    image.ProcessPixelRows(accessor =>
+    {
+        var midX = w / 2;
+        Console.WriteLine("Top edge vertical samples (y, R,G,B) at midX:");
+        for (var y = 0; y < 80; y += 4)
+        {
+            var p = accessor.GetRowSpan(y)[midX];
+            Console.WriteLine($"  y={y}: {p.R},{p.G},{p.B}");
+        }
+        Console.WriteLine("Bottom edge vertical samples (y from bottom, R,G,B) at midX:");
+        for (var dy = 0; dy < 200; dy += 8)
+        {
+            var y = h - 1 - dy;
+            var p = accessor.GetRowSpan(y)[midX];
+            Console.WriteLine($"  y={y} (h-{dy}): {p.R},{p.G},{p.B}");
+        }
+    });
+
+    return 0;
+}
 
 static int RunPreview(string[] args)
 {
@@ -60,7 +161,7 @@ static int RunCrop(string[] args)
 
     using var image = Image.Load<Rgba32>(src);
     using var crop = image.Clone(ctx => ctx.Crop(new Rectangle(x, y, size, size)));
-    crop.SaveAsPng(outPath);
+    SaveByExtension(crop, outPath);
     Console.WriteLine($"Crop {size}x{size} at ({x},{y}) -> {outPath}");
     return 0;
 }
