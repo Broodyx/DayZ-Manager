@@ -108,11 +108,6 @@
             <small class="dz-muted">Klikni na mapu (<code>Ctrl</code>) a vyber typ.</small>
         </div>
         <div class="dz-map-toolbar">
-            <label class="dz-map-server-picker"><span>Server</span><select class="dz-map-select" aria-label="Server" onchange="window.location.href='{{ url('/admin/map-editor') }}?project='+this.value">
-                @foreach ($projects as $id => $name)
-                    <option value="{{ $id }}" @selected((int) $projectId === (int) $id)>{{ $name }}</option>
-                @endforeach
-            </select></label>
             <a class="dz-map-upload-button" href="{{ url('/admin/configuration-import?area=map&project='.$projectId) }}">+ Přidat mapový soubor</a>
             <button type="button" class="dz-secondary" wire:click="checkSpawnEventLinks" wire:loading.attr="disabled" wire:target="checkSpawnEventLinks">
                 <span wire:loading.remove wire:target="checkSpawnEventLinks">Zkontrolovat vazby spawnů</span>
@@ -332,7 +327,11 @@
             </section>
             <aside class="dz-map-legend">
                 <h3>Vrstvy mapy</h3>
+                @php $placeLabels = \App\Support\ChernarusPlaces::all(); @endphp
                 <div class="dz-map-layers">
+                    <article class="dz-map-layer-card">
+                        <label title="Statické názvy měst, vesnic a vojenských základen Chernarusu. Nezávisí na nahraných souborech serveru."><input class="map-layer-toggle" type="checkbox" checked data-layer="__place_labels"><i class="dz-layer-dot" style="background:#f0d488"></i><span><b>Názvy míst</b><small>{{ count($placeLabels) }} lokací · Cherno, Elektro, Berezino…</small></span></label>
+                    </article>
                     @foreach ($mapSources as $source)
                         @if ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0 && $source['loaded'])
                             <article class="dz-map-layer-card">
@@ -977,7 +976,19 @@
                 return shadeCache[cacheKey] = `hsl(${newHue.toFixed(1)}, ${newSat.toFixed(0)}%, ${newLight.toFixed(1)}%)`;
             };
             const markers = @js($markers);
+            const placeLabels = @js($placeLabels);
             const layerGroups = {};
+            const placeLabelLayers = layerGroups['__place_labels'] = [];
+            placeLabels.forEach((place) => {
+                const label = L.tooltip({ permanent: true, direction: 'center', className: 'dz-place-label', interactive: false })
+                    .setLatLng([place.z, place.x])
+                    .setContent(place.name)
+                    .addTo(map);
+                placeLabelLayers.push(label);
+            });
+            const updatePlaceLabelVisibility = () => el.classList.toggle('dz-hide-place-labels', map.getZoom() < 2);
+            map.on('zoomend', updatePlaceLabelVisibility);
+            updatePlaceLabelVisibility();
             const markerRecords = [];
             markers.forEach((marker) => {
                 const baseColor = marker.color || '#b8ed55';

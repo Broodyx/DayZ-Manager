@@ -282,7 +282,6 @@
     .dz-eyebrow { color:#a9df42; font-size:.7rem; letter-spacing:.16em; font-weight:700; margin:0; }
     .dz-muted { color:#9aa99b; font-size:.9rem; }
     .dz-map-select { appearance:none; -webkit-appearance:none; background:#111a14; border:1px solid #506d2b; border-radius:.5rem; color:#e7f7d2; padding:.6rem 2.2rem .6rem 1rem; background-image:linear-gradient(45deg,transparent 50%,#b8ed55 50%),linear-gradient(135deg,#b8ed55 50%,transparent 50%); background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat; }
-    .dz-map-server-picker { display:flex; align-items:center; gap:.5rem; color:#d8f57b; font-size:.78rem; font-weight:800; }
     .dz-file-button { display:inline-flex; align-items:center; cursor:pointer; background:#273725; color:#e7f7d2; border:1px solid #5b7f35; border-radius:.45rem; padding:.6rem .8rem; font-weight:700; }
     .dz-file-button input { display:none; }
     .dz-map-upload-button { display:inline-flex; align-items:center; background:#b8ed55; color:#14200f; border:0; border-radius:.45rem; padding:.6rem .8rem; font-weight:700; text-decoration:none; }
@@ -523,6 +522,9 @@
     .dz-layer-label-toggle input { accent-color:#b8ed55; cursor:pointer; }
     .dz-map-label { border:0 !important; box-shadow:none !important; background:transparent !important; padding:0 !important; color:#f0f8e8; font:800 .68rem/1.15 ui-monospace,monospace; text-shadow:0 1px 2px #000,0 0 4px #000; white-space:nowrap; }
     .dz-map-label::before { display:none !important; }
+    .dz-place-label { border:0 !important; box-shadow:none !important; background:transparent !important; padding:0 !important; color:#f5dea0; font:800 .78rem/1.1 "Segoe UI",system-ui,sans-serif; letter-spacing:.03em; text-shadow:0 1px 3px #000,0 0 6px #000,0 0 2px #000; white-space:nowrap; pointer-events:none; }
+    .dz-place-label::before { display:none !important; }
+    .dz-hide-place-labels .dz-place-label { display:none !important; }
     .dz-load-dense { display:flex; align-items:flex-start; gap:.45rem; margin:.35rem 0; padding:.55rem; border:1px dashed #506d2b; border-radius:.4rem; color:#d8f57b; text-decoration:none; font-size:.75rem; } .dz-load-dense span { display:grid; gap:.05rem; } .dz-load-dense small { color:#879987; }
     .dz-load-dense-loading { pointer-events:none; border-style:solid; border-color:#8fc52b; background:rgba(145,197,43,.08); animation:dz-load-dense-pulse 1.1s ease-in-out infinite; }
     .dz-load-dense-loading .dz-layer-dot { animation:dz-load-dense-spin 900ms linear infinite; }
