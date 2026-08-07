@@ -558,7 +558,7 @@
     .fi-section,.fi-ta-ctn,.fi-wi-stats-overview-stat,.fi-wi-account > div { border-radius:var(--dz-radius) !important; box-shadow:0 18px 48px rgba(0,0,0,.18) !important; }
     .dz-kicker { margin:0 0 .5rem; color:var(--dz-lime); font-size:.66rem; font-weight:900; letter-spacing:.19em; }
 
-    .dz-main-nav { display:flex; flex-wrap:wrap; align-items:center; gap:1.25rem; margin:0 0 1.35rem; padding:.65rem .75rem; border:1px solid var(--dz-line); border-radius:var(--dz-radius); background:rgba(15,22,17,.92); box-shadow:0 18px 50px rgba(0,0,0,.18); }
+    .dz-main-nav { position:sticky; top:0; z-index:40; display:flex; flex-wrap:wrap; align-items:center; gap:1.25rem; margin:0 0 1.35rem; padding:.65rem .75rem; border:1px solid var(--dz-line); border-radius:var(--dz-radius); background:#0f1611; box-shadow:0 18px 50px rgba(0,0,0,.28); backdrop-filter:blur(6px); }
     .dz-workspace-identity { display:flex; align-items:center; gap:.65rem; flex:0 0 auto; min-width:0; padding-right:1rem; border-right:1px solid var(--dz-line); }
     .dz-server-pulse { width:.65rem; height:.65rem; flex:0 0 auto; border-radius:50%; background:var(--dz-lime); box-shadow:0 0 0 5px rgba(183,239,74,.1),0 0 18px rgba(183,239,74,.4); }
     .dz-workspace-identity > span:nth-child(2) { display:grid; min-width:0; }
