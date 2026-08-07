@@ -330,43 +330,46 @@
                         @if ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0 && $source['loaded'])
                             <article class="dz-map-layer-card">
                                 <label><input class="map-layer-toggle" type="checkbox" @checked(($source['filename'] === 'cfgplayerspawnpoints.xml' || $source['filename'] === request()->string('show')->toString()) && $source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
-                                <p>{{ $source['description'] }}</p>
-                                <div class="dz-layer-actions">
-                                    <a href="{{ url('/admin/projects/'.$projectId.'/configuration?revision='.$source['revision_id']) }}">Upravit</a>
-                                    <a href="{{ route('configuration-revision.download', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Stáhnout</a>
-                                    <button type="button" class="dz-source-raw"
-                                        data-filename="{{ $source['filename'] }}"
-                                        data-url="{{ route('configuration-revision.raw', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Raw data</button>
-                                    @if ($hasFtpConnection && $source['undeployed'])
-                                        <button type="button" class="dz-source-ftp"
-                                            x-on:click="dzConfirm('Nahrát {{ $source['filename'] }} přímo na živý server přes FTP? Přepíše aktuální soubor na serveru.').then((ok) => { if (ok) $wire.pushSourceToFtp({{ $source['revision_id'] }}); })">Nahrát na FTP</button>
+                                <details class="dz-layer-details">
+                                    <summary>Detaily a akce</summary>
+                                    <p>{{ $source['description'] }}</p>
+                                    <div class="dz-layer-actions">
+                                        <a href="{{ url('/admin/projects/'.$projectId.'/configuration?revision='.$source['revision_id']) }}">Upravit</a>
+                                        <a href="{{ route('configuration-revision.download', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Stáhnout</a>
+                                        <button type="button" class="dz-source-raw"
+                                            data-filename="{{ $source['filename'] }}"
+                                            data-url="{{ route('configuration-revision.raw', ['project' => $projectId, 'revision' => $source['revision_id']]) }}">Raw data</button>
+                                        @if ($hasFtpConnection && $source['undeployed'])
+                                            <button type="button" class="dz-source-ftp"
+                                                x-on:click="dzConfirm('Nahrát {{ $source['filename'] }} přímo na živý server přes FTP? Přepíše aktuální soubor na serveru.').then((ok) => { if (ok) $wire.pushSourceToFtp({{ $source['revision_id'] }}); })">Nahrát na FTP</button>
+                                        @endif
+                                        <label class="dz-layer-label-toggle"><input type="checkbox" class="map-layer-label-toggle" data-layer="{{ $source['filename'] }}"> Popisky</label>
+                                    </div>
+                                    @if (in_array($source['filename'], ['cfgeventspawns.xml', 'cfgplayerspawnpoints.xml'], true))
+                                        <button type="button" class="dz-layer-cleanup-open"
+                                            data-filename="{{ $source['filename'] }}"
+                                            data-revision="{{ $source['revision_id'] }}"
+                                            data-count="{{ $source['marker_count'] }}">Vybrat skupiny k odstranění…</button>
                                     @endif
-                                    <label class="dz-layer-label-toggle"><input type="checkbox" class="map-layer-label-toggle" data-layer="{{ $source['filename'] }}"> Popisky</label>
-                                </div>
-                                @if (in_array($source['filename'], ['cfgeventspawns.xml', 'cfgplayerspawnpoints.xml'], true))
-                                    <button type="button" class="dz-layer-cleanup-open"
-                                        data-filename="{{ $source['filename'] }}"
-                                        data-revision="{{ $source['revision_id'] }}"
-                                        data-count="{{ $source['marker_count'] }}">Vybrat skupiny k odstranění…</button>
-                                @endif
-                                @if ($source['filename'] === 'mapgrouppos.xml' && count($lootCategoryLegend))
-                                    <details class="dz-loot-legend">
-                                        <summary>Barvy podle kategorie lootu (mapgroupproto.xml + types.xml)</summary>
-                                        <div class="dz-loot-legend-list">
-                                            @foreach ($lootCategoryLegend as $entry)
+                                    @if ($source['filename'] === 'mapgrouppos.xml' && count($lootCategoryLegend))
+                                        <details class="dz-loot-legend">
+                                            <summary>Barvy podle kategorie lootu (mapgroupproto.xml + types.xml)</summary>
+                                            <div class="dz-loot-legend-list">
+                                                @foreach ($lootCategoryLegend as $entry)
+                                                    <span class="dz-loot-legend-item">
+                                                        <i style="background:{{ $entry['color'] }}"></i>
+                                                        {{ $entry['category'] }}
+                                                        <small>{{ $entry['item_count'] }} položek types.xml</small>
+                                                    </span>
+                                                @endforeach
                                                 <span class="dz-loot-legend-item">
-                                                    <i style="background:{{ $entry['color'] }}"></i>
-                                                    {{ $entry['category'] }}
-                                                    <small>{{ $entry['item_count'] }} položek types.xml</small>
+                                                    <i style="background:#6b7a6d"></i>
+                                                    bez rozpoznané kategorie
                                                 </span>
-                                            @endforeach
-                                            <span class="dz-loot-legend-item">
-                                                <i style="background:#6b7a6d"></i>
-                                                bez rozpoznané kategorie
-                                            </span>
-                                        </div>
-                                    </details>
-                                @endif
+                                            </div>
+                                        </details>
+                                    @endif
+                                </details>
                             </article>
                         @elseif ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0)
                             <a class="dz-load-dense" href="{{ url('/admin/map-editor?project='.$projectId.'&dense=1') }}" data-count="{{ $source['marker_count'] }}" data-filename="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span>Načíst {{ $source['filename'] }}<small>{{ number_format($source['marker_count'], 0, ',', ' ') }} hustých bodů</small></span></a>
