@@ -33,6 +33,11 @@ class MapEditor extends Page
 
     protected static bool $shouldRegisterNavigation = false;
 
+    public function getMaxContentWidth(): ?\Filament\Support\Enums\MaxWidth
+    {
+        return \Filament\Support\Enums\MaxWidth::Full;
+    }
+
     public string $map = 'Chernarus';
 
     public ?int $projectId = null;
@@ -66,6 +71,10 @@ class MapEditor extends Page
     private ?int $latestRevisionProjectId = null;
     private $latestRevisionCache = null;
 
+    /** Request-local cache: every loader independently re-fetched the same project row. */
+    private ?int $projectCacheId = null;
+    private ?Project $projectCache = null;
+
     private const CATEGORY_COLORS = [
         'weapons' => '#e96a5f',
         'medical' => '#80b8ff',
@@ -96,7 +105,7 @@ class MapEditor extends Page
         // Checklist first, same guard EditConfiguration::mount() already applies, so the map
         // works as the project landing page without ever showing a confusingly empty state.
         if ($this->projectId) {
-            $project = $this->projectQuery()->find($this->projectId);
+            $project = $this->project();
             if ($project && ! $project->revisions()->exists()) {
                 $this->redirect(ConfigurationWizard::getUrl(['project' => $project->id]));
 
@@ -126,6 +135,8 @@ class MapEditor extends Page
     {
         $this->latestRevisionProjectId = null;
         $this->latestRevisionCache = null;
+        $this->projectCacheId = null;
+        $this->projectCache = null;
         $this->loadMarkers();
         $this->loadEventCatalog();
         $this->loadMapSources();
@@ -174,9 +185,16 @@ class MapEditor extends Page
     /** Structural checks for spawn candidates; terrain suitability still requires the server RPT. */
     public function loadSpawnValidationWarnings(): void
     {
-        $this->spawnValidationWarnings = [];
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         $revisions = $project ? $this->latestRevisions($project) : collect();
+        $cacheKey = 'dayz.map.spawn-validation.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-');
+        if (Cache::has($cacheKey)) {
+            $this->spawnValidationWarnings = Cache::get($cacheKey, []);
+
+            return;
+        }
+
+        $this->spawnValidationWarnings = [];
         $filenameOf = fn ($revision): string => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path)));
         $hasEnvironmentFile = $revisions->contains(fn ($revision) => $filenameOf($revision) === 'cfgenvironment.xml');
         $environmentTargets = $hasEnvironmentFile ? app(EnvironmentTargetCatalog::class)->targets($revisions, $filenameOf) : [];
@@ -250,6 +268,7 @@ class MapEditor extends Page
             $grouped[$key]['occurrences']++;
         }
         $this->spawnValidationWarnings = array_values($grouped);
+        Cache::put($cacheKey, $this->spawnValidationWarnings, now()->addMinutes(15));
     }
 
     public function repairZeroTerritoryPopulation(string $territoryFile, ConfigurationRevisionEditor $revisionEditor): void
@@ -264,7 +283,7 @@ class MapEditor extends Page
 
     private function changeZeroTerritoryPopulation(string $territoryFile, bool $remove, ConfigurationRevisionEditor $revisionEditor): void
     {
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         $filename = strtolower(basename($territoryFile));
         $revision = $project ? $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === $filename) : null;
         if (! $project || ! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
@@ -320,7 +339,7 @@ class MapEditor extends Page
 
     public function repairEventPopulation(string $eventName, EventsXmlEditor $eventsEditor, ConfigurationRevisionEditor $revisionEditor): void
     {
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         $revision = $project ? $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'events.xml') : null;
         if (! $project || ! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
             Notification::make()->danger()->title('events.xml nebyl nalezen')->body('Nejdřív nahrajte aktuální events.xml.')->send();
@@ -352,32 +371,37 @@ class MapEditor extends Page
      */
     public function loadAnimalPopulationWarnings(): void
     {
+        $project = $this->project();
+        $revisions = $this->latestRevisions($project);
+        $cacheKey = 'dayz.map.animal-population.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-');
+        if (Cache::has($cacheKey)) {
+            $this->animalPopulationWarnings = Cache::get($cacheKey, []);
+
+            return;
+        }
+
         $this->animalPopulationWarnings = [];
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
-        if (! $project) {
-            return;
-        }
-        $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'cfgenvironment.xml');
-        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
-            return;
-        }
-
-        try {
-            $entries = app(EnvironmentXmlEditor::class)->entries(Storage::disk('dayz')->get($revision->storage_path));
-        } catch (\Throwable) {
-            return;
-        }
-
-        $definedEvents = collect($this->eventCatalog)->pluck('name')->map(fn ($name) => strtolower($name))->all();
-        foreach ($entries as $entry) {
-            if ($entry['is_infected']) {
-                continue;
-            }
-            $expectedEvent = $entry['type'] === 'Ambient' ? $entry['name'] : 'Animal'.$entry['name'];
-            if (! in_array(strtolower($expectedEvent), $definedEvents, true)) {
-                $this->animalPopulationWarnings[] = ['territory' => $entry['name'], 'expected_event' => $expectedEvent];
+        $revision = $project ? $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfgenvironment.xml') : null;
+        if ($revision && Storage::disk('dayz')->exists($revision->storage_path)) {
+            try {
+                $entries = app(EnvironmentXmlEditor::class)->entries(Storage::disk('dayz')->get($revision->storage_path));
+                $definedEvents = collect($this->eventCatalog)->pluck('name')->map(fn ($name) => strtolower($name))->all();
+                foreach ($entries as $entry) {
+                    if ($entry['is_infected']) {
+                        continue;
+                    }
+                    $expectedEvent = $entry['type'] === 'Ambient' ? $entry['name'] : 'Animal'.$entry['name'];
+                    if (! in_array(strtolower($expectedEvent), $definedEvents, true)) {
+                        $this->animalPopulationWarnings[] = ['territory' => $entry['name'], 'expected_event' => $expectedEvent];
+                    }
+                }
+            } catch (\Throwable) {
+                // Leave the warning list empty — an unparsable file already surfaces
+                // elsewhere (spawn validation warnings), no need to duplicate it here.
             }
         }
+
+        Cache::put($cacheKey, $this->animalPopulationWarnings, now()->addMinutes(15));
     }
 
     /**
@@ -397,94 +421,98 @@ class MapEditor extends Page
      */
     public function loadAnimalTypeWarnings(): void
     {
-        $this->animalTypeWarnings = [];
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
-        if (! $project) {
-            return;
-        }
+        $project = $this->project();
         $revisions = $this->latestRevisions($project);
-        $environmentRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfgenvironment.xml');
-        if (! $environmentRevision || ! Storage::disk('dayz')->exists($environmentRevision->storage_path)) {
+        $cacheKey = 'dayz.map.animal-types.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-');
+        if (Cache::has($cacheKey)) {
+            $this->animalTypeWarnings = Cache::get($cacheKey, []);
+
             return;
         }
 
-        $typesRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'types.xml');
-        $definedTypes = [];
-        if ($typesRevision && Storage::disk('dayz')->exists($typesRevision->storage_path)) {
-            $definedTypes = collect(app(TypesXmlEditor::class)->entries(Storage::disk('dayz')->get($typesRevision->storage_path)))
-                ->pluck('name')->map(fn ($name) => strtolower($name))->all();
-        }
-
-        $environmentEditor = app(EnvironmentXmlEditor::class);
-        $environmentContent = Storage::disk('dayz')->get($environmentRevision->storage_path);
-        try {
-            $entries = $environmentEditor->entries($environmentContent);
-        } catch (Throwable) {
-            return;
-        }
-
-        $eventsByName = collect($this->eventCatalog)->keyBy(fn (array $event): string => strtolower($event['name']));
-
-        $seen = [];
-        foreach ($entries as $entry) {
-            if ($entry['is_infected']) {
-                continue;
+        $this->animalTypeWarnings = [];
+        $environmentRevision = $project ? $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfgenvironment.xml') : null;
+        if ($environmentRevision && Storage::disk('dayz')->exists($environmentRevision->storage_path)) {
+            $typesRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'types.xml');
+            $definedTypes = [];
+            if ($typesRevision && Storage::disk('dayz')->exists($typesRevision->storage_path)) {
+                $definedTypes = collect(app(TypesXmlEditor::class)->entries(Storage::disk('dayz')->get($typesRevision->storage_path)))
+                    ->pluck('name')->map(fn ($name) => strtolower($name))->all();
             }
 
-            $classnames = [];
+            $environmentEditor = app(EnvironmentXmlEditor::class);
+            $environmentContent = Storage::disk('dayz')->get($environmentRevision->storage_path);
             try {
-                $values = $environmentEditor->values($environmentContent, $entry['name']);
-                foreach ($values['agents'] as $agent) {
-                    foreach ($agent['spawns'] as $spawn) {
-                        $classnames[] = trim((string) ($spawn['configName'] ?? ''));
+                $entries = $environmentEditor->entries($environmentContent);
+
+                $eventsByName = collect($this->eventCatalog)->keyBy(fn (array $event): string => strtolower($event['name']));
+
+                $seen = [];
+                foreach ($entries as $entry) {
+                    if ($entry['is_infected']) {
+                        continue;
+                    }
+
+                    $classnames = [];
+                    try {
+                        $values = $environmentEditor->values($environmentContent, $entry['name']);
+                        foreach ($values['agents'] as $agent) {
+                            foreach ($agent['spawns'] as $spawn) {
+                                $classnames[] = trim((string) ($spawn['configName'] ?? ''));
+                            }
+                        }
+                    } catch (Throwable) {
+                        // Fall through — the events.xml children below still get checked either way.
+                    }
+
+                    $expectedEvent = $entry['type'] === 'Ambient' ? $entry['name'] : 'Animal'.$entry['name'];
+                    $event = $eventsByName->get(strtolower($expectedEvent));
+                    foreach ($event['children'] ?? [] as $child) {
+                        $classnames[] = trim((string) ($child['type'] ?? ''));
+                    }
+
+                    foreach (array_unique(array_filter($classnames, fn (string $name): bool => $name !== '')) as $classname) {
+                        if (isset($seen[$classname])) {
+                            continue;
+                        }
+                        $seen[$classname] = true;
+                        if (! in_array(strtolower($classname), $definedTypes, true)) {
+                            $this->animalTypeWarnings[] = ['territory' => $entry['name'], 'classname' => $classname];
+                        }
+                    }
+                }
+
+                // Vehicle, train, convoy and other dynamic event points are defined by the child
+                // classes in events.xml (with cfgeventgroups.xml merged into eventCatalog). They are
+                // just as dependent on types.xml as animal children, even though they have no
+                // cfgenvironment.xml territory.
+                foreach ($this->eventCatalog as $event) {
+                    foreach ($event['children'] ?? [] as $child) {
+                        $classname = trim((string) ($child['type'] ?? ''));
+                        if ($classname === '' || isset($seen[$classname])) {
+                            continue;
+                        }
+                        $seen[$classname] = true;
+                        if (! in_array(strtolower($classname), $definedTypes, true)) {
+                            $this->animalTypeWarnings[] = [
+                                'territory' => $event['name'],
+                                'classname' => $classname,
+                            ];
+                        }
                     }
                 }
             } catch (Throwable) {
-                // Fall through — the events.xml children below still get checked either way.
-            }
-
-            $expectedEvent = $entry['type'] === 'Ambient' ? $entry['name'] : 'Animal'.$entry['name'];
-            $event = $eventsByName->get(strtolower($expectedEvent));
-            foreach ($event['children'] ?? [] as $child) {
-                $classnames[] = trim((string) ($child['type'] ?? ''));
-            }
-
-            foreach (array_unique(array_filter($classnames, fn (string $name): bool => $name !== '')) as $classname) {
-                if (isset($seen[$classname])) {
-                    continue;
-                }
-                $seen[$classname] = true;
-                if (! in_array(strtolower($classname), $definedTypes, true)) {
-                    $this->animalTypeWarnings[] = ['territory' => $entry['name'], 'classname' => $classname];
-                }
+                // Leave the warning list empty — see loadAnimalPopulationWarnings for rationale.
             }
         }
 
-        // Vehicle, train, convoy and other dynamic event points are defined by the child
-        // classes in events.xml (with cfgeventgroups.xml merged into eventCatalog). They are
-        // just as dependent on types.xml as animal children, even though they have no
-        // cfgenvironment.xml territory.
-        foreach ($this->eventCatalog as $event) {
-            foreach ($event['children'] ?? [] as $child) {
-                $classname = trim((string) ($child['type'] ?? ''));
-                if ($classname === '' || isset($seen[$classname])) {
-                    continue;
-                }
-                $seen[$classname] = true;
-                if (! in_array(strtolower($classname), $definedTypes, true)) {
-                    $this->animalTypeWarnings[] = [
-                        'territory' => $event['name'],
-                        'classname' => $classname,
-                    ];
-                }
-            }
-        }
+        Cache::put($cacheKey, $this->animalTypeWarnings, now()->addMinutes(15));
     }
 
     /** Generates a types.xml entry for an animal classname cfgenvironment.xml spawns but types.xml doesn't track yet. */
     public function addAnimalTypeEntry(string $classname, TypesXmlEditor $typesEditor, ConfigurationRevisionEditor $revisionEditor): void
     {
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         if (! $project) {
             return;
         }
@@ -521,38 +549,43 @@ class MapEditor extends Page
     /** Flags event names used in cfgeventspawns.xml that events.xml does not define. */
     public function loadEventSpawnWarnings(): void
     {
+        $project = $this->project();
+        $revisions = $this->latestRevisions($project);
+        $cacheKey = 'dayz.map.event-spawn-warnings.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-');
+        if (Cache::has($cacheKey)) {
+            $this->eventSpawnWarnings = Cache::get($cacheKey, []);
+
+            return;
+        }
+
         $this->eventSpawnWarnings = [];
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
-        if (! $project) {
-            return;
-        }
-        $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'cfgeventspawns.xml');
-        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
-            return;
-        }
-        $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
-        if (! $xml) {
-            return;
-        }
-        $definedEvents = collect($this->eventCatalog)->pluck('name')->map(fn ($name) => strtolower($name))->all();
-        $usedEvents = [];
-        foreach ($xml->event ?? [] as $event) {
-            $name = (string) ($event['name'] ?? '');
-            if ($name !== '') {
-                $usedEvents[$name] = true;
+        $revision = $project ? $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfgeventspawns.xml') : null;
+        if ($revision && Storage::disk('dayz')->exists($revision->storage_path)) {
+            $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
+            if ($xml) {
+                $definedEvents = collect($this->eventCatalog)->pluck('name')->map(fn ($name) => strtolower($name))->all();
+                $usedEvents = [];
+                foreach ($xml->event ?? [] as $event) {
+                    $name = (string) ($event['name'] ?? '');
+                    if ($name !== '') {
+                        $usedEvents[$name] = true;
+                    }
+                }
+                foreach (array_keys($usedEvents) as $name) {
+                    if (! in_array(strtolower($name), $definedEvents, true)) {
+                        $this->eventSpawnWarnings[] = $name;
+                    }
+                }
             }
         }
-        foreach (array_keys($usedEvents) as $name) {
-            if (! in_array(strtolower($name), $definedEvents, true)) {
-                $this->eventSpawnWarnings[] = $name;
-            }
-        }
+
+        Cache::put($cacheKey, $this->eventSpawnWarnings, now()->addMinutes(15));
     }
 
     /** Removes cfgeventspawns.xml positions for an event that events.xml does not define. */
     public function removeEventSpawnPositions(string $eventName, MapConfigurationEditor $mapEditor, ConfigurationRevisionEditor $revisionEditor): void
     {
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         if (! $project) {
             return;
         }
@@ -597,7 +630,7 @@ class MapEditor extends Page
     public function openAddAnimalEventModal(string $territoryName, string $eventName): void
     {
         $childType = '';
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         if ($project) {
             $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'cfgenvironment.xml');
             if ($revision && Storage::disk('dayz')->exists($revision->storage_path)) {
@@ -627,7 +660,7 @@ class MapEditor extends Page
 
     public function submitAddEvent(EventsXmlEditor $editor, ConfigurationRevisionEditor $revisionEditor): void
     {
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         if (! $project) {
             return;
         }
@@ -657,34 +690,39 @@ class MapEditor extends Page
     /** Flags fresh/hop/travel modes that have zero player spawn positions. */
     public function loadSpawnPointWarnings(): void
     {
+        $project = $this->project();
+        $revisions = $this->latestRevisions($project);
+        $cacheKey = 'dayz.map.spawn-point-warnings.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-');
+        if (Cache::has($cacheKey)) {
+            $this->spawnPointWarnings = Cache::get($cacheKey, []);
+
+            return;
+        }
+
         $this->spawnPointWarnings = [];
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
-        if (! $project) {
-            return;
-        }
-        $revision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'cfgplayerspawnpoints.xml');
-        if (! $revision || ! Storage::disk('dayz')->exists($revision->storage_path)) {
-            return;
-        }
-        $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
-        if (! $xml) {
-            return;
-        }
-        $labels = [
-            'fresh' => 'FRESH · nová postava',
-            'hop' => 'HOP · změna serveru',
-            'travel' => 'TRAVEL · cestovní přesun',
-        ];
-        foreach ($labels as $mode => $label) {
-            $modeNode = $xml->{$mode} ?? null;
-            $count = 0;
-            foreach ($modeNode?->generator_posbubbles->group ?? [] as $group) {
-                $count += count($group->pos ?? []);
-            }
-            if ($modeNode && $count === 0) {
-                $this->spawnPointWarnings[] = ['mode' => $mode, 'label' => $label];
+        $revision = $project ? $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfgplayerspawnpoints.xml') : null;
+        if ($revision && Storage::disk('dayz')->exists($revision->storage_path)) {
+            $xml = @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path));
+            if ($xml) {
+                $labels = [
+                    'fresh' => 'FRESH · nová postava',
+                    'hop' => 'HOP · změna serveru',
+                    'travel' => 'TRAVEL · cestovní přesun',
+                ];
+                foreach ($labels as $mode => $label) {
+                    $modeNode = $xml->{$mode} ?? null;
+                    $count = 0;
+                    foreach ($modeNode?->generator_posbubbles->group ?? [] as $group) {
+                        $count += count($group->pos ?? []);
+                    }
+                    if ($modeNode && $count === 0) {
+                        $this->spawnPointWarnings[] = ['mode' => $mode, 'label' => $label];
+                    }
+                }
             }
         }
+
+        Cache::put($cacheKey, $this->spawnPointWarnings, now()->addMinutes(15));
     }
 
     public function loadMapSources(): void
@@ -708,7 +746,7 @@ class MapEditor extends Page
             '*spawner*.json' => ['Object Spawner: vlastní objekty, pozice a orientace.', true],
             '*_territories.xml' => ['Teritoria zvířat podle druhu.', true],
         ];
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         $this->hasFtpConnection = (bool) $project?->hasFtpConnection();
         $revisions = $this->latestRevisions($project);
         $this->mapSources = [];
@@ -730,7 +768,7 @@ class MapEditor extends Page
 
     public function loadEventCatalog(): void
     {
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         $revisions = $this->latestRevisions($project);
         $cacheKey = 'dayz.map.event-catalog.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-');
         if (Cache::has($cacheKey)) {
@@ -810,7 +848,7 @@ class MapEditor extends Page
 
     public function loadPointTypeCatalog(): void
     {
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         $revisions = $this->latestRevisions($project);
         $cacheKey = 'dayz.map.point-catalog.'.($project?->id ?? 'none').'.'.$revisions->pluck('id')->join('-');
         if (Cache::has($cacheKey)) {
@@ -1054,7 +1092,7 @@ class MapEditor extends Page
         $this->loadedSources = [];
         $this->layerScopes = [];
         $this->lootCategoryLegend = [];
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         if (! $project) {
             return;
         }
@@ -1213,6 +1251,21 @@ class MapEditor extends Page
         return Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()));
     }
 
+    private function project(): ?Project
+    {
+        if (! $this->projectId) {
+            return null;
+        }
+
+        if ($this->projectCacheId === $this->projectId) {
+            return $this->projectCache;
+        }
+
+        $this->projectCacheId = $this->projectId;
+
+        return $this->projectCache = $this->projectQuery()->find($this->projectId);
+    }
+
     private function latestRevisions(?Project $project)
     {
         if (! $project) {
@@ -1354,7 +1407,7 @@ class MapEditor extends Page
 
     public function importMapConfiguration(ConfigurationImporter $importer): void
     {
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         if (! $project || ! $this->mapFile) {
             return;
         }
@@ -1399,7 +1452,7 @@ class MapEditor extends Page
     /** Pushes a single map layer's current (undeployed) revision straight to the live server over FTP — same action EditConfiguration offers per file, surfaced here so a changed layer can go live without leaving the map. */
     public function pushSourceToFtp(int $revisionId, FtpBrowser $browser, ServerFileLayout $layout): void
     {
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         if (! $project || ! $project->hasFtpConnection()) {
             return;
         }
@@ -1426,7 +1479,7 @@ class MapEditor extends Page
     /** Pushes every currently undeployed map layer (changed here but never pushed/downloaded) to the live server over FTP in one go. */
     public function pushAllUndeployedToFtp(FtpBrowser $browser, ServerFileLayout $layout): void
     {
-        $project = $this->projectId ? $this->projectQuery()->find($this->projectId) : null;
+        $project = $this->project();
         if (! $project || ! $project->hasFtpConnection()) {
             return;
         }

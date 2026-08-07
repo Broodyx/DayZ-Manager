@@ -2,11 +2,9 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Pages\ConfigurationWizard;
 use App\Filament\Pages\FtpExplorer;
 use App\Filament\Pages\LogAnalyzer;
 use App\Filament\Pages\MapEditor;
-use App\Filament\Resources\ProjectResource;
 use App\Filament\Widgets\DayzOverview;
 use App\Filament\Widgets\ItemCategoriesChart;
 use App\Filament\Widgets\RecentProjects;
@@ -15,8 +13,6 @@ use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Navigation\NavigationGroup;
-use Filament\Navigation\NavigationItem;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -35,54 +31,17 @@ class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        $serverItems = [
-            NavigationItem::make('Servery')
-                ->label('Servery')
-                ->icon('heroicon-o-server-stack')
-                ->url(fn (): string => ProjectResource::getUrl())
-                ->sort(1)
-                ->group('Správa serveru'),
-        ];
-        $serverItems[] = NavigationItem::make('map-editor')
-            ->label('Mapový editor')
-            ->icon('heroicon-o-map')
-            // Without an explicit ?project=, the workspace tab strip above the page can't tell
-            // a project is active (it reads the query string, not the Livewire component's own
-            // default-first-project fallback) and silently doesn't render — so this always
-            // points at a concrete project, the same "most recently touched" one the dashboard
-            // highlights as the active server.
-            ->url(fn (): string => MapEditor::getUrl(array_filter([
-                'project' => \App\Models\Project::query()
-                    ->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))
-                    ->latest('updated_at')
-                    ->value('id'),
-            ])))
-            ->sort(2)
-            ->group('Správa serveru');
-        $serverItems[] = NavigationItem::make('configuration-wizard')
-            ->label('Nastavit server')
-            ->icon('heroicon-o-sparkles')
-            ->url(fn (): string => ConfigurationWizard::getUrl())
-            ->sort(3)
-            ->group('Správa serveru');
-        $serverItems[] = NavigationItem::make('log-analyzer')
-            ->label('Log analyzátor')
-            ->icon('heroicon-o-document-magnifying-glass')
-            ->url(fn (): string => LogAnalyzer::getUrl())
-            ->sort(4)
-            ->group('Diagnostika');
-        $serverItems[] = NavigationItem::make('ftp-explorer')
-            ->label('FTP prohlížeč')
-            ->icon('heroicon-o-folder-open')
-            ->url(fn (): string => FtpExplorer::getUrl())
-            ->sort(5)
-            ->group('Správa serveru');
-
         return $panel->default()->id('admin')->path('admin')->login()
             ->favicon(secure_asset('favicon.svg'))
             ->brandName('DayZ Manager')->colors(['primary' => Color::Lime])
             ->defaultThemeMode(ThemeMode::Dark)
             ->darkMode(true, isForced: true)
+            // The one horizontal bar in filament.main-nav (PAGE_START below) replaces
+            // Filament's own sidebar/topbar nav entirely, so there is nothing left for
+            // Filament's own nav array to drive — turning it off also removes the
+            // per-request DB lookups its NavigationItem url() closures used to run on
+            // every single page.
+            ->navigation(false)
             ->renderHook(
                 PanelsRenderHook::STYLES_AFTER,
                 fn (): string => view('filament.admin-theme')->render(),
@@ -90,10 +49,6 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn (): string => '<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#84cc16"><link rel="apple-touch-icon" href="/icon-192.png">',
-            )
-            ->renderHook(
-                PanelsRenderHook::SIDEBAR_FOOTER,
-                fn (): string => view('filament.sidebar-user-menu')->render(),
             )
             ->renderHook(
                 PanelsRenderHook::SCRIPTS_AFTER,
@@ -105,7 +60,7 @@ class AdminPanelProvider extends PanelProvider
             )
             ->renderHook(
                 PanelsRenderHook::PAGE_START,
-                fn (): string => auth()->check() ? view('filament.server-workspace-nav')->render() : '',
+                fn (): string => auth()->check() ? view('filament.main-nav')->render() : '',
             )
             ->renderHook(
                 PanelsRenderHook::CONTENT_START,
@@ -113,13 +68,6 @@ class AdminPanelProvider extends PanelProvider
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
-            ->navigationItems($serverItems)
-            ->navigationGroups([
-                NavigationGroup::make()->label('Správa serveru'),
-                NavigationGroup::make()->label('Diagnostika'),
-                NavigationGroup::make()->label('Historie a zálohy'),
-                NavigationGroup::make()->label('Administrace'),
-            ])
             ->pages([Pages\Dashboard::class, MapEditor::class, LogAnalyzer::class, FtpExplorer::class])
             ->widgets([
                 ServerCommandCenter::class,

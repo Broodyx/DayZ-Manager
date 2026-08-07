@@ -15,9 +15,10 @@
             ->withCount(['imports', 'revisions'])
             ->find($projectId)
         : null;
+    $isAdmin = (bool) auth()->user()?->is_admin;
 @endphp
-@if ($project)
-    <div class="dz-workspace-nav">
+<div class="dz-main-nav">
+    @if ($project)
         <div class="dz-workspace-identity">
             <span class="dz-server-pulse"></span>
             <span>
@@ -33,7 +34,7 @@
             <a href="{{ url('/admin/projects/'.$project->id.'/configuration') }}" @class(['active' => request()->routeIs('filament.admin.resources.projects.configuration')])>
                 <x-filament::icon icon="heroicon-o-adjustments-horizontal" /> Soubory a editory
             </a>
-            <a href="{{ url('/admin/configuration-wizard?project='.$project->id) }}">
+            <a href="{{ url('/admin/configuration-wizard?project='.$project->id) }}" @class(['active' => request()->routeIs('filament.admin.pages.configuration-wizard')])>
                 <x-filament::icon icon="heroicon-o-list-bullet" /> Checklist
             </a>
             <a href="{{ url('/admin/configuration-import?project='.$project->id) }}" @class(['active' => request()->routeIs('filament.admin.pages.configuration-import')])>
@@ -47,5 +48,43 @@
             <span>{{ $project->imports_count }} souborů</span>
             <span>{{ $project->revisions_count }} revizí</span>
         </div>
-    </div>
-@endif
+    @else
+        <div class="dz-workspace-identity dz-workspace-identity-global">
+            <span class="dz-server-pulse"></span>
+            <span>
+                <small>DAYZ MANAGER</small>
+                <strong>Přehled</strong>
+            </span>
+        </div>
+        <nav aria-label="Hlavní navigace">
+            <a href="{{ url('/admin') }}" @class(['active' => request()->routeIs('filament.admin.pages.dashboard')])>
+                <x-filament::icon icon="heroicon-o-home" /> Dashboard
+            </a>
+            <a href="{{ url('/admin/projects') }}" @class(['active' => request()->routeIs('filament.admin.resources.projects.*')])>
+                <x-filament::icon icon="heroicon-o-server-stack" /> Servery
+            </a>
+        </nav>
+    @endif
+    <details class="dz-nav-tools">
+        <summary><x-filament::icon icon="heroicon-o-ellipsis-horizontal-circle" /> Nástroje</summary>
+        <div class="dz-nav-tools-menu">
+            <a href="{{ \App\Filament\Pages\LogAnalyzer::getUrl(array_filter(['project' => $project?->id])) }}">
+                <x-filament::icon icon="heroicon-o-document-magnifying-glass" /> Log analyzátor
+            </a>
+            <a href="{{ \App\Filament\Pages\FtpExplorer::getUrl(array_filter(['project' => $project?->id])) }}">
+                <x-filament::icon icon="heroicon-o-folder-open" /> FTP prohlížeč
+            </a>
+            <a href="{{ \App\Filament\Resources\ConfigurationRevisionResource::getUrl() }}">
+                <x-filament::icon icon="heroicon-o-clock" /> Historie revizí
+            </a>
+            <a href="{{ \App\Filament\Resources\ConfigurationImportResource::getUrl() }}">
+                <x-filament::icon icon="heroicon-o-arrow-up-tray" /> Historie importů
+            </a>
+            @if ($isAdmin)
+                <a href="{{ \App\Filament\Resources\UserResource::getUrl() }}">
+                    <x-filament::icon icon="heroicon-o-users" /> Uživatelé
+                </a>
+            @endif
+        </div>
+    </details>
+</div>
