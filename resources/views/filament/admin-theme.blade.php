@@ -103,11 +103,11 @@
         box-shadow: none !important;
     }
 
-    .fi-topbar nav {
-        border-bottom: 1px solid var(--dayz-border);
-        background: rgba(12, 17, 13, 0.94) !important;
-        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.2);
-        backdrop-filter: blur(14px);
+    /* Brand logo and user menu now live inside .dz-main-nav itself (see main-nav.blade.php)
+       so the whole site header is one row instead of Filament's topbar plus a second row
+       underneath it — nothing in Filament's own topbar is used anymore. */
+    .fi-topbar {
+        display: none;
     }
 
     .fi-main {
@@ -311,7 +311,10 @@
     .dz-add-event-span2 { grid-column:span 3; }
     @media (max-width:760px) { .dz-add-event-grid { grid-template-columns:1fr; } .dz-add-event-span2 { grid-column:1; } }
     .dz-map-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,360px); gap:1rem; align-items:start; }
-    .dz-map-canvas { height:min(72vh,760px); min-height:560px; position:relative; overflow:hidden; border:1px solid #3e5c28; border-radius:.7rem; background:#1c2b20; }
+    /* Fill down to the actual bottom of the viewport instead of a fixed vh/px cap — that
+       cap was sized for the old two-row header; now that the header is one row, it left a
+       dead strip of unused page background below the map on tall viewports. */
+    .dz-map-canvas { height:calc(100vh - 15rem); min-height:560px; max-height:1100px; position:relative; overflow:hidden; border:1px solid #3e5c28; border-radius:.7rem; background:#1c2b20; }
     .dz-map-page:fullscreen, .dz-map-page:-webkit-full-screen { overflow:auto; padding:1rem; background:#0b120c; }
     .dz-map-page:fullscreen .dz-map-intro, .dz-map-page:-webkit-full-screen .dz-map-intro { display:none; }
     .dz-map-page:fullscreen .dz-map-canvas, .dz-map-page:-webkit-full-screen .dz-map-canvas { height:calc(100vh - 8rem); min-height:400px; }
@@ -575,6 +578,12 @@
     .dz-nav-tools-menu a { display:flex; align-items:center; gap:.5rem; padding:.5rem .6rem; border-radius:.4rem; color:#c9d7c5; font-size:.75rem; font-weight:650; text-decoration:none; }
     .dz-nav-tools-menu a svg { width:1rem; }
     .dz-nav-tools-menu a:hover { color:#10160d; background:var(--dz-lime); }
+
+    .dz-brand { display:flex; align-items:center; flex:0 0 auto; padding-right:1rem; border-right:1px solid var(--dz-line); text-decoration:none; }
+    .dz-brand .fi-logo { color:var(--dz-lime) !important; }
+    .dz-nav-server-switch { flex:0 0 auto; max-width:11rem; }
+    .dz-nav-user { display:flex; align-items:center; flex:0 0 auto; }
+    .dz-nav-user .fi-user-menu button { display:flex; }
 
     .dz-command-center { position:relative; display:grid; grid-template-columns:minmax(0,1.4fr) minmax(300px,.8fr); gap:2rem; overflow:hidden; padding:clamp(1.3rem,3vw,2.25rem); border:1px solid var(--dz-line-strong); border-radius:1rem; background:linear-gradient(120deg,rgba(183,239,74,.1),transparent 42%),linear-gradient(160deg,#131d15,#0d130f); box-shadow:0 24px 70px rgba(0,0,0,.26); }
     .dz-command-center::after { position:absolute; right:-7rem; bottom:-9rem; width:24rem; height:24rem; border:1px solid rgba(183,239,74,.12); border-radius:50%; content:""; box-shadow:0 0 0 4rem rgba(183,239,74,.025),0 0 0 8rem rgba(183,239,74,.018); }

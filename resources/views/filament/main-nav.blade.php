@@ -22,6 +22,9 @@
         : null;
 @endphp
 <div class="dz-main-nav">
+    <a href="{{ url('/admin') }}" class="dz-brand" aria-label="DayZ Manager · Dashboard">
+        <x-filament-panels::logo />
+    </a>
     @if ($project)
         <div class="dz-workspace-identity">
             <span class="dz-server-pulse"></span>
@@ -92,17 +95,17 @@
         </div>
     </details>
     @if ($projectOptions->count())
-        <label class="dz-map-server-picker dz-nav-server-switch">
-            <span>Server</span>
-            <select class="dz-map-select" aria-label="Aktivní server" onchange="
-                const u = new URL(window.location.href);
-                u.searchParams.set('project', this.value);
-                window.location.href = u.toString();
-            ">
-                @foreach ($projectOptions as $id => $name)
-                    <option value="{{ $id }}" @selected((int) $projectId === (int) $id)>{{ $name }}</option>
-                @endforeach
-            </select>
-        </label>
+        <select class="dz-map-select dz-nav-server-switch" aria-label="Aktivní server" onchange="
+            const u = new URL(window.location.href);
+            u.searchParams.set('project', this.value);
+            window.location.href = u.toString();
+        ">
+            @foreach ($projectOptions as $id => $name)
+                <option value="{{ $id }}" @selected((int) $projectId === (int) $id)>{{ $name }}</option>
+            @endforeach
+        </select>
     @endif
+    <div class="dz-nav-user">
+        <x-filament-panels::user-menu />
+    </div>
 </div>
