@@ -312,6 +312,9 @@
     @media (max-width:760px) { .dz-add-event-grid { grid-template-columns:1fr; } .dz-add-event-span2 { grid-column:1; } }
     .dz-map-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,360px); gap:1rem; align-items:start; }
     .dz-map-canvas { height:min(72vh,760px); min-height:560px; position:relative; overflow:hidden; border:1px solid #3e5c28; border-radius:.7rem; background:#1c2b20; }
+    .dz-map-page:fullscreen, .dz-map-page:-webkit-full-screen { overflow:auto; padding:1rem; background:#0b120c; }
+    .dz-map-page:fullscreen .dz-map-intro, .dz-map-page:-webkit-full-screen .dz-map-intro { display:none; }
+    .dz-map-page:fullscreen .dz-map-canvas, .dz-map-page:-webkit-full-screen .dz-map-canvas { height:calc(100vh - 8rem); min-height:400px; }
     #dayz-leaflet-map { width:100%; height:100%; background:#1c2b20; }
     .leaflet-container { background:#1c2b20; font-family:inherit; }
     .dz-coordinate-control { background:#111a14e8; border:1px solid #6c9337; border-radius:.35rem; color:#d8f57b; padding:.4rem .6rem; font:700 .78rem/1.2 ui-monospace,monospace; }

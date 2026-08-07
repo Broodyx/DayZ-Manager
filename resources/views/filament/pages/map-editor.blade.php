@@ -118,6 +118,7 @@
                 <span wire:loading.remove wire:target="checkSpawnEventLinks">Zkontrolovat vazby spawnů</span>
                 <span wire:loading wire:target="checkSpawnEventLinks">Kontroluji vazby…</span>
             </button>
+            <button type="button" class="dz-secondary dz-map-fullscreen-toggle" aria-pressed="false">Na celou obrazovku</button>
             <details class="dz-map-help">
                 <summary>Jak mapu číst?</summary>
                 <div>
@@ -410,17 +411,31 @@
             if (!el || el.dataset.ready) return;
             el.dataset.ready = '1';
             const worldSize = 15360;
+            const tileSize = 512;
+            const tileMaxZoom = 6;
             // Thousands of event/territory points are rendered on this page. Force
             // Leaflet's canvas renderer for both dots and circles; SVG creates one
             // DOM node per point and makes pan/zoom effectively freeze on console
             // maps containing stock territory data.
             const canvasRenderer = L.canvas({ padding: 0.5 });
-            const map = L.map(el, { crs: L.CRS.Simple, minZoom: -5, maxZoom: 1, zoomSnap: 0.25, inertia:false, preferCanvas:true, renderer: canvasRenderer });
+            // CRS.Simple's own scale (2^zoom) treats 1 world meter as 1px at zoom 0 —
+            // that doesn't match the tile pyramid, which covers the whole worldSize in a
+            // single tileSize px tile at zoom 0 and doubles per zoom level like any XYZ
+            // pyramid. This keeps LatLng == raw world X/Z (so every marker/coordinate
+            // calculation below is untouched) while rescaling pixels-per-zoom to match
+            // what tiles/{z}/{x}/{y}.webp actually contains.
+            // The last parameter (d) shifts the Y origin so pixel.y=0 lands on Z=worldSize
+            // (the top row of the source image / tile row 0) instead of Z=0 — without it,
+            // the entire world falls inside tile row -1 and row 0 is never requested.
+            const dayzCrs = L.extend({}, L.CRS.Simple, {
+                transformation: new L.Transformation(tileSize / worldSize, 0, -tileSize / worldSize, tileSize),
+            });
+            const map = L.map(el, { crs: dayzCrs, minZoom: 0, maxZoom: tileMaxZoom, zoomSnap: 0.25, inertia:false, preferCanvas:true, renderer: canvasRenderer });
             const bounds = [[0, 0], [worldSize, worldSize]];
-            // Chernarus HQ is a square 4000×4000 map aligned to the DayZ
-            // world bounds. X remains horizontal and Z remains vertical; no
-            // marker coordinates are transformed here.
-            L.imageOverlay('/maps/chernarus_hq.jpg?v=1', bounds).addTo(map);
+            L.tileLayer('/maps/chernarusplus/tiles/{z}/{x}/{y}.webp', {
+                tileSize, minZoom: 0, maxZoom: tileMaxZoom, bounds, noWrap: true,
+                attribution: 'Satelitní podklad: iZurvive.com',
+            }).addTo(map);
             L.rectangle(bounds, { color: '#b8ed55', weight: 1, fill: false, opacity: .35 }).addTo(map);
             map.fitBounds(bounds);
             L.control.scale({ imperial: false }).addTo(map);
@@ -441,7 +456,10 @@
             };
             const visibleCoordinateRange = () => {
                 const zoom = map.getZoom();
-                const step = zoom >= 0 ? 100 : (zoom >= -1.5 ? 500 : (zoom >= -3 ? 1000 : 2000));
+                // Thresholds shifted by log2(worldSize/tileSize) ≈ 4.9 versus the old
+                // CRS.Simple numbering (see dayzCrs above) — same visual density as before,
+                // just re-based onto the tile pyramid's 0..6 zoom range.
+                const step = zoom >= 5 ? 100 : (zoom >= 3.5 ? 500 : (zoom >= 2 ? 1000 : 2000));
                 const visible = map.getBounds();
                 const west = Math.max(0, visible.getWest());
                 const east = Math.min(worldSize, visible.getEast());
@@ -514,6 +532,32 @@
             modal.querySelector('.dz-point-close').onclick = () => modal.hidden = true;
             const editModal = document.getElementById('dz-edit-point-modal');
             editModal.querySelector('.dz-point-close').onclick = () => editModal.hidden = true;
+
+            // Fullscreen toggles the whole page section (not just the Leaflet canvas) so
+            // every modal/dialog on this page — all of them live outside .dz-map-layout in
+            // the DOM — stays reachable; the Fullscreen API only renders the fullscreened
+            // element's own subtree, so anything outside it would otherwise vanish.
+            const mapPage = document.querySelector('.dz-map-page');
+            const fullscreenToggle = document.querySelector('.dz-map-fullscreen-toggle');
+            if (mapPage && fullscreenToggle) {
+                fullscreenToggle.addEventListener('click', () => {
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    } else {
+                        mapPage.requestFullscreen?.();
+                    }
+                });
+                document.addEventListener('fullscreenchange', () => {
+                    const isFullscreen = document.fullscreenElement === mapPage;
+                    fullscreenToggle.textContent = isFullscreen ? 'Zavřít celou obrazovku' : 'Na celou obrazovku';
+                    fullscreenToggle.setAttribute('aria-pressed', isFullscreen ? 'true' : 'false');
+                    // Leaflet caches its container size; it never sees a fullscreen resize
+                    // by itself, so panning/zooming stays limited to the old dimensions
+                    // until this runs. requestAnimationFrame waits for the CSS `:fullscreen`
+                    // height change to actually apply before Leaflet re-measures.
+                    requestAnimationFrame(() => map.invalidateSize());
+                });
+            }
             const systemDialog = document.getElementById('dz-system-dialog');
             const dialogCancel = systemDialog.querySelector('.dz-dialog-cancel');
             const dialogConfirm = systemDialog.querySelector('.dz-dialog-confirm');

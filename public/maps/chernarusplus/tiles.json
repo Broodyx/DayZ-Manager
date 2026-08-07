@@ -1,0 +1,8 @@
+{
+  "map": "chernarusplus",
+  "worldSize": 15360,
+  "tileSize": 512,
+  "minZoom": 0,
+  "maxZoom": 6,
+  "projection": "dayz"
+}
