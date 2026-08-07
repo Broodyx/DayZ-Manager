@@ -90,6 +90,13 @@ class FtpBrowser
             timeout: 15,
             utf8: true,
             passive: true,
+            // Deep listing (used by "import all", including env/ and custom/) otherwise
+            // relies on the FTP server correctly supporting a recursive `LIST -R` — many
+            // game-hosting FTP servers (e.g. Nitrado) silently ignore -R and only return the
+            // top level, so subfolders would go missing with no error. This makes Flysystem
+            // walk each directory with a plain non-recursive LIST instead, which every FTP
+            // server supports.
+            recurseManually: true,
         );
 
         return new Filesystem(new FtpAdapter($options));
