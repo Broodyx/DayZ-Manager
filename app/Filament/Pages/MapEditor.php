@@ -845,6 +845,24 @@ class MapEditor extends Page
         Cache::put($cacheKey, $this->spawnPointWarnings, now()->addMinutes(15));
     }
 
+    /** Czech names for the vanilla species classnames EnvironmentTargetCatalog knows about, shown in the map layer tooltip alongside the generic file description. */
+    private const TERRITORY_SPECIES_CZ = [
+        'AnimalBear' => 'Medvěd',
+        'AnimalCow' => 'Kráva',
+        'AnimalDeer' => 'Jelen',
+        'AnimalRoeDeer' => 'Srnec',
+        'AnimalWolf' => 'Vlk',
+        'AnimalWildBoar' => 'Divočák',
+        'AnimalSheep' => 'Ovce',
+        'AnimalGoat' => 'Koza',
+        'AnimalPig' => 'Prase',
+        'AnimalFox' => 'Liška',
+        'AnimalHare' => 'Zajíc',
+        'AnimalHen' => 'Slepice',
+        'AnimalDomestic' => 'Domácí zvířata',
+        'ZombieTest' => 'Infikovaní',
+    ];
+
     public function loadMapSources(): void
     {
         $definitions = [
@@ -869,6 +887,9 @@ class MapEditor extends Page
         $project = $this->project();
         $this->hasFtpConnection = (bool) $project?->hasFtpConnection();
         $revisions = $this->latestRevisions($project);
+        $speciesNameByFile = collect(app(EnvironmentTargetCatalog::class)->targets($revisions, fn ($item) => $this->revisionFilename($item)))
+            ->mapWithKeys(fn (array $target) => [strtolower($target['file']) => $target['name']])
+            ->all();
         $this->mapSources = [];
         foreach ($definitions as $filename => [$description, $plottable]) {
             $matches = $revisions->filter(function ($item) use ($filename) {
@@ -881,7 +902,13 @@ class MapEditor extends Page
             }
             foreach ($matches as $revision) {
                 $actualName = $this->revisionFilename($revision);
-                $this->mapSources[] = $this->source($actualName, $description, $plottable, $revision);
+                $entryDescription = $description;
+                if (str_contains($filename, '_territories.xml') && isset($speciesNameByFile[$actualName])) {
+                    $speciesName = $speciesNameByFile[$actualName];
+                    $speciesLabel = self::TERRITORY_SPECIES_CZ[$speciesName] ?? null;
+                    $entryDescription = ($speciesLabel ? "{$speciesLabel} ({$speciesName})" : $speciesName).' – '.$description;
+                }
+                $this->mapSources[] = $this->source($actualName, $entryDescription, $plottable, $revision);
             }
         }
     }

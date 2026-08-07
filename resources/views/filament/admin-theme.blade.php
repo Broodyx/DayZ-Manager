@@ -489,13 +489,15 @@
     .dz-map-raw-content { min-width:0; min-height:0; margin:0; overflow:auto; border:1px solid #314333; border-radius:.5rem; padding:1rem; color:#dbe8d6; background:#060a07; font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace; tab-size:4; white-space:pre; }
     .dz-map-legend input { accent-color:#b8ed55; margin-right:.5rem; }
     .dz-map-layers { display:grid; gap:.55rem; }
-    .dz-map-layer-card { display:grid; gap:.45rem; padding:.65rem; border:1px solid #2c3d2e; border-radius:.55rem; background:#0c130e; }
-    .dz-map-layers label { display:flex; align-items:flex-start; gap:.4rem; color:#c5d2bf; font-size:.75rem; cursor:pointer; } .dz-map-layers label span { display:grid; gap:.05rem; overflow-wrap:anywhere; } .dz-map-layers label b { color:#dce6d8; } .dz-map-layers label small { color:#8c9b8c; font-size:.65rem; }
-    .dz-layer-details { margin-top:-.1rem; }
-    .dz-layer-details summary { cursor:pointer; color:#8c9b8c; font-size:.64rem; font-weight:750; list-style:none; }
+    .dz-map-layer-card { display:flex; flex-wrap:wrap; align-items:center; gap:.3rem .5rem; padding:.65rem; border:1px solid #2c3d2e; border-radius:.55rem; background:#0c130e; }
+    .dz-map-layers label { display:flex; align-items:flex-start; gap:.4rem; flex:1 1 auto; min-width:0; color:#c5d2bf; font-size:.75rem; cursor:pointer; } .dz-map-layers label span { display:grid; gap:.05rem; overflow-wrap:anywhere; } .dz-map-layers label b { color:#dce6d8; } .dz-map-layers label small { color:#8c9b8c; font-size:.65rem; }
+    .dz-layer-details { flex:0 0 auto; margin-left:auto; }
+    .dz-layer-details[open] { flex-basis:100%; margin-left:0; margin-top:.35rem; }
+    .dz-layer-details summary { cursor:pointer; padding:.2rem .5rem; border:1px solid #2c3d2e; border-radius:.35rem; color:#8c9b8c; font-size:.62rem; font-weight:750; list-style:none; white-space:nowrap; }
     .dz-layer-details summary::-webkit-details-marker { display:none; }
     .dz-layer-details summary::before { content:'▸ '; }
-    .dz-layer-details[open] summary { color:#c5d2bf; margin-bottom:.45rem; }
+    .dz-layer-details summary:hover { border-color:#496b31; color:#c5d2bf; }
+    .dz-layer-details[open] summary { color:#c5d2bf; border-color:#496b31; margin-bottom:.45rem; }
     .dz-layer-details[open] summary::before { content:'▾ '; }
     .dz-layer-details > p { margin:0 0 .45rem; color:#879587; font-size:.65rem; line-height:1.45; }
     .dz-layer-cleanup-open { width:100%; padding:.5rem .6rem; border:1px solid #9b463f; border-radius:.4rem; color:#ffd4cf; background:#2b1715; font-size:.63rem; font-weight:850; cursor:pointer; }

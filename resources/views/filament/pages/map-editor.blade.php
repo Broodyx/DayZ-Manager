@@ -336,7 +336,7 @@
                     @foreach ($mapSources as $source)
                         @if ($source['uploaded'] && $source['plottable'] && $source['marker_count'] > 0 && $source['loaded'])
                             <article class="dz-map-layer-card">
-                                <label><input class="map-layer-toggle" type="checkbox" @checked(($source['filename'] === 'cfgplayerspawnpoints.xml' || $source['filename'] === request()->string('show')->toString()) && $source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
+                                <label title="{{ $source['description'] }}"><input class="map-layer-toggle" type="checkbox" @checked(($source['filename'] === 'cfgplayerspawnpoints.xml' || $source['filename'] === request()->string('show')->toString()) && $source['marker_count'] <= 3000) data-layer="{{ $source['filename'] }}"><i class="dz-layer-dot" style="{{ $source['dot_style'] }}"></i><span><b>{{ $source['filename'] }}</b><small>{{ $source['marker_count'] }} bodů/oblastí{{ $source['marker_count'] > 3000 ? ' · vrstva je kvůli výkonu vypnutá' : '' }}</small></span></label>
                                 <details class="dz-layer-details">
                                     <summary>Detaily a akce</summary>
                                     <p>{{ $source['description'] }}</p>
