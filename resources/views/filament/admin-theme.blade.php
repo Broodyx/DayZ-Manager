@@ -371,6 +371,24 @@
     .dz-point-options button { min-height:3rem; text-align:left; border:1px solid #3e5c28; border-radius:.5rem; background:#18251a; color:#e7f7d2; padding:.65rem; cursor:pointer; }
     .dz-point-options button:hover { border-color:#b8ed55; background:#263b20; color:#d8f57b; }
     .dz-point-options button.selected { border-color:#b8ed55; background:#b8ed55; color:#0d160d; box-shadow:0 0 0 2px rgba(184,237,85,.25); }
+    .dz-wizard-back { margin-bottom:.75rem; padding:.4rem .7rem; border:1px solid #3e5c28; border-radius:.4rem; background:transparent; color:#aab6a4; font-size:.7rem; font-weight:750; cursor:pointer; }
+    .dz-wizard-back:hover { border-color:#b8ed55; color:#d8f57b; }
+    .dz-wizard-category-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr)); gap:.65rem; margin-top:1rem; }
+    .dz-wizard-category { display:grid; justify-items:center; gap:.3rem; min-height:7.5rem; text-align:center; border:1px solid #3e5c28; border-radius:.6rem; background:#18251a; color:#e7f7d2; padding:1rem .65rem; cursor:pointer; }
+    .dz-wizard-category:hover { border-color:#b8ed55; background:#263b20; color:#d8f57b; }
+    .dz-wizard-category .dz-wizard-icon { font-size:1.6rem; line-height:1; }
+    .dz-wizard-category b { font-size:.82rem; }
+    .dz-wizard-category small { color:#8c9b8c; font-size:.68rem; line-height:1.3; }
+    .dz-wizard-type-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(11rem,1fr)); gap:.5rem; margin-top:.85rem; }
+    .dz-wizard-type-option { display:grid; gap:.15rem; text-align:left; border:1px solid #3e5c28; border-radius:.5rem; background:#18251a; color:#e7f7d2; padding:.6rem .75rem; cursor:pointer; }
+    .dz-wizard-type-option:hover { border-color:#b8ed55; background:#263b20; }
+    .dz-wizard-type-option b { font-size:.76rem; color:#d8f57b; }
+    .dz-wizard-type-option small { color:#8c9b8c; font-size:.65rem; font-family:ui-monospace,monospace; }
+    .dz-wizard-custom-classname { display:grid; gap:.4rem; margin-top:.85rem; color:#d8f57b; font-weight:700; }
+    .dz-wizard-custom-classname input { min-height:2.8rem; border:1px solid #496b31; border-radius:.45rem; background:#0b120d; color:#e7f7d2; padding:.65rem .75rem; }
+    .dz-wizard-custom-classname small { color:#aab6a4; font-weight:400; }
+    .dz-wizard-custom-classname button { justify-self:start; padding:.55rem 1rem; border:1px solid #6b8f2b; border-radius:.4rem; background:#182a10; color:#d8f57b; font-size:.75rem; font-weight:750; cursor:pointer; }
+    .dz-wizard-custom-classname button:hover { border-color:#b8ed55; background:#233a17; }
     .dz-point-new-event-hint { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin:.85rem 0 0; padding:.7rem .85rem; border:1px dashed #496b31; border-radius:.55rem; }
     .dz-point-new-event-hint button { flex:0 0 auto; padding:.5rem .75rem; border:1px solid #6b8f2b; border-radius:.4rem; background:#182a10; color:#d8f57b; font-size:.72rem; font-weight:750; cursor:pointer; }
     .dz-point-new-event-hint button:hover { border-color:#b8ed55; background:#233a17; }
@@ -408,6 +426,7 @@
     .dz-checkbox-field input[type="checkbox"] { width:auto !important; min-height:auto !important; padding:0 !important; accent-color:#b8ed55; }
     .dz-edit-point-contents-badge { grid-column:1/-1; margin:0 0 .75rem; padding:.55rem .7rem; border:1px solid #6b8f2b; border-radius:.5rem; background:#182a10; color:#d8f57b; font-size:.75rem; font-weight:700; }
     .dz-item-list-field { grid-column:1/-1; display:grid; gap:.5rem; }
+    .dz-item-list-count { justify-self:start; margin-top:-.3rem; padding:.15rem .55rem; border-radius:999px; background:#1c2b1a; color:#9db78a; font-size:.62rem; font-weight:750; }
     .dz-item-list-rows { display:grid; gap:.4rem; }
     .dz-item-list-row { display:grid; grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr)) auto; gap:.4rem; align-items:center; }
     .dz-item-list-row input { min-height:2.3rem !important; }

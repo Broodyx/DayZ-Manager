@@ -283,45 +283,74 @@
         @endif
         @if ($showAddEventModal)
             <div class="dz-point-modal">
-                <div class="dz-point-modal-card">
+                <div class="dz-point-modal-card dz-add-event-wizard" data-wizard-active-step="{{ $addEventName !== '' ? 'settings' : 'category' }}">
                     <button type="button" class="dz-point-close" wire:click="closeAddEventModal" aria-label="Zavřít">×</button>
-                    <h3>Přidat event{{ $addEventName !== '' ? ' „'.$addEventName.'“' : '' }} do events.xml</h3>
-                    <p class="dz-muted">Vyplňte základní parametry eventu. Vzniklá revize events.xml se dá později doladit v editoru konfigurace.</p>
-                    <div class="dz-add-event-grid">
-                        <label class="dz-add-event-span2">Název eventu *
-                            <input type="text" wire:model="addEventName" placeholder="Např. StaticTestWeaponsChest_DEV2" autocomplete="off" required>
-                        </label>
-                        <label>Nominal<input type="number" min="0" wire:model="addEventForm.nominal"></label>
-                        <label>Min<input type="number" min="0" wire:model="addEventForm.min"></label>
-                        <label>Max<input type="number" min="0" wire:model="addEventForm.max"></label>
-                        <label>Lifetime (s)<input type="number" min="0" wire:model="addEventForm.lifetime"></label>
-                        <label>Restock (s)<input type="number" min="0" wire:model="addEventForm.restock"></label>
-                        <label>Safe radius (m)<input type="number" min="0" wire:model="addEventForm.saferadius"></label>
-                        <label>Distance radius (m)<input type="number" min="0" wire:model="addEventForm.distanceradius"></label>
-                        <label>Cleanup radius (m)<input type="number" min="0" wire:model="addEventForm.cleanupradius"></label>
-                        <label>Position
-                            <select wire:model="addEventForm.position">
-                                <option value="fixed">fixed</option>
-                                <option value="player">player</option>
-                            </select>
-                        </label>
-                        <label>Limit
-                            <select wire:model="addEventForm.limit">
-                                <option value="mixed">mixed</option>
-                                <option value="unlimited">unlimited</option>
-                                <option value="nearest">nearest</option>
-                                <option value="farthest">farthest</option>
-                                <option value="child">child · pevný jednorázový objekt (např. statický kontejner)</option>
-                            </select>
-                        </label>
-                        <label class="dz-add-event-span2">Classname objektu ke spawnutí (volitelné)
-                            <input type="text" list="dz-classname-catalog" placeholder="Např. VehicleTransitBus" wire:model="addEventForm.child_type" autocomplete="off">
-                            <small>Našeptávač nabízí classnames ze známého katalogu; klidně zadej i vlastní/modovaný název. Nechte prázdné, pokud event žádný konkrétní objekt nespawnuje (např. loot event).</small>
+
+                    <div class="dz-wizard-step" data-wizard-step="category" @if ($addEventName !== '') hidden @endif>
+                        <p class="dz-eyebrow">NOVÝ EVENT DO EVENTS.XML</p>
+                        <h3>Co chceš přidat?</h3>
+                        <p class="dz-muted">Vyber, co má event spawnovat. V dalším kroku vybereš konkrétní typ ze známého katalogu — přesný classname nemusíš znát nazpaměť.</p>
+                        <div class="dz-wizard-category-grid">
+                            <button type="button" class="dz-wizard-category" data-category="container"><span class="dz-wizard-icon">🛢️</span><b>Statický kontejner</b><small>Barel, bedna, truhla</small></button>
+                            <button type="button" class="dz-wizard-category" data-category="tent"><span class="dz-wizard-icon">⛺</span><b>Stan</b><small>Skladovací úložiště</small></button>
+                            <button type="button" class="dz-wizard-category" data-category="vehicle"><span class="dz-wizard-icon">🚗</span><b>Vozidlo</b><small>Auto nebo loďka</small></button>
+                            <button type="button" class="dz-wizard-category" data-category="custom"><span class="dz-wizard-icon">📦</span><b>Jiný objekt</b><small>Vlastní/modovaný classname</small></button>
+                            <button type="button" class="dz-wizard-category" data-category="none"><span class="dz-wizard-icon">🎯</span><b>Event bez objektu</b><small>Např. loot event</small></button>
+                        </div>
+                    </div>
+
+                    <div class="dz-wizard-step" data-wizard-step="type" hidden>
+                        <button type="button" class="dz-wizard-back" data-wizard-back="category">← Zpět</button>
+                        <h3>Vyber konkrétní typ</h3>
+                        <p class="dz-muted" data-wizard-type-intro></p>
+                        <div class="dz-wizard-type-grid" data-wizard-type-options></div>
+                        <label class="dz-wizard-custom-classname" hidden>Vlastní classname
+                            <input type="text" list="dz-classname-catalog" placeholder="Např. VehicleTransitBus" autocomplete="off" data-wizard-custom-input>
+                            <small>Našeptávač nabízí classnames ze známého katalogu; klidně zadej i vlastní/modovaný název.</small>
+                            <button type="button" class="dz-action" data-wizard-continue>Pokračovat →</button>
                         </label>
                     </div>
-                    <div class="dz-edit-actions">
-                        <button type="button" wire:click="closeAddEventModal" class="dz-secondary">Zrušit</button>
-                        <x-dz-confirm-button call="submitAddEvent()" label="Přidat event a vytvořit revizi" saved-label="Přidáno" class="dz-action" />
+
+                    <div class="dz-wizard-step" data-wizard-step="settings" @if ($addEventName === '') hidden @endif>
+                        <button type="button" class="dz-wizard-back" data-wizard-back="type">← Zpět</button>
+                        <h3>Přidat event{{ $addEventName !== '' ? ' „'.$addEventName.'“' : '' }} do events.xml</h3>
+                        <p class="dz-muted" data-wizard-settings-intro>Vyplňte základní parametry eventu. Vzniklá revize events.xml se dá později doladit v editoru konfigurace.</p>
+                        <div class="dz-add-event-grid">
+                            <label class="dz-add-event-span2">Název eventu *
+                                <input type="text" wire:model="addEventName" placeholder="Např. StaticTestWeaponsChest_DEV2" autocomplete="off" required>
+                            </label>
+                            <label>Nominal<input type="number" min="0" wire:model="addEventForm.nominal"></label>
+                            <label>Min<input type="number" min="0" wire:model="addEventForm.min"></label>
+                            <label>Max<input type="number" min="0" wire:model="addEventForm.max"></label>
+                            <label>Lifetime (s)<input type="number" min="0" wire:model="addEventForm.lifetime"></label>
+                            <label>Restock (s)<input type="number" min="0" wire:model="addEventForm.restock"></label>
+                            <label>Safe radius (m)<input type="number" min="0" wire:model="addEventForm.saferadius"></label>
+                            <label>Distance radius (m)<input type="number" min="0" wire:model="addEventForm.distanceradius"></label>
+                            <label>Cleanup radius (m)<input type="number" min="0" wire:model="addEventForm.cleanupradius"></label>
+                            <label>Position
+                                <select wire:model="addEventForm.position">
+                                    <option value="fixed">fixed</option>
+                                    <option value="player">player</option>
+                                </select>
+                            </label>
+                            <label>Limit
+                                <select wire:model="addEventForm.limit">
+                                    <option value="mixed">mixed</option>
+                                    <option value="unlimited">unlimited</option>
+                                    <option value="nearest">nearest</option>
+                                    <option value="farthest">farthest</option>
+                                    <option value="child">child · pevný jednorázový objekt (např. statický kontejner)</option>
+                                </select>
+                            </label>
+                            <label class="dz-add-event-span2">Classname objektu ke spawnutí
+                                <input type="text" list="dz-classname-catalog" placeholder="Např. VehicleTransitBus" wire:model="addEventForm.child_type" autocomplete="off">
+                                <small>Předvyplněno z předchozího kroku; klidně uprav ručně. Nechte prázdné, pokud event žádný konkrétní objekt nespawnuje.</small>
+                            </label>
+                        </div>
+                        <div class="dz-edit-actions">
+                            <button type="button" wire:click="closeAddEventModal" class="dz-secondary">Zrušit</button>
+                            <x-dz-confirm-button call="submitAddEvent()" label="Přidat event a vytvořit revizi" saved-label="Přidáno" class="dz-action" />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -331,6 +360,122 @@
                 @endforeach
             </datalist>
         @endif
+        <script>
+        // Delegated on document (not scoped to the modal) so it keeps working across
+        // Livewire's destroy/recreate of the showAddEventModal conditional block on every open.
+        (function () {
+            const CATALOG = {
+                container: [
+                    ['Barrel_Blue', 'Modrý barel'], ['Barrel_Green', 'Zelený barel'],
+                    ['Barrel_Red', 'Červený barel'], ['Barrel_Yellow', 'Žlutý barel'],
+                    ['SeaChest', 'Námořní truhla (SeaChest)'], ['WoodenCrate', 'Dřevěná bedna (WoodenCrate)'],
+                ],
+                tent: [
+                    ['LargeTent', 'Velký stan'], ['MediumTent', 'Střední stan'],
+                    ['MediumTent_Green', 'Střední stan (zelený)'], ['MediumTent_Orange', 'Střední stan (oranžový)'],
+                    ['PartyTent', 'Party stan'], ['PartyTent_Blue', 'Party stan (modrý)'],
+                    ['PartyTent_Brown', 'Party stan (hnědý)'], ['CarTent', 'Garážový stan (CarTent)'],
+                ],
+                vehicle: [
+                    ['CivilianSedan', 'Sedan (civilní)'], ['CivilianSedan_Black', 'Sedan (černý)'], ['CivilianSedan_Wine', 'Sedan (vínový)'],
+                    ['Hatchback_02', 'Hatchback'], ['Hatchback_02_Black', 'Hatchback (černý)'], ['Hatchback_02_Blue', 'Hatchback (modrý)'],
+                    ['OffroadHatchback', 'Offroad Hatchback'], ['OffroadHatchback_Blue', 'Offroad Hatchback (modrý)'], ['OffroadHatchback_White', 'Offroad Hatchback (bílý)'],
+                    ['Sedan_02_Grey', 'Sedan 02 (šedý)'], ['Sedan_02_Red', 'Sedan 02 (červený)'],
+                    ['Boat_01_Black', 'Loďka (černá)'], ['Boat_01_Blue', 'Loďka (modrá)'], ['Boat_01_Camo', 'Loďka (maskáčová)'], ['Boat_01_Orange', 'Loďka (oranžová)'],
+                ],
+            };
+            const CATEGORY_INTRO = {
+                container: 'Vyber konkrétní barel/bednu/truhlu — jde o klasické vanilla classnames.',
+                tent: 'Vyber konkrétní typ stanu.',
+                vehicle: 'Vyber konkrétní vozidlo.',
+                custom: 'Zadej přesný classname objektu (i vlastní/modovaný, pokud ho server zná).',
+            };
+            const goToStep = (modal, step) => {
+                modal.dataset.wizardActiveStep = step;
+                modal.querySelectorAll('.dz-wizard-step').forEach((el) => { el.hidden = el.dataset.wizardStep !== step; });
+            };
+            const applyChildType = (modal, value) => {
+                const target = modal.querySelector('input[wire\\:model="addEventForm.child_type"]');
+                if (!target) return;
+                target.value = value;
+                target.dispatchEvent(new Event('input'));
+            };
+            const applyChildDefaults = (modal, category) => {
+                if (!['container', 'tent', 'vehicle'].includes(category)) return;
+                const limit = modal.querySelector('select[wire\\:model="addEventForm.limit"]');
+                if (limit && limit.value !== 'child') {
+                    limit.value = 'child';
+                    limit.dispatchEvent(new Event('change'));
+                }
+            };
+            const suggestName = (modal, classname) => {
+                const nameInput = modal.querySelector('input[wire\\:model="addEventName"]');
+                if (nameInput && !nameInput.value.trim()) {
+                    nameInput.value = 'Static' + classname.replace(/[^A-Za-z0-9]/g, '') + '_01';
+                    nameInput.dispatchEvent(new Event('input'));
+                }
+            };
+            document.addEventListener('click', (event) => {
+                const categoryBtn = event.target.closest('.dz-wizard-category');
+                if (categoryBtn) {
+                    const modal = categoryBtn.closest('.dz-add-event-wizard');
+                    const category = categoryBtn.dataset.category;
+                    if (category === 'none') {
+                        applyChildType(modal, '');
+                        goToStep(modal, 'settings');
+                        return;
+                    }
+                    const options = modal.querySelector('[data-wizard-type-options]');
+                    const customField = modal.querySelector('.dz-wizard-custom-classname');
+                    const intro = modal.querySelector('[data-wizard-type-intro]');
+                    intro.textContent = CATEGORY_INTRO[category] || '';
+                    options.replaceChildren();
+                    options.hidden = category === 'custom';
+                    customField.hidden = category !== 'custom';
+                    (CATALOG[category] || []).forEach(([value, label]) => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'dz-wizard-type-option';
+                        btn.dataset.classname = value;
+                        btn.dataset.category = category;
+                        btn.innerHTML = '<b></b><small></small>';
+                        btn.querySelector('b').textContent = label;
+                        btn.querySelector('small').textContent = value;
+                        options.appendChild(btn);
+                    });
+                    goToStep(modal, 'type');
+                    return;
+                }
+                const typeBtn = event.target.closest('.dz-wizard-type-option');
+                if (typeBtn) {
+                    const modal = typeBtn.closest('.dz-add-event-wizard');
+                    applyChildType(modal, typeBtn.dataset.classname);
+                    applyChildDefaults(modal, typeBtn.dataset.category);
+                    suggestName(modal, typeBtn.dataset.classname);
+                    goToStep(modal, 'settings');
+                    return;
+                }
+                const backBtn = event.target.closest('.dz-wizard-back');
+                if (backBtn) {
+                    goToStep(backBtn.closest('.dz-add-event-wizard'), backBtn.dataset.wizardBack);
+                    return;
+                }
+                const continueBtn = event.target.closest('[data-wizard-continue]');
+                if (continueBtn) {
+                    const modal = continueBtn.closest('.dz-add-event-wizard');
+                    const customInput = modal.querySelector('[data-wizard-custom-input]');
+                    applyChildType(modal, customInput?.value || '');
+                    if (customInput?.value.trim()) suggestName(modal, customInput.value.trim());
+                    goToStep(modal, 'settings');
+                }
+            });
+            document.addEventListener('input', (event) => {
+                if (event.target.matches('[data-wizard-custom-input]')) {
+                    applyChildType(event.target.closest('.dz-add-event-wizard'), event.target.value);
+                }
+            });
+        })();
+        </script>
         <div class="dz-map-layout">
             <section wire:ignore class="dz-map-canvas" aria-label="Mapa serveru">
                 <div id="dayz-leaflet-map"></div>
@@ -774,6 +919,9 @@
                 const legend = document.createElement('label');
                 legend.textContent = field.label;
                 wrap.appendChild(legend);
+                const countBadge = document.createElement('span');
+                countBadge.className = 'dz-item-list-count';
+                wrap.appendChild(countBadge);
                 const rows = document.createElement('div');
                 rows.className = 'dz-item-list-rows';
                 wrap.appendChild(rows);
@@ -798,6 +946,7 @@
                         return item;
                     }).filter((item) => String(item.name || '').trim() !== '');
                     hidden.value = JSON.stringify(items);
+                    countBadge.textContent = items.length === 0 ? 'zatím žádné položky' : items.length + (items.length === 1 ? ' položka přidána' : items.length < 5 ? ' položky přidány' : ' položek přidáno');
                 };
                 const addRow = (item = {}) => {
                     const row = document.createElement('div');
