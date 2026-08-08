@@ -197,4 +197,65 @@ XML);
         $this->assertStringContainsString('name="Rope"', $content);
         $this->assertStringContainsString('name="AKM"', $content);
     }
+
+    public function test_saving_coordinates_does_not_fail_when_the_event_has_no_children_in_events_xml(): void
+    {
+        [$user, $project] = $this->seedProject();
+
+        // Overwrite events.xml with a version of the event that has no <children> at all —
+        // this used to hard-abort the whole point save with a 422 ("nemá žádnou spawnovanou
+        // child třídu"), even though eventFields always sends damage_min/cargo_preset/etc. on
+        // every point save regardless of whether the user touched them.
+        $eventsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'events.xml');
+        Storage::disk('dayz')->put($eventsRevision->storage_path, <<<'XML'
+<events>
+    <event name="StaticTestWeaponsChest_DEV2">
+        <nominal>1</nominal>
+        <min>1</min>
+        <max>1</max>
+        <lifetime>3600</lifetime>
+        <restock>0</restock>
+        <saferadius>100</saferadius>
+        <distanceradius>100</distanceradius>
+        <cleanupradius>100</cleanupradius>
+        <flags deletable="0" init_random="0" remove_damaged="0"/>
+        <position>fixed</position>
+        <limit>unlimited</limit>
+        <active>1</active>
+        <children/>
+    </event>
+</events>
+XML);
+
+        $eventSpawnsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'cfgeventspawns.xml');
+
+        $response = $this->actingAs($user)->postJson(route('map-editor.points.update'), [
+            'project_id' => $project->id,
+            'revision_id' => $eventSpawnsRevision->id,
+            'filename' => 'cfgeventspawns.xml',
+            'label' => 'StaticTestWeaponsChest_DEV2',
+            'path' => '/eventposdef/event[1]/pos[1]',
+            'x' => 100,
+            'z' => 200,
+            'new_x' => 300,
+            'new_z' => 400,
+            'parameters' => [
+                'orientation' => 90,
+                'cargo_items' => '',
+                'hoarder' => false,
+            ],
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(fn ($json) => $json->where('ok', true)->etc());
+        $this->assertNotEmpty($response->json('warning'));
+
+        $latestEventSpawns = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport?->original_filename ?? $revision->storage_path)) === 'cfgeventspawns.xml');
+        $content = Storage::disk('dayz')->get($latestEventSpawns->storage_path);
+        $this->assertStringContainsString('x="300"', $content);
+        $this->assertStringContainsString('z="400"', $content);
+    }
 }

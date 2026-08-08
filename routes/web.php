@@ -222,54 +222,68 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         abort(422, $exception->getMessage());
     }
     $saved = $editor->save($project, $source, $content, 'Upraven mapový bod X/Z', auth()->user());
+    $spawnableWarning = null;
     if ($filename === 'cfgeventspawns.xml' && (array_key_exists('damage_min', $data['parameters'] ?? []) || array_key_exists('damage_max', $data['parameters'] ?? []) || array_key_exists('cargo_preset', $data['parameters'] ?? []) || array_key_exists('cargo_items', $data['parameters'] ?? []) || array_key_exists('hoarder', $data['parameters'] ?? []) || array_key_exists('attachments', $data['parameters'] ?? []))) {
+        // This block only syncs cfgspawnabletypes.xml (container contents) — a secondary,
+        // best-effort step. eventFields always sends these keys (with their defaults) on every
+        // save of a dynamic event point, so a hard abort here would block ordinary coordinate/
+        // orientation edits whenever events.xml/cfgspawnabletypes.xml aren't uploaded yet or the
+        // event has no <children> defined. The point itself was already saved above; skip
+        // quietly (surfacing why) instead of failing the whole request.
         $eventsRevision = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'events.xml');
-        abort_unless($eventsRevision && Storage::disk('dayz')->exists($eventsRevision->storage_path), 422, 'Nejprve importujte aktuální events.xml.');
-        $eventXml = @simplexml_load_string(Storage::disk('dayz')->get($eventsRevision->storage_path));
-        $eventNode = collect($eventXml?->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
-        $spawnClassnames = collect($eventNode?->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
-        abort_unless($spawnClassnames !== [], 422, 'Event '.$data['label'].' nemá žádnou spawnovanou child třídu.');
         $spawnableRevision = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'cfgspawnabletypes.xml');
-        abort_unless($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path), 422, 'Nejprve importujte aktuální cfgspawnabletypes.xml.');
-        $parameters = $data['parameters'] ?? [];
-        $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
-        // A cargo_items row is a single guaranteed item; each becomes its own <cargo> group,
-        // matching the one-item-per-group convention vanilla weapon-crate/heli-crash events use.
-        // A "preset" reference is only used as a fallback when no specific items are listed.
-        $cargoItems = [];
-        if (trim((string) ($parameters['cargo_items'] ?? '')) !== '') {
-            $decodedCargo = json_decode((string) $parameters['cargo_items'], true);
-            foreach (is_array($decodedCargo) ? $decodedCargo : [] as $cargoItem) {
-                $itemName = trim((string) ($cargoItem['name'] ?? ''));
-                if ($itemName === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $itemName)) {
-                    continue;
+        if (! $eventsRevision || ! Storage::disk('dayz')->exists($eventsRevision->storage_path)) {
+            $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — nejprve importujte aktuální events.xml.';
+        } elseif (! $spawnableRevision || ! Storage::disk('dayz')->exists($spawnableRevision->storage_path)) {
+            $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — nejprve importujte aktuální cfgspawnabletypes.xml.';
+        } else {
+            $eventXml = @simplexml_load_string(Storage::disk('dayz')->get($eventsRevision->storage_path));
+            $eventNode = collect($eventXml?->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
+            $spawnClassnames = collect($eventNode?->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
+            if ($spawnClassnames === []) {
+                $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nemá v events.xml žádnou spawnovanou child třídu (zkontrolujte <children><child type="..."/></children>).';
+            } else {
+                $parameters = $data['parameters'] ?? [];
+                $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
+                // A cargo_items row is a single guaranteed item; each becomes its own <cargo> group,
+                // matching the one-item-per-group convention vanilla weapon-crate/heli-crash events use.
+                // A "preset" reference is only used as a fallback when no specific items are listed.
+                $cargoItems = [];
+                if (trim((string) ($parameters['cargo_items'] ?? '')) !== '') {
+                    $decodedCargo = json_decode((string) $parameters['cargo_items'], true);
+                    foreach (is_array($decodedCargo) ? $decodedCargo : [] as $cargoItem) {
+                        $itemName = trim((string) ($cargoItem['name'] ?? ''));
+                        if ($itemName === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $itemName)) {
+                            continue;
+                        }
+                        $quantmin = $cargoItem['quantmin'] ?? '';
+                        $quantmax = $cargoItem['quantmax'] ?? '';
+                        $cargoItems[] = [
+                            'name' => $itemName,
+                            'chance' => max(0, min(1, (float) ($cargoItem['chance'] ?? 1))),
+                            'quantmin' => $quantmin !== '' && $quantmin !== null ? max(0, (int) $quantmin) : null,
+                            'quantmax' => $quantmax !== '' && $quantmax !== null ? max(0, (int) $quantmax) : null,
+                        ];
+                    }
                 }
-                $quantmin = $cargoItem['quantmin'] ?? '';
-                $quantmax = $cargoItem['quantmax'] ?? '';
-                $cargoItems[] = [
-                    'name' => $itemName,
-                    'chance' => max(0, min(1, (float) ($cargoItem['chance'] ?? 1))),
-                    'quantmin' => $quantmin !== '' && $quantmin !== null ? max(0, (int) $quantmin) : null,
-                    'quantmax' => $quantmax !== '' && $quantmax !== null ? max(0, (int) $quantmax) : null,
-                ];
+                $cargoGroups = $cargoItems !== []
+                    ? collect($cargoItems)->map(fn ($item) => ['chance' => 1, 'items' => [$item]])->all()
+                    : (trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : []);
+                $spawnableContent = Storage::disk('dayz')->get($spawnableRevision->storage_path);
+                foreach ($spawnClassnames as $classname) {
+                    $spawnableContent = $spawnableEditor->update($spawnableContent, $classname, [
+                        'damage_min' => $parameters['damage_min'] ?? 0,
+                        'damage_max' => $parameters['damage_max'] ?? 0,
+                        'hoarder' => (bool) ($parameters['hoarder'] ?? false),
+                        'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
+                        'cargo' => $cargoGroups,
+                    ]);
+                }
+                $editor->save($project, $spawnableRevision, $spawnableContent, 'Upraven obsah kontejneru '.$data['label'], auth()->user());
             }
         }
-        $cargoGroups = $cargoItems !== []
-            ? collect($cargoItems)->map(fn ($item) => ['chance' => 1, 'items' => [$item]])->all()
-            : (trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : []);
-        $spawnableContent = Storage::disk('dayz')->get($spawnableRevision->storage_path);
-        foreach ($spawnClassnames as $classname) {
-            $spawnableContent = $spawnableEditor->update($spawnableContent, $classname, [
-                'damage_min' => $parameters['damage_min'] ?? 0,
-                'damage_max' => $parameters['damage_max'] ?? 0,
-                'hoarder' => (bool) ($parameters['hoarder'] ?? false),
-                'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
-                'cargo' => $cargoGroups,
-            ]);
-        }
-        $editor->save($project, $spawnableRevision, $spawnableContent, 'Upraven obsah kontejneru '.$data['label'], auth()->user());
     }
-    return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id]);
+    return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id,'warning'=>$spawnableWarning]);
 })->middleware('auth')->name('map-editor.points.update');
 
 Route::post('/admin/map-editor/points/delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor) {

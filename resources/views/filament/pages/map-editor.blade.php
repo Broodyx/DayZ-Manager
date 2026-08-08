@@ -1189,7 +1189,18 @@
                         if (!confirmed) return;
                     }
                 }
-                fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,label:activeMarker.label,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ,new_x:newX,new_z:newZ,parameters})}).then(async (r) => { if (!r.ok) throw new Error(await describeFetchError(r, 'Bod se nepodařilo upravit.')); const result = await r.json(); const reloadUrl = new URL(window.location.href); reloadUrl.searchParams.set('_map_revision', String(result.revision_id || Date.now())); window.location.href = reloadUrl.toString(); }).catch((error) => showFeedback(editModal, error.message));
+                fetch('{{ route('map-editor.points.update') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:activeMarker.revision_id,filename:activeMarker.filename,label:activeMarker.label,path:activeMarker.path,x:activeMarker.worldX,z:activeMarker.worldZ,new_x:newX,new_z:newZ,parameters})}).then(async (r) => {
+                    if (!r.ok) throw new Error(await describeFetchError(r, 'Bod se nepodařilo upravit.'));
+                    const result = await r.json();
+                    const reloadUrl = new URL(window.location.href);
+                    reloadUrl.searchParams.set('_map_revision', String(result.revision_id || Date.now()));
+                    if (result.warning) {
+                        showFeedback(editModal, result.warning, false);
+                        setTimeout(() => { window.location.href = reloadUrl.toString(); }, 2200);
+                    } else {
+                        window.location.href = reloadUrl.toString();
+                    }
+                }).catch((error) => showFeedback(editModal, error.message));
             };
             const deleteConsequence = (filename) => {
                 if (filename === 'cfgplayerspawnpoints.xml') {
