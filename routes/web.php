@@ -291,8 +291,18 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
                     // revision (created by some earlier in-app action, not the latest FTP import)
                     // is diagnosable from the warning alone instead of needing a follow-up
                     // database inspection.
-                    $eventsRevisionCount = $project->revisions()->with('configurationImport')->get()->filter(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'events.xml')->count();
-                    $revisionHint = ' [použitá revize #'.$eventsRevision->revision_number.' z '.$eventsRevisionCount.', vytvořena '.$eventsRevision->created_at?->format('d.m. H:i:s').', poznámka: "'.$eventsRevision->change_summary.'"]';
+                    $allEventsXmlRevisions = $project->revisions()->with('configurationImport')->get()->filter(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'events.xml')->sortBy('revision_number')->values();
+                    $revisionHint = ' [použitá revize #'.$eventsRevision->revision_number.' z '.$allEventsXmlRevisions->count().', vytvořena '.$eventsRevision->created_at?->format('d.m. H:i:s').', poznámka: "'.$eventsRevision->change_summary.'"]';
+                    // A full events.xml revision timeline (event count per revision) pinpoints
+                    // exactly which save first shrank the file — vs. the newer-revisions check
+                    // above, which only catches a *skipped* revision, not one that was picked
+                    // correctly but was itself already thin when it was written.
+                    $timeline = $allEventsXmlRevisions->slice(-10)->map(function ($revision) {
+                        $xml = Storage::disk('dayz')->exists($revision->storage_path) ? @simplexml_load_string(Storage::disk('dayz')->get($revision->storage_path)) : false;
+                        $count = $xml !== false ? count($xml->event ?? []) : null;
+                        return '#'.$revision->revision_number.'='.($count === null ? 'neparsovatelné' : $count.'ev').' ('.$revision->created_at?->format('H:i:s').')';
+                    })->implode(' → ');
+                    $revisionHint .= ' [posledních '.min(10, $allEventsXmlRevisions->count()).' revizí events.xml (počet eventů): '.$timeline.']';
                     // If a newer revision exists that this closure's basename-match skipped over,
                     // show exactly what filename it resolved to and why — the direct way to catch
                     // a revision whose configuration_import_id link doesn't actually point at an
