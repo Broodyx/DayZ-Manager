@@ -977,6 +977,10 @@
                 root.replaceChildren();
                 const sections = new Map();
                 (fields || []).forEach((field) => {
+                    // events.xml-level settings (nominal/min/max/limit/…) apply to the whole
+                    // event, shared across every position it has — only show them once a
+                    // specific point already exists, not while placing a brand-new one.
+                    if (field.edit_only && !editMode) return;
                     const sectionName = field.section || '';
                     let section = root;
                     if (sectionName) {

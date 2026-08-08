@@ -189,7 +189,7 @@ Route::post('/admin/map-editor/points', function (
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'types_added'=>$typesAdded]);
 })->middleware('auth')->name('map-editor.points.store');
 
-Route::post('/admin/map-editor/points/update', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor, \App\Services\Revision\SpawnableTypesXmlEditor $spawnableEditor) {
+Route::post('/admin/map-editor/points/update', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor, \App\Services\Revision\SpawnableTypesXmlEditor $spawnableEditor, \App\Services\Dayz\EventsXmlEditor $eventsEditor) {
     $data = $request->validate([
         'project_id'=>'required|integer','revision_id'=>'required|integer','filename'=>'required|string','label'=>'required|string|max:120','path'=>'required|string|max:1000',
         'x'=>'required|numeric','z'=>'required|numeric','new_x'=>'required|numeric|min:0|max:15360','new_z'=>'required|numeric|min:0|max:15360',
@@ -213,6 +213,8 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         'parameters.smin'=>'nullable|integer|min:0|max:1000','parameters.smax'=>'nullable|integer|min:0|max:1000',
         'parameters.dmin'=>'nullable|integer|min:0|max:1000','parameters.dmax'=>'nullable|integer|min:0|max:1000',
         'parameters.name'=>['nullable', 'string', 'max:120', 'regex:/^[A-Za-z0-9_.-]*$/'],
+        'parameters.event_nominal'=>'nullable|integer|min:0|max:100000','parameters.event_min'=>'nullable|integer|min:0|max:100000','parameters.event_max'=>'nullable|integer|min:0|max:100000',
+        'parameters.event_lifetime'=>'nullable|integer|min:0|max:3888000','parameters.event_restock'=>'nullable|integer|min:0|max:3888000','parameters.event_saferadius'=>'nullable|integer|min:0|max:20000','parameters.event_distanceradius'=>'nullable|integer|min:0|max:20000','parameters.event_cleanupradius'=>'nullable|integer|min:0|max:20000','parameters.event_active'=>'nullable|boolean','parameters.event_deletable'=>'nullable|boolean','parameters.event_init_random'=>'nullable|boolean','parameters.event_remove_damaged'=>'nullable|boolean','parameters.event_position'=>'nullable|in:fixed,player','parameters.event_limit'=>'nullable|in:mixed,custom,child,parent',
     ]);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
@@ -226,6 +228,24 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         abort(422, $exception->getMessage());
     }
     $saved = $editor->save($project, $source, $content, 'Upraven mapový bod X/Z', auth()->user());
+    $eventSettingsWarning = null;
+    if ($filename === 'cfgeventspawns.xml' && collect($data['parameters'] ?? [])->keys()->contains(fn ($key) => str_starts_with((string) $key, 'event_'))) {
+        // Same rationale as the cfgspawnabletypes.xml sync below: these fields belong to the
+        // whole event (nominal/min/max/limit/flags…), not to this position, so a missing
+        // events.xml just skips the sync with a warning rather than failing the point save.
+        $eventsRevisionForSettings = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'events.xml');
+        if (! $eventsRevisionForSettings || ! Storage::disk('dayz')->exists($eventsRevisionForSettings->storage_path)) {
+            $eventSettingsWarning = 'Nastavení eventu se neuložilo — nejprve importujte aktuální events.xml.';
+        } else {
+            $eventValues = collect($data['parameters'])->filter(fn ($value, $key) => str_starts_with((string) $key, 'event_'))->mapWithKeys(fn ($value, $key) => [substr((string) $key, 6) => $value])->all();
+            try {
+                $eventsContent = $eventsEditor->update(Storage::disk('dayz')->get($eventsRevisionForSettings->storage_path), $data['label'], $eventValues);
+                $editor->save($project, $eventsRevisionForSettings, $eventsContent, 'Upraveno nastavení eventu '.$data['label'], auth()->user());
+            } catch (\RuntimeException $exception) {
+                $eventSettingsWarning = 'Nastavení eventu se neuložilo — '.$exception->getMessage();
+            }
+        }
+    }
     $spawnableWarning = null;
     if ($filename === 'cfgeventspawns.xml' && (array_key_exists('damage_min', $data['parameters'] ?? []) || array_key_exists('damage_max', $data['parameters'] ?? []) || array_key_exists('cargo_preset', $data['parameters'] ?? []) || array_key_exists('cargo_items', $data['parameters'] ?? []) || array_key_exists('hoarder', $data['parameters'] ?? []) || array_key_exists('attachments', $data['parameters'] ?? []))) {
         // This block only syncs cfgspawnabletypes.xml (container contents) — a secondary,
@@ -301,7 +321,9 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
             }
         }
     }
-    return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id,'warning'=>$spawnableWarning]);
+    $combinedWarning = trim(implode(' ', array_filter([$eventSettingsWarning, $spawnableWarning]))) ?: null;
+
+    return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id,'warning'=>$combinedWarning]);
 })->middleware('auth')->name('map-editor.points.update');
 
 Route::post('/admin/map-editor/points/delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor) {

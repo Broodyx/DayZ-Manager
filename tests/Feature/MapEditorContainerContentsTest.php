@@ -324,4 +324,76 @@ XML);
         $response->assertOk();
         $this->assertStringContainsString('nepodařilo naparsovat jako XML', $response->json('warning'));
     }
+
+    public function test_the_events_xml_settings_load_into_the_map_point_for_editing(): void
+    {
+        [$user, $project] = $this->seedProject();
+
+        $component = Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadMarkers');
+
+        $marker = collect($component->get('markers'))->firstWhere('label', 'StaticTestWeaponsChest_DEV2');
+
+        $this->assertNotNull($marker);
+        $this->assertSame(1, $marker['parameters']['event_nominal']);
+        $this->assertSame(1, $marker['parameters']['event_min']);
+        $this->assertSame(1, $marker['parameters']['event_max']);
+        $this->assertSame(3600, $marker['parameters']['event_lifetime']);
+        $this->assertSame('fixed', $marker['parameters']['event_position']);
+        $this->assertSame('child', $marker['parameters']['event_limit']);
+        $this->assertTrue($marker['parameters']['event_active']);
+        $this->assertFalse($marker['parameters']['event_deletable']);
+    }
+
+    public function test_saving_a_point_with_event_settings_writes_them_to_events_xml(): void
+    {
+        [$user, $project] = $this->seedProject();
+
+        $eventSpawnsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'cfgeventspawns.xml');
+
+        $response = $this->actingAs($user)->postJson(route('map-editor.points.update'), [
+            'project_id' => $project->id,
+            'revision_id' => $eventSpawnsRevision->id,
+            'filename' => 'cfgeventspawns.xml',
+            'label' => 'StaticTestWeaponsChest_DEV2',
+            'path' => '/eventposdef/event[1]/pos[1]',
+            'x' => 100,
+            'z' => 200,
+            'new_x' => 100,
+            'new_z' => 200,
+            'parameters' => [
+                'orientation' => 0,
+                'event_nominal' => 3,
+                'event_min' => 1,
+                'event_max' => 3,
+                'event_lifetime' => 7200,
+                'event_restock' => 60,
+                'event_saferadius' => 50,
+                'event_distanceradius' => 50,
+                'event_cleanupradius' => 50,
+                'event_position' => 'player',
+                'event_limit' => 'parent',
+                'event_active' => false,
+                'event_deletable' => true,
+                'event_init_random' => true,
+                'event_remove_damaged' => true,
+            ],
+        ]);
+
+        $response->assertOk();
+        $this->assertNull($response->json('warning'));
+
+        $latestEvents = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport?->original_filename ?? $revision->storage_path)) === 'events.xml');
+        $content = Storage::disk('dayz')->get($latestEvents->storage_path);
+
+        $this->assertStringContainsString('<nominal>3</nominal>', $content);
+        $this->assertStringContainsString('<lifetime>7200</lifetime>', $content);
+        $this->assertStringContainsString('<position>player</position>', $content);
+        $this->assertStringContainsString('<limit>parent</limit>', $content);
+        $this->assertStringContainsString('<active>0</active>', $content);
+        $this->assertStringContainsString('remove_damaged="1"', $content);
+    }
 }

@@ -1170,8 +1170,31 @@ class MapEditor extends Page
         foreach ($spawnableSuggestions as $key => $values) {
             $spawnableSuggestions[$key] = collect($values)->filter()->unique()->sort()->take(1500)->values()->all();
         }
+        $eventLimitOptions = [
+            ['value' => 'mixed', 'label' => 'mixed · nejběžnější, kombinuje parent i child limity (většina eventů, zvířecí stáda)'],
+            ['value' => 'custom', 'label' => 'custom · vlastní/vzácnější logika (samotářská zvířata jako medvěd)'],
+            ['value' => 'child', 'label' => 'child · počet řídí atributy child prvku — statické kontejnery, vozidla, domestikovaná zvířata'],
+            ['value' => 'parent', 'label' => 'parent · řídí to rodičovský event (vzácné)'],
+        ];
         $eventFields = [
             ['name' => 'orientation', 'label' => 'Natočení objektu (°)', 'type' => 'number', 'min' => 0, 'max' => 359.999, 'step' => 0.001, 'default' => 0, 'required' => true, 'help' => 'Povinné. 0° míří na sever; hodnota určuje natočení kandidátní pozice.'],
+            // Only shown when editing an existing point — these settings belong to the whole
+            // event (shared by every position it has), not to this one point, so exposing them
+            // while placing a brand-new position would misleadingly suggest per-position scope.
+            ['name' => 'event_nominal', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Nominal (cílový počet)', 'type' => 'number', 'min' => 0, 'default' => 1, 'help' => 'Kolik instancí eventu má být na mapě celkem udržováno.'],
+            ['name' => 'event_min', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Min', 'type' => 'number', 'min' => 0, 'default' => 0, 'help' => 'Pod touto hranicí server dospawnovává další instance.'],
+            ['name' => 'event_max', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Max', 'type' => 'number', 'min' => 0, 'default' => 1, 'help' => 'Nad touto hranicí server přestane spawnovat další instance.'],
+            ['name' => 'event_lifetime', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Lifetime (s)', 'type' => 'number', 'min' => 0, 'default' => 3600, 'help' => 'Jak dlouho instance vydrží na mapě bez interakce hráče, než zmizí.'],
+            ['name' => 'event_restock', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Restock (s)', 'type' => 'number', 'min' => 0, 'default' => 0, 'help' => 'Prodleva mezi jednotlivými spawny, dokud se nedosáhne nominal/max.'],
+            ['name' => 'event_saferadius', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Safe radius (m)', 'type' => 'number', 'min' => 0, 'default' => 100, 'help' => 'Jak blízko/daleko od hráče smí instance spawnout.'],
+            ['name' => 'event_distanceradius', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Distance radius (m)', 'type' => 'number', 'min' => 0, 'default' => 100, 'help' => 'Minimální odstup mezi instancemi tohoto eventu navzájem.'],
+            ['name' => 'event_cleanupradius', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Cleanup radius (m)', 'type' => 'number', 'min' => 0, 'default' => 100, 'help' => 'Poloměr, ve kterém se při spawnu instance uklidí okolní volně ležící loot.'],
+            ['name' => 'event_position', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Position', 'type' => 'select', 'default' => 'fixed', 'options' => [['value' => 'fixed', 'label' => 'fixed · pevné pozice z cfgeventspawns.xml'], ['value' => 'player', 'label' => 'player · kolem hráčů']]],
+            ['name' => 'event_limit', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Limit', 'type' => 'select', 'default' => 'mixed', 'options' => $eventLimitOptions, 'help' => 'Ověřeno proti oficiálnímu vanilla events.xml (Bohemia Interactive) — jiné hodnoty se ve hře reálně nepoužívají.'],
+            ['name' => 'event_active', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Active', 'type' => 'checkbox', 'default' => true, 'help' => 'Vypnuto = event zůstává v souboru, ale server ho nepoužívá.'],
+            ['name' => 'event_deletable', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Deletable', 'type' => 'checkbox', 'default' => false, 'help' => 'Jde instanci smazat/sebrat (např. u loot eventů).'],
+            ['name' => 'event_init_random', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Init random', 'type' => 'checkbox', 'default' => false, 'help' => 'Při startu serveru se lifetime první instance náhodně zkrátí, aby se spawny časem rozprostřely.'],
+            ['name' => 'event_remove_damaged', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Remove damaged', 'type' => 'checkbox', 'default' => false, 'help' => 'Poškozená instance (např. mrtvé zvíře) se odstraní místo despawnu na základě lifetime.'],
             ['name' => 'damage_min', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Minimální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => '0 = 100% funkční, 1 = zničené. Rozsah určuje náhodné poškození (u vozidel i statických kontejnerů).'],
             ['name' => 'damage_max', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Maximální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => 'Nastav 0–0 pro vždy plně funkční; například 0.4–0.8 znamená náhodné poškození 40–80 %.'],
             ['name' => 'hoarder', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Hoarder (nikdy se nedespawnuje jako prázdný)', 'type' => 'checkbox', 'default' => false, 'help' => 'Typicky pro barely a bedny, které mají vždy vypadat plné.'],
@@ -1328,6 +1351,7 @@ class MapEditor extends Page
         $groupCategories = $this->groupPrototypeCategories($reader, $revisions);
         $this->lootCategoryLegend = $this->buildLootCategoryLegend($revisions, $groupCategories);
         $eventChildren = [];
+        $eventSettings = [];
         $spawnableValues = [];
         $eventsRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'events.xml');
         if ($eventsRevision && Storage::disk('dayz')->exists($eventsRevision->storage_path)) {
@@ -1335,6 +1359,23 @@ class MapEditor extends Page
             foreach ($eventsXml?->event ?? [] as $event) {
                 $eventName = (string) ($event['name'] ?? '');
                 $eventChildren[$eventName] = collect($event->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
+                $flags = $event->flags ?? null;
+                $eventSettings[$eventName] = [
+                    'event_nominal' => (int) ($event->nominal ?? 0),
+                    'event_min' => (int) ($event->min ?? 0),
+                    'event_max' => (int) ($event->max ?? 0),
+                    'event_lifetime' => (int) ($event->lifetime ?? 0),
+                    'event_restock' => (int) ($event->restock ?? 0),
+                    'event_saferadius' => (int) ($event->saferadius ?? 0),
+                    'event_distanceradius' => (int) ($event->distanceradius ?? 0),
+                    'event_cleanupradius' => (int) ($event->cleanupradius ?? 0),
+                    'event_position' => (string) ($event->position ?? '') ?: 'fixed',
+                    'event_limit' => (string) ($event->limit ?? '') ?: 'mixed',
+                    'event_active' => (string) ($event->active ?? '1') !== '0',
+                    'event_deletable' => $flags ? (bool) (int) ($flags['deletable'] ?? 0) : false,
+                    'event_init_random' => $flags ? (bool) (int) ($flags['init_random'] ?? 0) : false,
+                    'event_remove_damaged' => $flags ? (bool) (int) ($flags['remove_damaged'] ?? 0) : false,
+                ];
             }
         }
         $spawnableRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfgspawnabletypes.xml');
@@ -1372,6 +1413,9 @@ class MapEditor extends Page
             foreach ($parsedMarkers as $marker) {
                 $marker['revision_id'] = $revision->id;
                 if ($filename === 'cfgeventspawns.xml') {
+                    if (isset($eventSettings[$marker['label']])) {
+                        $marker['parameters'] = array_merge($marker['parameters'] ?? [], $eventSettings[$marker['label']]);
+                    }
                     $children = $eventChildren[$marker['label']] ?? [];
                     $vehicleValues = collect($children)->map(fn ($classname) => $spawnableValues[$classname] ?? null)->filter()->first();
                     if (is_array($vehicleValues)) {
