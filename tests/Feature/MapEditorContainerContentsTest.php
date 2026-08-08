@@ -258,4 +258,35 @@ XML);
         $this->assertStringContainsString('x="300"', $content);
         $this->assertStringContainsString('z="400"', $content);
     }
+
+    public function test_a_malformed_events_xml_produces_a_distinct_warning_instead_of_looking_like_no_children(): void
+    {
+        [$user, $project] = $this->seedProject();
+
+        $eventsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'events.xml');
+        // A single bad token anywhere in a large production events.xml makes
+        // simplexml_load_string() fail for the WHOLE file — even though the
+        // StaticTestWeaponsChest_DEV2 event itself is perfectly correct.
+        Storage::disk('dayz')->put($eventsRevision->storage_path, '<events><event name="Broken">&invalid;</events>');
+
+        $eventSpawnsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'cfgeventspawns.xml');
+
+        $response = $this->actingAs($user)->postJson(route('map-editor.points.update'), [
+            'project_id' => $project->id,
+            'revision_id' => $eventSpawnsRevision->id,
+            'filename' => 'cfgeventspawns.xml',
+            'label' => 'StaticTestWeaponsChest_DEV2',
+            'path' => '/eventposdef/event[1]/pos[1]',
+            'x' => 100,
+            'z' => 200,
+            'new_x' => 100,
+            'new_z' => 200,
+            'parameters' => ['orientation' => 0, 'cargo_items' => '', 'hoarder' => false],
+        ]);
+
+        $response->assertOk();
+        $this->assertStringContainsString('nepodařilo naparsovat jako XML', $response->json('warning'));
+    }
 }

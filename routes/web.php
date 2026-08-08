@@ -238,48 +238,58 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
             $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — nejprve importujte aktuální cfgspawnabletypes.xml.';
         } else {
             $eventXml = @simplexml_load_string(Storage::disk('dayz')->get($eventsRevision->storage_path));
-            $eventNode = collect($eventXml?->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
-            $spawnClassnames = collect($eventNode?->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
-            if ($spawnClassnames === []) {
-                $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nemá v events.xml žádnou spawnovanou child třídu (zkontrolujte <children><child type="..."/></children>).';
+            // The event may well have a correct <children> block — but if ANY part of events.xml
+            // fails to parse as XML, simplexml_load_string() returns false for the WHOLE file, and
+            // everything below would otherwise silently behave as "event not found". Distinguish
+            // parse failure / event-not-found / no-children so the warning is actually diagnostic.
+            if ($eventXml === false) {
+                $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — events.xml se nepodařilo naparsovat jako XML (zkontrolujte formát souboru, např. přes Raw data).';
             } else {
-                $parameters = $data['parameters'] ?? [];
-                $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
-                // A cargo_items row is a single guaranteed item; each becomes its own <cargo> group,
-                // matching the one-item-per-group convention vanilla weapon-crate/heli-crash events use.
-                // A "preset" reference is only used as a fallback when no specific items are listed.
-                $cargoItems = [];
-                if (trim((string) ($parameters['cargo_items'] ?? '')) !== '') {
-                    $decodedCargo = json_decode((string) $parameters['cargo_items'], true);
-                    foreach (is_array($decodedCargo) ? $decodedCargo : [] as $cargoItem) {
-                        $itemName = trim((string) ($cargoItem['name'] ?? ''));
-                        if ($itemName === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $itemName)) {
-                            continue;
+                $eventNode = collect($eventXml->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
+                $spawnClassnames = collect($eventNode?->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
+                if (! $eventNode) {
+                    $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nebyl v aktuálně nahraném events.xml nalezen (zkontrolujte, že jde o nejnovější revizi a přesnou shodu jména).';
+                } elseif ($spawnClassnames === []) {
+                    $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nemá v events.xml žádnou spawnovanou child třídu (zkontrolujte <children><child type="..."/></children>).';
+                } else {
+                    $parameters = $data['parameters'] ?? [];
+                    $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
+                    // A cargo_items row is a single guaranteed item; each becomes its own <cargo> group,
+                    // matching the one-item-per-group convention vanilla weapon-crate/heli-crash events use.
+                    // A "preset" reference is only used as a fallback when no specific items are listed.
+                    $cargoItems = [];
+                    if (trim((string) ($parameters['cargo_items'] ?? '')) !== '') {
+                        $decodedCargo = json_decode((string) $parameters['cargo_items'], true);
+                        foreach (is_array($decodedCargo) ? $decodedCargo : [] as $cargoItem) {
+                            $itemName = trim((string) ($cargoItem['name'] ?? ''));
+                            if ($itemName === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $itemName)) {
+                                continue;
+                            }
+                            $quantmin = $cargoItem['quantmin'] ?? '';
+                            $quantmax = $cargoItem['quantmax'] ?? '';
+                            $cargoItems[] = [
+                                'name' => $itemName,
+                                'chance' => max(0, min(1, (float) ($cargoItem['chance'] ?? 1))),
+                                'quantmin' => $quantmin !== '' && $quantmin !== null ? max(0, (int) $quantmin) : null,
+                                'quantmax' => $quantmax !== '' && $quantmax !== null ? max(0, (int) $quantmax) : null,
+                            ];
                         }
-                        $quantmin = $cargoItem['quantmin'] ?? '';
-                        $quantmax = $cargoItem['quantmax'] ?? '';
-                        $cargoItems[] = [
-                            'name' => $itemName,
-                            'chance' => max(0, min(1, (float) ($cargoItem['chance'] ?? 1))),
-                            'quantmin' => $quantmin !== '' && $quantmin !== null ? max(0, (int) $quantmin) : null,
-                            'quantmax' => $quantmax !== '' && $quantmax !== null ? max(0, (int) $quantmax) : null,
-                        ];
                     }
+                    $cargoGroups = $cargoItems !== []
+                        ? collect($cargoItems)->map(fn ($item) => ['chance' => 1, 'items' => [$item]])->all()
+                        : (trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : []);
+                    $spawnableContent = Storage::disk('dayz')->get($spawnableRevision->storage_path);
+                    foreach ($spawnClassnames as $classname) {
+                        $spawnableContent = $spawnableEditor->update($spawnableContent, $classname, [
+                            'damage_min' => $parameters['damage_min'] ?? 0,
+                            'damage_max' => $parameters['damage_max'] ?? 0,
+                            'hoarder' => (bool) ($parameters['hoarder'] ?? false),
+                            'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
+                            'cargo' => $cargoGroups,
+                        ]);
+                    }
+                    $editor->save($project, $spawnableRevision, $spawnableContent, 'Upraven obsah kontejneru '.$data['label'], auth()->user());
                 }
-                $cargoGroups = $cargoItems !== []
-                    ? collect($cargoItems)->map(fn ($item) => ['chance' => 1, 'items' => [$item]])->all()
-                    : (trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : []);
-                $spawnableContent = Storage::disk('dayz')->get($spawnableRevision->storage_path);
-                foreach ($spawnClassnames as $classname) {
-                    $spawnableContent = $spawnableEditor->update($spawnableContent, $classname, [
-                        'damage_min' => $parameters['damage_min'] ?? 0,
-                        'damage_max' => $parameters['damage_max'] ?? 0,
-                        'hoarder' => (bool) ($parameters['hoarder'] ?? false),
-                        'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
-                        'cargo' => $cargoGroups,
-                    ]);
-                }
-                $editor->save($project, $spawnableRevision, $spawnableContent, 'Upraven obsah kontejneru '.$data['label'], auth()->user());
             }
         }
     }
