@@ -99,6 +99,19 @@ XML;
         $this->assertSame('StaticHeliCrash', $entries[0]['name']);
     }
 
+    public function test_update_finds_the_event_despite_a_stray_space_in_its_name_attribute(): void
+    {
+        // A hand-edited events.xml can end up with a trailing/leading space in name="..." that
+        // renders identically to the trimmed name — this must not make a visibly-matching event
+        // "not found" (reported symptom: container-contents sync failing with a false
+        // "event not found" warning even though the event was clearly present).
+        $padded = str_replace('name="StaticHeliCrash"', 'name="StaticHeliCrash "', self::SAMPLE);
+
+        $updated = (new EventsXmlEditor())->update($padded, 'StaticHeliCrash', ['nominal' => 9]);
+
+        $this->assertSame(9, (new EventsXmlEditor())->values($updated, 'StaticHeliCrash')['nominal']);
+    }
+
     public function test_update_rejects_invalid_child_classname(): void
     {
         $this->expectException(RuntimeException::class);

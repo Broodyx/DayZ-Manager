@@ -520,4 +520,41 @@ XML);
         $this->assertStringContainsString('<type name="SeaChest">', $spawnableContent);
         $this->assertStringContainsString('<hoarder/>', $spawnableContent);
     }
+
+    public function test_cargo_syncs_despite_a_stray_space_in_the_events_xml_event_name(): void
+    {
+        [$user, $project] = $this->seedProject();
+        $eventsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'events.xml');
+        // Reported symptom: "container contents didn't sync — event not found" even though the
+        // event visibly matches in the pasted XML. A stray trailing space in name="..." (easy to
+        // introduce by hand-editing, invisible when just reading the file) reproduces exactly
+        // that false negative against a strict === comparison.
+        Storage::disk('dayz')->put(
+            $eventsRevision->storage_path,
+            str_replace('name="StaticTestWeaponsChest_DEV2"', 'name="StaticTestWeaponsChest_DEV2 "', Storage::disk('dayz')->get($eventsRevision->storage_path))
+        );
+
+        $eventSpawnsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'cfgeventspawns.xml');
+
+        $response = $this->actingAs($user)->postJson(route('map-editor.points.update'), [
+            'project_id' => $project->id,
+            'revision_id' => $eventSpawnsRevision->id,
+            'filename' => 'cfgeventspawns.xml',
+            'label' => 'StaticTestWeaponsChest_DEV2',
+            'path' => '/eventposdef/event[1]/pos[1]',
+            'x' => 100,
+            'z' => 200,
+            'new_x' => 100,
+            'new_z' => 200,
+            'parameters' => [
+                'orientation' => 0,
+                'hoarder' => true,
+            ],
+        ]);
+
+        $response->assertOk();
+        $this->assertNull($response->json('warning'));
+    }
 }

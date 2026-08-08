@@ -124,7 +124,7 @@ Route::post('/admin/map-editor/points', function (
     if ($data['type'] !== 'animal' && in_array($data['type'], $eventTypes, true) && (array_key_exists('damage_min', $parameters) || array_key_exists('cargo_preset', $parameters) || array_key_exists('cargo_items', $parameters) || array_key_exists('hoarder', $parameters) || array_key_exists('attachments', $parameters))) {
         $spawnableRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'cfgspawnabletypes.xml');
         if ($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path)) {
-            $eventNode = collect($eventsXml?->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
+            $eventNode = collect($eventsXml?->event ?? [])->first(fn ($event) => trim((string) ($event['name'] ?? '')) === trim($data['label']));
             $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
             // A cargo_items row is a single guaranteed item; each becomes its own <cargo> group,
             // matching the one-item-per-group convention vanilla weapon-crate/heli-crash events use.
@@ -172,7 +172,7 @@ Route::post('/admin/map-editor/points', function (
     if (in_array($data['type'], $eventTypes, true) && ($parameters['auto_add_types'] ?? false)) {
         $typesRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'types.xml');
         if ($typesRevision && Storage::disk('dayz')->exists($typesRevision->storage_path)) {
-            $eventNode = collect($eventsXml?->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
+            $eventNode = collect($eventsXml?->event ?? [])->first(fn ($event) => trim((string) ($event['name'] ?? '')) === trim($data['label']));
             $typesContent = Storage::disk('dayz')->get($typesRevision->storage_path);
             $defined = collect($typesEditor->entries($typesContent))->pluck('name')->map(fn ($name) => strtolower($name))->all();
             foreach ($eventNode?->children->child ?? [] as $child) {
@@ -276,10 +276,18 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
             if ($eventXml === false) {
                 $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — events.xml se nepodařilo naparsovat jako XML (zkontrolujte formát souboru, např. přes Raw data).';
             } else {
-                $eventNode = collect($eventXml->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
+                // Compared with trim() on both sides — a stray leading/trailing space in either
+                // file's name="..." attribute (easy to introduce by hand-editing, and otherwise
+                // invisible) previously made an event that visibly matches fail this strict ===
+                // comparison, producing a false "event not found" warning.
+                $eventNode = collect($eventXml->event ?? [])->first(fn ($event) => trim((string) ($event['name'] ?? '')) === trim($data['label']));
                 $spawnClassnames = collect($eventNode?->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
                 if (! $eventNode) {
-                    $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nebyl v aktuálně nahraném events.xml nalezen (zkontrolujte, že jde o nejnovější revizi a přesnou shodu jména).';
+                    $availableNames = collect($eventXml->event ?? [])->map(fn ($event) => trim((string) ($event['name'] ?? '')))->filter()->unique()->values()->all();
+                    $hint = $availableNames === []
+                        ? ' (v events.xml nebyl nalezen žádný event)'
+                        : ' (nalezené eventy v events.xml: '.implode(', ', array_slice($availableNames, 0, 10)).(count($availableNames) > 10 ? ', …' : '').')';
+                    $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nebyl v aktuálně nahraném events.xml nalezen (zkontrolujte, že jde o nejnovější revizi a přesnou shodu jména)'.$hint;
                 } elseif ($spawnClassnames === []) {
                     $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nemá v events.xml žádnou spawnovanou child třídu (zkontrolujte <children><child type="..."/></children>).';
                 } else {

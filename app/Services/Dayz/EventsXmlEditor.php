@@ -256,8 +256,12 @@ final class EventsXmlEditor
 
     private function find(DOMDocument $document, string $name): DOMElement
     {
+        // trim() both sides — a stray leading/trailing space in either the requested name or
+        // the file's own name="..." attribute (invisible in normal viewing, easy to introduce
+        // by hand-editing) would otherwise fail this lookup for an event that visibly matches.
+        $needle = trim($name);
         foreach ($document->getElementsByTagName('event') as $event) {
-            if ($event instanceof DOMElement && $event->getAttribute('name') === $name) {
+            if ($event instanceof DOMElement && trim($event->getAttribute('name')) === $needle) {
                 return $event;
             }
         }
