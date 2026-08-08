@@ -287,7 +287,13 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
                     $hint = $availableNames === []
                         ? ' (v events.xml nebyl nalezen žádný event)'
                         : ' (nalezené eventy v events.xml: '.implode(', ', array_slice($availableNames, 0, 10)).(count($availableNames) > 10 ? ', …' : '').')';
-                    $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nebyl v aktuálně nahraném events.xml nalezen (zkontrolujte, že jde o nejnovější revizi a přesnou shodu jména)'.$hint;
+                    // Names how the app is picking "the current events.xml" so a genuinely stale
+                    // revision (created by some earlier in-app action, not the latest FTP import)
+                    // is diagnosable from the warning alone instead of needing a follow-up
+                    // database inspection.
+                    $eventsRevisionCount = $project->revisions()->with('configurationImport')->get()->filter(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'events.xml')->count();
+                    $revisionHint = ' [použitá revize #'.$eventsRevision->revision_number.' z '.$eventsRevisionCount.', vytvořena '.$eventsRevision->created_at?->format('d.m. H:i:s').', poznámka: "'.$eventsRevision->change_summary.'"]';
+                    $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nebyl v aktuálně nahraném events.xml nalezen (zkontrolujte, že jde o nejnovější revizi a přesnou shodu jména)'.$hint.$revisionHint;
                 } elseif ($spawnClassnames === []) {
                     $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nemá v events.xml žádnou spawnovanou child třídu (zkontrolujte <children><child type="..."/></children>).';
                 } else {
