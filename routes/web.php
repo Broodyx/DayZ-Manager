@@ -293,6 +293,20 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
                     // database inspection.
                     $eventsRevisionCount = $project->revisions()->with('configurationImport')->get()->filter(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'events.xml')->count();
                     $revisionHint = ' [použitá revize #'.$eventsRevision->revision_number.' z '.$eventsRevisionCount.', vytvořena '.$eventsRevision->created_at?->format('d.m. H:i:s').', poznámka: "'.$eventsRevision->change_summary.'"]';
+                    // If a newer revision exists that this closure's basename-match skipped over,
+                    // show exactly what filename it resolved to and why — the direct way to catch
+                    // a revision whose configuration_import_id link doesn't actually point at an
+                    // import named events.xml (or has none), which silently drops it from every
+                    // "find the current events.xml" lookup even though it holds newer content.
+                    $newerRevisions = $project->revisions()->with('configurationImport')->where('revision_number', '>', $eventsRevision->revision_number)->orderBy('revision_number')->get();
+                    if ($newerRevisions->isNotEmpty()) {
+                        $newerHint = $newerRevisions->map(function ($revision) {
+                            $resolvedName = basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path));
+                            $importId = $revision->configuration_import_id ?? 'NULL';
+                            return '#'.$revision->revision_number.'→"'.$resolvedName.'" (import_id='.$importId.')';
+                        })->implode(', ');
+                        $revisionHint .= ' [novější revize přeskočené tímto hledáním: '.$newerHint.']';
+                    }
                     $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nebyl v aktuálně nahraném events.xml nalezen (zkontrolujte, že jde o nejnovější revizi a přesnou shodu jména)'.$hint.$revisionHint;
                 } elseif ($spawnClassnames === []) {
                     $spawnableWarning = 'Souřadnice uloženy. Obsah kontejneru se nesynchronizoval — event '.$data['label'].' nemá v events.xml žádnou spawnovanou child třídu (zkontrolujte <children><child type="..."/></children>).';
