@@ -111,6 +111,9 @@ XML);
         $this->assertSame([
             ['name' => 'Mag_STANAG_30Rnd', 'chance' => 1.0, 'quantmin' => 100, 'quantmax' => 100],
         ], $marker['parameters']['cargo_items']);
+        // The point-edit modal needs this to show "this point spawns Barrel_Green" —
+        // otherwise there's nothing on screen saying what kind of container it is.
+        $this->assertSame(['Barrel_Green'], $marker['spawn_classnames']);
     }
 
     public function test_saving_a_point_with_cargo_items_writes_quantmin_and_quantmax_to_cfgspawnabletypes(): void

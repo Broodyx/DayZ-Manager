@@ -422,9 +422,21 @@
     .dz-edit-point-fields input, .dz-edit-point-fields select { width:100%; min-height:2.8rem; border:1px solid #496b31; border-radius:.45rem; background:#0b120d; color:#e7f7d2; padding:.65rem .75rem; color-scheme:dark; }
     .dz-edit-point-fields select { appearance:none; -webkit-appearance:none; padding-right:2.2rem; cursor:pointer; background-image:linear-gradient(45deg,transparent 50%,#b8ed55 50%),linear-gradient(135deg,#b8ed55 50%,transparent 50%); background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat; }
     .dz-edit-point-fields :disabled { opacity:.7; cursor:not-allowed; }
-    .dz-checkbox-field { display:flex !important; flex-direction:row-reverse !important; align-items:center !important; justify-content:flex-end; gap:.55rem !important; }
-    .dz-checkbox-field input[type="checkbox"] { width:auto !important; min-height:auto !important; padding:0 !important; accent-color:#b8ed55; }
+    .dz-checkbox-field { display:flex !important; flex-direction:row-reverse !important; align-items:center !important; justify-content:flex-end; gap:.6rem !important; }
+    /* Native checkboxes on this dark background were basically invisible (accent-color only
+       colors the checked state; the unchecked box has no border of its own) — draw one
+       explicitly so it's unmistakably a clickable control in both states. */
+    .dz-checkbox-field input[type="checkbox"] {
+        appearance:none; -webkit-appearance:none; -moz-appearance:none;
+        width:1.2rem !important; height:1.2rem !important; min-height:1.2rem !important;
+        margin:0 !important; padding:0 !important; flex:0 0 auto;
+        border:2px solid #6b8f2b; border-radius:.3rem; background:#0b120d; cursor:pointer; position:relative;
+    }
+    .dz-checkbox-field input[type="checkbox"]:hover { border-color:#b8ed55; }
+    .dz-checkbox-field input[type="checkbox"]:checked { background:#b8ed55; border-color:#b8ed55; }
+    .dz-checkbox-field input[type="checkbox"]:checked::after { content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#11180e; font-size:.8rem; font-weight:900; line-height:1; }
     .dz-edit-point-contents-badge { grid-column:1/-1; margin:0 0 .75rem; padding:.55rem .7rem; border:1px solid #6b8f2b; border-radius:.5rem; background:#182a10; color:#d8f57b; font-size:.75rem; font-weight:700; }
+    .dz-edit-point-spawn-classname { margin:.35rem 0 0; padding:.5rem .7rem; border:1px solid #496b31; border-radius:.5rem; background:#0f1a10; color:#c5d2bf; font-size:.78rem; font-weight:750; }
     .dz-item-list-field { grid-column:1/-1; display:grid; gap:.5rem; }
     .dz-item-list-count { justify-self:start; margin-top:-.3rem; padding:.15rem .55rem; border-radius:999px; background:#1c2b1a; color:#9db78a; font-size:.62rem; font-weight:750; }
     .dz-item-list-rows { display:grid; gap:.4rem; }

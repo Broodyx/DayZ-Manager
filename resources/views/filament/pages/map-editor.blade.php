@@ -53,6 +53,7 @@
                 <p class="dz-eyebrow">ÚPRAVA MAPOVÉ KONFIGURACE</p>
                 <h3>Upravit bod</h3>
                 <p class="dz-edit-point-context dz-muted"></p>
+                <p class="dz-edit-point-spawn-classname" hidden></p>
                 <p class="dz-edit-point-contents-badge" hidden></p>
                 <div class="dz-edit-coordinate-grid">
                     <label>Souřadnice X<input class="dz-edit-x" type="number" min="0" max="15360" step="0.001"></label>
@@ -1390,9 +1391,20 @@
                 ]));
                 imported.on('popupopen', (event) => {
                     const root = event.popup.getElement();
+                    const updateSpawnClassnameDisplay = (marker) => {
+                        const el = editModal.querySelector('.dz-edit-point-spawn-classname');
+                        const classnames = marker.spawn_classnames || [];
+                        if (classnames.length) {
+                            el.textContent = '🎯 Tento bod spawnuje: ' + classnames.map((name) => '„' + name + '“').join(', ');
+                            el.hidden = false;
+                        } else {
+                            el.hidden = true;
+                        }
+                    };
                     root.querySelector('.dz-map-edit')?.addEventListener('click', () => {
                         activeMarker = marker;
                         editModal.querySelector('.dz-edit-point-context').textContent = marker.label + ' · ' + marker.filename;
+                        updateSpawnClassnameDisplay(marker);
                         editModal.querySelector('.dz-edit-x').value = marker.worldX;
                         editModal.querySelector('.dz-edit-z').value = marker.worldZ;
                         const editDefinition = editDefinitionForMarker(marker);
@@ -1416,6 +1428,7 @@
                     root.querySelector('.dz-map-delete')?.addEventListener('click', () => {
                         activeMarker = marker;
                         editModal.querySelector('.dz-edit-point-context').textContent = marker.label + ' · ' + marker.filename;
+                        updateSpawnClassnameDisplay(marker);
                         editModal.querySelector('.dz-edit-x').value = marker.worldX;
                         editModal.querySelector('.dz-edit-z').value = marker.worldZ;
                         const editDefinition = editDefinitionForMarker(marker);
