@@ -401,11 +401,6 @@
                     </div>
                 </div>
             </div>
-            <datalist id="dz-classname-catalog">
-                @foreach ($classnameOptions as $name)
-                    <option value="{{ $name }}"></option>
-                @endforeach
-            </datalist>
         @endif
         <script>
         // Delegated on document (not scoped to the modal) so it keeps working across
@@ -1032,6 +1027,14 @@
                 return node;
             };
             const pointTypeCatalog = @js($pointTypeCatalog);
+            // Always present in the DOM (unlike a server-rendered datalist scoped inside the
+            // Add-event wizard's conditional block) so the classname suggestion list also works
+            // for the separate point-edit modal — e.g. its "Classname objektu" field — without
+            // ever needing the wizard to have been opened first.
+            const classnameDatalistCatalog = document.createElement('datalist');
+            classnameDatalistCatalog.id = 'dz-classname-catalog';
+            (@js($classnameOptions)).forEach((name) => classnameDatalistCatalog.appendChild(mkEl('option', { value: name })));
+            document.body.appendChild(classnameDatalistCatalog);
             const mapGroupNameCatalog = document.createElement('datalist');
             mapGroupNameCatalog.id = 'dz-mapgroup-name-catalog';
             (pointTypeCatalog.loot?.options || []).forEach((option) => mapGroupNameCatalog.appendChild(mkEl('option', { value: option.value })));
@@ -1608,8 +1611,18 @@
                     const reloadUrl = new URL(window.location.href);
                     reloadUrl.searchParams.set('_map_revision', String(result.revision_id || Date.now()));
                     if (result.warning) {
-                        showFeedback(editModal, result.warning, false);
-                        setTimeout(() => { window.location.href = reloadUrl.toString(); }, 2200);
+                        // The point itself (coordinates) is already saved at this point — that
+                        // can't be undone from here — but a secondary sync (container contents,
+                        // event settings) failed. A toast that auto-redirects after 2.2s made
+                        // this too easy to miss/dismiss without registering, so it now blocks on
+                        // an explicit acknowledgement before navigating away.
+                        await showSystemDialog({
+                            title: 'Uloženo s výhradou',
+                            message: result.warning,
+                            confirmLabel: 'Rozumím, pokračovat',
+                            notice: true,
+                        });
+                        window.location.href = reloadUrl.toString();
                     } else {
                         window.location.href = reloadUrl.toString();
                     }
