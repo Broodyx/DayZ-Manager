@@ -236,6 +236,84 @@ XML);
         $this->assertStringContainsString('name="AKM"', $content);
     }
 
+    public function test_a_type_with_both_a_preset_group_and_an_items_group_only_loads_the_items_not_the_preset(): void
+    {
+        [$user, $project] = $this->seedProject();
+        $spawnableRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'cfgspawnabletypes.xml');
+        Storage::disk('dayz')->put($spawnableRevision->storage_path, <<<'XML'
+<spawnabletypes>
+    <type name="Barrel_Green">
+        <hoarder/>
+        <cargo chance="1.00" preset="AmmoPreset"/>
+        <cargo chance="1.00"><item name="TacticalBaconCan" chance="0.80"/></cargo>
+    </type>
+</spawnabletypes>
+XML);
+
+        $component = Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadMarkers');
+        $marker = collect($component->get('markers'))->firstWhere('label', 'StaticTestWeaponsChest_DEV2');
+
+        // The field's own help text says the preset is "used only if no items above are
+        // specified" — loading both at once (as the raw XML technically allows) breaks that
+        // contract and is what let a stale preset value silently reappear once the items were
+        // cleared and saved (reported as "deleting cargo items doesn't save").
+        $this->assertSame('', $marker['parameters']['cargo_preset']);
+        $this->assertSame([
+            ['name' => 'TacticalBaconCan', 'chance' => 0.8, 'quantmin' => '', 'quantmax' => ''],
+        ], $marker['parameters']['cargo_items']);
+    }
+
+    public function test_clearing_cargo_items_removes_cargo_entirely_even_when_a_preset_group_also_existed(): void
+    {
+        [$user, $project] = $this->seedProject();
+        $spawnableRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'cfgspawnabletypes.xml');
+        Storage::disk('dayz')->put($spawnableRevision->storage_path, <<<'XML'
+<spawnabletypes>
+    <type name="Barrel_Green">
+        <hoarder/>
+        <cargo chance="1.00" preset="AmmoPreset"/>
+        <cargo chance="1.00"><item name="TacticalBaconCan" chance="0.80"/></cargo>
+    </type>
+</spawnabletypes>
+XML);
+        $eventSpawnsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'cfgeventspawns.xml');
+
+        // Simulates the actual reported steps: open the point (which now loads cargo_preset=''
+        // per the fix above), remove the one item row, save with an empty cargo_items and the
+        // preset field left exactly as loaded (empty) — never re-populated by the user.
+        $response = $this->actingAs($user)->postJson(route('map-editor.points.update'), [
+            'project_id' => $project->id,
+            'revision_id' => $eventSpawnsRevision->id,
+            'filename' => 'cfgeventspawns.xml',
+            'label' => 'StaticTestWeaponsChest_DEV2',
+            'path' => '/eventposdef/event[1]/pos[1]',
+            'x' => 100,
+            'z' => 200,
+            'new_x' => 100,
+            'new_z' => 200,
+            'parameters' => [
+                'orientation' => 0,
+                'cargo_items' => json_encode([]),
+                'cargo_preset' => '',
+                'hoarder' => true,
+            ],
+        ]);
+
+        $response->assertOk();
+
+        $latestSpawnable = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport?->original_filename ?? $revision->storage_path)) === 'cfgspawnabletypes.xml');
+        $content = Storage::disk('dayz')->get($latestSpawnable->storage_path);
+        $this->assertStringNotContainsString('AmmoPreset', $content);
+        $this->assertStringNotContainsString('TacticalBaconCan', $content);
+        $this->assertStringNotContainsString('<cargo', $content);
+    }
+
     public function test_saving_coordinates_does_not_fail_when_the_event_has_no_children_in_events_xml(): void
     {
         [$user, $project] = $this->seedProject();

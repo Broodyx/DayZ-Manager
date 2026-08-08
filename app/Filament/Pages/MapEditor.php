@@ -1427,7 +1427,6 @@ class MapEditor extends Page
                     if (is_array($vehicleValues)) {
                         $attachments = collect($vehicleValues['attachments'] ?? [])->flatMap(fn ($group) => $group['items'] ?? [])->pluck('name')->filter()->unique()->implode(',');
                         $cargoGroups = collect($vehicleValues['cargo'] ?? []);
-                        $cargo = $cargoGroups->pluck('preset')->filter()->first() ?? '';
                         // Non-preset cargo groups are the "specific items with quantities" case — each
                         // group normally wraps exactly one <item>, so flattening into one editable list
                         // is a lossless, simpler representation for the point-edit UI.
@@ -1440,6 +1439,13 @@ class MapEditor extends Page
                                 'quantmax' => $item['quantmax'] ?? '',
                             ]))
                             ->values()->all();
+                        // Loading both fields at once (as the raw XML sometimes technically allows —
+                        // a preset cargo group alongside an items cargo group) directly contradicts
+                        // this field's own help text ("used only if no items above are specified") and
+                        // is a real, confirmed bug: clearing the items list on save then silently falls
+                        // back to whatever stale preset value was still sitting in the untouched field,
+                        // making the deletion look like it "didn't save". Only ever surface one.
+                        $cargo = $cargoItems === [] ? ($cargoGroups->pluck('preset')->filter()->first() ?? '') : '';
                         $marker['parameters'] = array_merge($marker['parameters'] ?? [], [
                             'damage_min' => $vehicleValues['damage_min'] ?? 0,
                             'damage_max' => $vehicleValues['damage_max'] ?? 0,
