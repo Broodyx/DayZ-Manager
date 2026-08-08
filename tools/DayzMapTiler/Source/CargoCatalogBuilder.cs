@@ -1,12 +1,23 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using DayzMapTiler.Pbo;
 
 namespace DayzMapTiler.Source;
 
 /// <summary>
-/// Scans every PBO in a DayZ install's Addons folder for classes carrying itemsCargoSize[]
-/// (item/container inventory footprint), resolving through name-based class inheritance
-/// within each file, and writes one merged classname -> {width,height,...} JSON catalog.
+/// Scans every PBO in a DayZ install's Addons folder — including per-model sub-configs like
+/// "AKM\config.bin" inside weapons_firearms.pbo, not just each PBO's top-level config.bin —
+/// for two distinct, real DayZ config properties:
+///   itemSize[]        — how much space THIS classname itself takes up sitting inside
+///                        someone else's inventory grid (used on nearly all lootable items:
+///                        weapons, magazines, food, clothing, tools, ...).
+///   itemsCargoSize[]   — the size of the storage grid THIS classname itself provides to hold
+///                        OTHER things (containers, vehicle trunks, and some clothing with
+///                        pockets — a class can have both at once, e.g. a jacket has its own
+///                        itemSize when carried AND itemsCargoSize for its pockets).
+/// Both are resolved through name-based class inheritance across the ENTIRE scanned file set
+/// (a global cross-file classname index), because many items only carry these properties on a
+/// shared base class defined in a completely different PBO than the item itself.
 /// This is real data extracted from the game's own binarized configs — not a guess.
 /// </summary>
 public static class CargoCatalogBuilder
@@ -14,16 +25,15 @@ public static class CargoCatalogBuilder
     public sealed class CatalogEntry
     {
         public required string Classname { get; init; }
-        public required int Width { get; init; }
-        public required int Height { get; init; }
-        public int Slots => Width * Height;
-        public string? DisplayName { get; init; }
+        public (int Width, int Height)? Footprint { get; init; }
+        public (int Width, int Height)? Capacity { get; init; }
         public required string SourcePbo { get; init; }
-        public required string RootConfig { get; init; }
-        public required string ResolvedFrom { get; init; }
     }
 
     private static readonly string[] RootConfigNames = { "CfgVehicles", "CfgWeapons", "CfgMagazines" };
+    private static readonly Regex ConfigBinPattern = new(@"(^|/)config\.bin$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private sealed record ParsedConfig(string FileName, string InternalPath, RapifiedConfig Rap);
 
     public static int Run(string[] args)
     {
@@ -33,9 +43,12 @@ public static class CargoCatalogBuilder
         var pboFiles = Directory.GetFiles(addonsDir, "*.pbo").OrderBy(f => f).ToList();
         Console.WriteLine($"Found {pboFiles.Count} PBO files in {addonsDir}");
 
-        var all = new List<CatalogEntry>();
-        var byClassname = new Dictionary<string, CatalogEntry>(StringComparer.OrdinalIgnoreCase);
-        var duplicates = new List<string>();
+        // Pass 1: open every PBO, parse every config.bin found anywhere inside it (root AND
+        // per-model subfolders), and build ONE global classname index across the whole set —
+        // required because inheritance frequently crosses PBO/subfolder boundaries.
+        var parsed = new List<ParsedConfig>();
+        var globalIndex = new Dictionary<string, RapifiedConfig.RapClass>(StringComparer.OrdinalIgnoreCase);
+        var indexCollisions = 0;
         var failed = new List<(string File, string Reason)>();
         var totalParseWarnings = 0;
         var totalNonHealthWarnings = 0;
@@ -46,70 +59,27 @@ public static class CargoCatalogBuilder
             try
             {
                 using var pbo = PboArchive.Open(pboPath);
-                var configEntry = pbo.Find("config.bin");
-                if (configEntry is null) continue;
-
-                var data = pbo.ReadEntryData(configEntry);
-                RapifiedConfig rap;
-                try
+                foreach (var configEntry in pbo.FindAllMatching(ConfigBinPattern))
                 {
-                    rap = RapifiedConfig.Parse(data);
-                }
-                catch (Exception ex)
-                {
-                    failed.Add((fileName, $"parse error: {ex.Message}"));
-                    continue;
-                }
-
-                totalParseWarnings += rap.Warnings.Count;
-                var nonHealth = rap.Warnings.Where(w => !w.Contains("'Health'")).ToList();
-                totalNonHealthWarnings += nonHealth.Count;
-                if (nonHealth.Count > 0)
-                {
-                    Console.WriteLine($"  {fileName}: {nonHealth.Count} non-Health warnings, e.g. \"{nonHealth[0]}\"");
-                }
-
-                var globalIndex = new Dictionary<string, RapifiedConfig.RapClass>(StringComparer.OrdinalIgnoreCase);
-                IndexAll(rap.Root, globalIndex);
-
-                foreach (var rootName in RootConfigNames)
-                {
-                    var rootClass = rap.Root.Children.Values.FirstOrDefault(c => string.Equals(c.Name, rootName, StringComparison.OrdinalIgnoreCase));
-                    if (rootClass is null) continue;
-
-                    // Only direct children of the root config are real classnames (weapons,
-                    // items, containers, ammo). Deeper nesting (Cargo, Health, DamageSystem,
-                    // ...) is structural sub-config, not something that ever spawns/loots.
-                    foreach (var cls in rootClass.Children.Values)
+                    byte[] data;
+                    RapifiedConfig rap;
+                    try
                     {
-                        var (size, resolvedFrom) = ResolveCargoSize(globalIndex, cls);
-                        if (size is null) continue;
-
-                        var displayName = ResolveInherited(globalIndex, cls, "displayName") as string;
-                        var entry = new CatalogEntry
-                        {
-                            Classname = cls.Name,
-                            Width = size[0],
-                            Height = size.Count > 1 ? size[1] : size[0],
-                            DisplayName = displayName,
-                            SourcePbo = fileName,
-                            RootConfig = rootName,
-                            ResolvedFrom = resolvedFrom,
-                        };
-
-                        if (byClassname.TryGetValue(cls.Name, out var existing))
-                        {
-                            if (existing.Width == entry.Width && existing.Height == entry.Height)
-                            {
-                                continue; // identical duplicate (class re-declared/extended across files) — not a conflict
-                            }
-                            duplicates.Add($"{cls.Name}: {existing.Width}x{existing.Height} ({existing.SourcePbo}) vs {entry.Width}x{entry.Height} ({entry.SourcePbo})");
-                            continue; // keep first-seen on genuine conflict, flagged for manual review
-                        }
-
-                        byClassname[cls.Name] = entry;
-                        all.Add(entry);
+                        data = pbo.ReadEntryData(configEntry);
+                        rap = RapifiedConfig.Parse(data);
                     }
+                    catch (Exception ex)
+                    {
+                        failed.Add(($"{fileName}:{configEntry.Name}", $"parse error: {ex.Message}"));
+                        continue;
+                    }
+
+                    totalParseWarnings += rap.Warnings.Count;
+                    var nonHealth = rap.Warnings.Count(w => !w.Contains("'Health'"));
+                    totalNonHealthWarnings += nonHealth;
+
+                    parsed.Add(new ParsedConfig(fileName, configEntry.Name, rap));
+                    indexCollisions += IndexAll(rap.Root, globalIndex);
                 }
             }
             catch (Exception ex)
@@ -118,9 +88,59 @@ public static class CargoCatalogBuilder
             }
         }
 
-        Console.WriteLine($"\nTotal classes with a resolved itemsCargoSize: {all.Count}");
+        Console.WriteLine($"Parsed {parsed.Count} config.bin files (root + per-model subfolders) across {pboFiles.Count} PBOs.");
+        Console.WriteLine($"Global classname index: {globalIndex.Count} unique names ({indexCollisions} same-name redeclarations skipped, first-seen kept).");
+
+        // Pass 2: for every direct child of a root config section in every parsed file (only
+        // direct children are real classnames — deeper nesting like Cargo/Health/DamageSystem
+        // is structural sub-config, never something that spawns/loots on its own), resolve its
+        // own itemSize and itemsCargoSize by walking the Parent chain through the GLOBAL index.
+        var byClassname = new Dictionary<string, CatalogEntry>(StringComparer.OrdinalIgnoreCase);
+        var duplicates = new List<string>();
+        var all = new List<CatalogEntry>();
+
+        foreach (var pc in parsed)
+        {
+            foreach (var rootName in RootConfigNames)
+            {
+                var rootClass = pc.Rap.Root.Children.Values.FirstOrDefault(c => string.Equals(c.Name, rootName, StringComparison.OrdinalIgnoreCase));
+                if (rootClass is null) continue;
+
+                foreach (var cls in rootClass.Children.Values)
+                {
+                    var footprint = ResolveSize(globalIndex, cls, "itemSize", useNestedCargo: false);
+                    var capacity = ResolveSize(globalIndex, cls, "itemsCargoSize", useNestedCargo: true);
+                    if (footprint is null && capacity is null) continue;
+
+                    var entry = new CatalogEntry
+                    {
+                        Classname = cls.Name,
+                        Footprint = footprint,
+                        Capacity = capacity,
+                        SourcePbo = pc.FileName,
+                    };
+
+                    if (byClassname.TryGetValue(cls.Name, out var existing))
+                    {
+                        if (existing.Footprint == entry.Footprint && existing.Capacity == entry.Capacity)
+                        {
+                            continue; // identical duplicate (redeclared/extended elsewhere) — not a conflict
+                        }
+                        duplicates.Add($"{cls.Name}: {Describe(existing)} ({existing.SourcePbo}) vs {Describe(entry)} ({entry.SourcePbo})");
+                        continue; // keep first-seen on a genuine conflict, flagged for manual review
+                    }
+
+                    byClassname[cls.Name] = entry;
+                    all.Add(entry);
+                }
+            }
+        }
+
+        Console.WriteLine($"\nTotal classes with a resolved footprint and/or capacity: {all.Count}");
+        Console.WriteLine($"  with itemSize (own footprint): {all.Count(e => e.Footprint is not null)}");
+        Console.WriteLine($"  with itemsCargoSize (own storage capacity): {all.Count(e => e.Capacity is not null)}");
         Console.WriteLine($"Parse warnings across all files: {totalParseWarnings} ({totalNonHealthWarnings} outside the known-benign Health.healthLevels case)");
-        Console.WriteLine($"Files that failed to open/parse: {failed.Count}");
+        Console.WriteLine($"Sub-configs that failed to open/parse: {failed.Count}");
         foreach (var (file, reason) in failed) Console.WriteLine($"  FAILED {file}: {reason}");
         Console.WriteLine($"Classname conflicts across files (kept first-seen, needs review): {duplicates.Count}");
         foreach (var d in duplicates.Take(30)) Console.WriteLine($"  CONFLICT {d}");
@@ -129,13 +149,11 @@ public static class CargoCatalogBuilder
             all.OrderBy(e => e.Classname, StringComparer.OrdinalIgnoreCase).Select(e => new
             {
                 classname = e.Classname,
-                width = e.Width,
-                height = e.Height,
-                slots = e.Slots,
-                display_name = e.DisplayName,
+                footprint_width = e.Footprint?.Width,
+                footprint_height = e.Footprint?.Height,
+                capacity_width = e.Capacity?.Width,
+                capacity_height = e.Capacity?.Height,
                 source_pbo = e.SourcePbo,
-                root_config = e.RootConfig,
-                resolved_from = e.ResolvedFrom,
             }),
             new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(outputPath, json);
@@ -144,52 +162,53 @@ public static class CargoCatalogBuilder
         return 0;
     }
 
-    private static void IndexAll(RapifiedConfig.RapClass cls, Dictionary<string, RapifiedConfig.RapClass> into)
+    private static string Describe(CatalogEntry e) =>
+        $"footprint={(e.Footprint is { } f ? $"{f.Width}x{f.Height}" : "-")} capacity={(e.Capacity is { } c ? $"{c.Width}x{c.Height}" : "-")}";
+
+    /// <returns>0 if the class name was newly added, 1 if a same-named class already existed (skipped, first-seen kept) — used only to report a collision count.</returns>
+    private static int IndexAll(RapifiedConfig.RapClass cls, Dictionary<string, RapifiedConfig.RapClass> into)
     {
-        if (!string.IsNullOrEmpty(cls.Name) && !into.ContainsKey(cls.Name))
+        var collisions = 0;
+        if (!string.IsNullOrEmpty(cls.Name))
         {
-            into[cls.Name] = cls;
+            if (!into.ContainsKey(cls.Name)) into[cls.Name] = cls;
+            else collisions = 1;
         }
         foreach (var child in cls.Children.Values)
         {
-            IndexAll(child, into);
+            collisions += IndexAll(child, into);
         }
+        return collisions;
     }
 
-    private static (List<int>? Size, string ResolvedFrom) ResolveCargoSize(Dictionary<string, RapifiedConfig.RapClass> globalIndex, RapifiedConfig.RapClass cls)
+    private static (int Width, int Height)? ResolveSize(Dictionary<string, RapifiedConfig.RapClass> globalIndex, RapifiedConfig.RapClass cls, string propertyName, bool useNestedCargo)
     {
         RapifiedConfig.RapClass? current = cls;
         var guard = 0;
         while (current is not null && guard++ < 50)
         {
-            if (current.Values.TryGetValue("itemsCargoSize", out var direct) && direct is List<object> directArr && directArr.Count > 0)
+            if (current.Values.TryGetValue(propertyName, out var direct) && direct is List<object> directArr && directArr.Count > 0)
             {
-                return (directArr.Select(ToInt).ToList(), current == cls ? "itself" : $"inherited from {current.Name}");
+                return ToSize(directArr);
             }
-            if (current.Children.TryGetValue("Cargo", out var cargoClass) && cargoClass.Values.TryGetValue("itemsCargoSize", out var nested) && nested is List<object> nestedArr && nestedArr.Count > 0)
+            if (useNestedCargo && current.Children.TryGetValue("Cargo", out var cargoClass)
+                && cargoClass.Values.TryGetValue(propertyName, out var nested) && nested is List<object> nestedArr && nestedArr.Count > 0)
             {
-                return (nestedArr.Select(ToInt).ToList(), current == cls ? "itself (Cargo class)" : $"inherited from {current.Name}'s Cargo class");
+                return ToSize(nestedArr);
             }
 
             if (string.IsNullOrEmpty(current.Parent)) break;
             if (!globalIndex.TryGetValue(current.Parent, out var parent)) break;
             current = parent;
         }
-        return (null, "");
+        return null;
     }
 
-    private static object? ResolveInherited(Dictionary<string, RapifiedConfig.RapClass> globalIndex, RapifiedConfig.RapClass cls, string key)
+    private static (int Width, int Height) ToSize(List<object> arr)
     {
-        RapifiedConfig.RapClass? current = cls;
-        var guard = 0;
-        while (current is not null && guard++ < 50)
-        {
-            if (current.Values.TryGetValue(key, out var v)) return v;
-            if (string.IsNullOrEmpty(current.Parent)) return null;
-            if (!globalIndex.TryGetValue(current.Parent, out var parent)) return null;
-            current = parent;
-        }
-        return null;
+        var w = ToInt(arr[0]);
+        var h = arr.Count > 1 ? ToInt(arr[1]) : w;
+        return (w, h);
     }
 
     private static int ToInt(object v) => v switch

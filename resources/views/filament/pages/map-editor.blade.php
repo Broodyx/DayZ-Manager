@@ -714,31 +714,35 @@
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
         <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Real inventory-grid footprints extracted from the game's own config.bin files
-            // (see App\Services\Dayz\CargoSizeCatalog) — classname (lowercase) -> {width,
-            // height, kind, source_pbo}. "kind" is "container" (has its own Cargo grid) or
-            // "item" (only its own footprint when placed inside something else). Exposed on
-            // window so the Add-event wizard's separately-rendered script block (only present
-            // in the DOM once the modal opens, well after this DOMContentLoaded handler runs)
-            // can reuse the same lookup instead of duplicating it.
+            // Real inventory-grid data extracted from the game's own config.bin files (see
+            // App\Services\Dayz\CargoSizeCatalog) — classname (lowercase) -> {classname,
+            // footprint:{width,height}|null, capacity:{width,height}|null, source_pbo}.
+            // "footprint" (itemSize[] in-game) is how much space this classname itself takes
+            // up sitting inside another container's grid. "capacity" (itemsCargoSize[]) is the
+            // size of the storage grid this classname itself provides — a class can have
+            // either, neither, or both (e.g. a jacket has its own footprint AND pocket
+            // capacity). Exposed on window so the Add-event wizard's separately-rendered
+            // script block (only present in the DOM once the modal opens, well after this
+            // DOMContentLoaded handler runs) can reuse the same lookup instead of duplicating it.
             const CARGO_CATALOG = @json($cargoSizeCatalog);
             const cargoLookup = (name) => CARGO_CATALOG[String(name || '').trim().toLowerCase()] || null;
-            const cargoSlots = (entry) => entry ? entry.width * entry.height : null;
-            const formatCargoEntry = (entry) => entry ? (entry.width + '×' + entry.height + ' (' + (entry.width * entry.height) + ' míst)') : 'neznámé rozměry';
+            const sizeSlots = (size) => size ? size.width * size.height : null;
+            const formatSize = (size) => size ? (size.width + '×' + size.height + ' (' + (size.width * size.height) + ' míst)') : 'neznámé rozměry';
             const biggerContainers = (minSlots, limit = 3) => {
                 const seenSlots = new Set();
                 return Object.values(CARGO_CATALOG)
-                    .filter((e) => e.kind === 'container' && e.width * e.height > minSlots)
-                    .sort((a, b) => (a.width * a.height) - (b.width * b.height))
-                    .filter((e) => { const s = e.width * e.height; if (seenSlots.has(s)) return false; seenSlots.add(s); return true; })
+                    .filter((e) => e.capacity && e.capacity.width * e.capacity.height > minSlots)
+                    .sort((a, b) => sizeSlots(a.capacity) - sizeSlots(b.capacity))
+                    .filter((e) => { const s = sizeSlots(e.capacity); if (seenSlots.has(s)) return false; seenSlots.add(s); return true; })
                     .slice(0, limit);
             };
             const renderCargoCapacitySummary = (el, containerClassname, items) => {
                 el.innerHTML = '';
                 el.classList.remove('dz-cargo-capacity-over');
-                const capacityEntry = cargoLookup(containerClassname);
-                if (capacityEntry) {
-                    el.appendChild(document.createTextNode('Kapacita ' + containerClassname + ': ' + formatCargoEntry(capacityEntry)));
+                const containerEntry = cargoLookup(containerClassname);
+                const capacity = containerEntry?.capacity;
+                if (capacity) {
+                    el.appendChild(document.createTextNode('Kapacita ' + containerClassname + ': ' + formatSize(capacity)));
                 } else if (containerClassname) {
                     el.appendChild(document.createTextNode('Kapacitu „' + containerClassname + '“ neznáme (není v extrahované databázi z game configů) — součet níže je jen orientační.'));
                 }
@@ -747,28 +751,36 @@
                 let unknownCount = 0;
                 items.forEach((item) => {
                     const entry = cargoLookup(item.name);
-                    if (entry) usedSlots += cargoSlots(entry); else unknownCount++;
+                    const footprint = entry?.footprint;
+                    if (footprint) usedSlots += sizeSlots(footprint); else unknownCount++;
                 });
                 if (usedSlots === 0 && unknownCount === 0) return;
                 const usageLine = document.createElement('div');
                 usageLine.textContent = 'Využito: ' + usedSlots + ' míst' + (unknownCount ? ' (+ ' + unknownCount + ' položek s neznámým rozměrem, nezapočítáno)' : '');
                 el.appendChild(usageLine);
-                if (capacityEntry && usedSlots > cargoSlots(capacityEntry)) {
+                if (capacity && usedSlots > sizeSlots(capacity)) {
                     el.classList.add('dz-cargo-capacity-over');
                     const overLine = document.createElement('div');
                     overLine.className = 'dz-cargo-capacity-alert';
-                    overLine.textContent = '⚠ Překročena kapacita o ' + (usedSlots - cargoSlots(capacityEntry)) + ' míst — do hry se všechny položky nevejdou.';
+                    overLine.textContent = '⚠ Překročena kapacita o ' + (usedSlots - sizeSlots(capacity)) + ' míst — do hry se všechny položky nevejdou.';
                     el.appendChild(overLine);
                     const suggestions = biggerContainers(usedSlots, 3);
                     if (suggestions.length) {
                         const suggestLine = document.createElement('div');
                         suggestLine.className = 'dz-cargo-capacity-suggest';
-                        suggestLine.textContent = 'Zkus větší kontejner: ' + suggestions.map((s) => s.classname + ' (' + (s.width * s.height) + ' míst)').join(', ');
+                        suggestLine.textContent = 'Zkus větší kontejner: ' + suggestions.map((s) => s.classname + ' (' + sizeSlots(s.capacity) + ' míst)').join(', ');
                         el.appendChild(suggestLine);
                     }
                 }
             };
-            window.dzCargo = { lookup: cargoLookup, slots: cargoSlots, format: formatCargoEntry, bigger: biggerContainers, renderSummary: renderCargoCapacitySummary };
+            window.dzCargo = {
+                lookup: cargoLookup,
+                slots: (entry) => sizeSlots(entry?.footprint),
+                format: (entry) => formatSize(entry?.footprint),
+                formatCapacity: (entry) => formatSize(entry?.capacity),
+                bigger: biggerContainers,
+                renderSummary: renderCargoCapacitySummary,
+            };
 
             const el = document.getElementById('dayz-leaflet-map');
             if (!el || el.dataset.ready) return;
@@ -1490,7 +1502,7 @@
                         if (classnames.length) {
                             const withCapacity = classnames.map((name) => {
                                 const entry = window.dzCargo?.lookup(name);
-                                return '„' + name + '“' + (entry ? ' (' + window.dzCargo.format(entry) + ')' : '');
+                                return '„' + name + '“' + (entry?.capacity ? ' (' + window.dzCargo.formatCapacity(entry) + ')' : '');
                             });
                             el.textContent = '🎯 Tento bod spawnuje: ' + withCapacity.join(', ');
                             el.hidden = false;

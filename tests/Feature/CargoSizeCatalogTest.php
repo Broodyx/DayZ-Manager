@@ -7,15 +7,24 @@ use Tests\TestCase;
 
 class CargoSizeCatalogTest extends TestCase
 {
-    public function test_barrel_green_resolves_to_its_real_150_slot_cargo_grid(): void
+    public function test_barrel_green_resolves_to_its_real_150_slot_cargo_capacity(): void
     {
         $entry = app(CargoSizeCatalog::class)->lookup('Barrel_Green');
 
         $this->assertNotNull($entry);
-        $this->assertSame(10, $entry['width']);
-        $this->assertSame(15, $entry['height']);
-        $this->assertSame(150, $entry['slots']);
-        $this->assertSame('container', $entry['kind']);
+        $this->assertSame(10, $entry['capacity']['width']);
+        $this->assertSame(15, $entry['capacity']['height']);
+        $this->assertSame(150, $entry['capacity']['slots']);
+    }
+
+    public function test_a_weapon_resolves_to_its_real_footprint_but_has_no_capacity(): void
+    {
+        $entry = app(CargoSizeCatalog::class)->lookup('AKM');
+
+        $this->assertNotNull($entry);
+        $this->assertSame(8, $entry['footprint']['width']);
+        $this->assertSame(3, $entry['footprint']['height']);
+        $this->assertNull($entry['capacity']);
     }
 
     public function test_lookup_is_case_insensitive(): void
