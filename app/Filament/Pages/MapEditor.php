@@ -119,8 +119,19 @@ class MapEditor extends Page
         }
 
         $this->showDenseLayers = request()->boolean('dense');
-        $this->classnameOptions = $classnameCatalog->names();
         $this->cargoSizeCatalog = $cargoSizeCatalog->all();
+        // $classnameCatalog alone only covers vanilla types.xml-style loot economy items — real
+        // deployables (tents, vehicles, containers) are never in types.xml (they're placed via
+        // events.xml/cfgspawnabletypes.xml instead, same as everything this page edits), so on
+        // its own it left the classname suggestion list unable to offer e.g. "CarTent" at all.
+        // $cargoSizeCatalog was extracted directly from the game's own PBO configs this session
+        // and covers those too, so merging it in gives one comprehensive, still-honest list.
+        $this->classnameOptions = collect($classnameCatalog->names())
+            ->merge(collect($this->cargoSizeCatalog)->pluck('classname'))
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
         $this->loadMarkers();
         $this->loadMapSources();
         $this->loadEventCatalog();
