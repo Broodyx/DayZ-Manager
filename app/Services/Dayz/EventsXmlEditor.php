@@ -116,6 +116,21 @@ final class EventsXmlEditor
             $this->setChildText($document, $event, 'active', $values['active'] ? '1' : '0');
         }
 
+        // Renames the classname this event spawns — the common single-child case this UI
+        // actually exposes (a full children[] replace is available above for anything more
+        // elaborate, but nothing currently sends it). Preserves min/max/lootmin/lootmax on the
+        // existing <child>; only its type attribute changes.
+        if (isset($values['child_classname']) && trim((string) $values['child_classname']) !== '') {
+            $newType = trim((string) $values['child_classname']);
+            if (! preg_match('/^[A-Za-z0-9_.-]+$/', $newType)) {
+                throw new RuntimeException("Classname '{$newType}' smí obsahovat jen písmena, čísla, tečku, pomlčku a podtržítko.");
+            }
+            $firstChild = $event->getElementsByTagName('child')->item(0);
+            if ($firstChild instanceof DOMElement) {
+                $firstChild->setAttribute('type', $newType);
+            }
+        }
+
         if (isset($values['children']) && is_array($values['children'])) {
             $childrenElement = $event->getElementsByTagName('children')->item(0);
             if (! $childrenElement instanceof DOMElement) {

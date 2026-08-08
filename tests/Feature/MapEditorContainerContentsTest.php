@@ -347,6 +347,7 @@ XML);
         $this->assertSame('child', $marker['parameters']['event_limit']);
         $this->assertTrue($marker['parameters']['event_active']);
         $this->assertFalse($marker['parameters']['event_deletable']);
+        $this->assertSame('Barrel_Green', $marker['parameters']['event_classname']);
     }
 
     public function test_saving_a_point_with_event_settings_writes_them_to_events_xml(): void
@@ -398,5 +399,47 @@ XML);
         $this->assertStringContainsString('<limit>parent</limit>', $content);
         $this->assertStringContainsString('<active>0</active>', $content);
         $this->assertStringContainsString('remove_damaged="1"', $content);
+    }
+
+    public function test_changing_the_event_classname_renames_the_child_and_resyncs_cfgspawnabletypes_to_the_new_name(): void
+    {
+        [$user, $project] = $this->seedProject();
+
+        $eventSpawnsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'cfgeventspawns.xml');
+
+        $response = $this->actingAs($user)->postJson(route('map-editor.points.update'), [
+            'project_id' => $project->id,
+            'revision_id' => $eventSpawnsRevision->id,
+            'filename' => 'cfgeventspawns.xml',
+            'label' => 'StaticTestWeaponsChest_DEV2',
+            'path' => '/eventposdef/event[1]/pos[1]',
+            'x' => 100,
+            'z' => 200,
+            'new_x' => 100,
+            'new_z' => 200,
+            'parameters' => [
+                'orientation' => 0,
+                'event_classname' => 'SeaChest',
+                'hoarder' => true,
+            ],
+        ]);
+
+        $response->assertOk();
+        $this->assertNull($response->json('warning'));
+
+        $latestEvents = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport?->original_filename ?? $revision->storage_path)) === 'events.xml');
+        $eventsContent = Storage::disk('dayz')->get($latestEvents->storage_path);
+        $this->assertStringContainsString('type="SeaChest"', $eventsContent);
+        $this->assertStringNotContainsString('type="Barrel_Green"', $eventsContent);
+
+        // The cfgspawnabletypes sync re-reads the just-saved events.xml, so hoarder=true from
+        // the SAME request should land on the NEW classname, not the old one.
+        $latestSpawnable = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport?->original_filename ?? $revision->storage_path)) === 'cfgspawnabletypes.xml');
+        $spawnableContent = Storage::disk('dayz')->get($latestSpawnable->storage_path);
+        $this->assertStringContainsString('<type name="SeaChest">', $spawnableContent);
+        $this->assertStringContainsString('<hoarder/>', $spawnableContent);
     }
 }

@@ -213,6 +213,7 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         'parameters.smin'=>'nullable|integer|min:0|max:1000','parameters.smax'=>'nullable|integer|min:0|max:1000',
         'parameters.dmin'=>'nullable|integer|min:0|max:1000','parameters.dmax'=>'nullable|integer|min:0|max:1000',
         'parameters.name'=>['nullable', 'string', 'max:120', 'regex:/^[A-Za-z0-9_.-]*$/'],
+        'parameters.event_classname'=>['nullable', 'string', 'max:120', 'regex:/^[A-Za-z0-9_.-]*$/'],
         'parameters.event_nominal'=>'nullable|integer|min:0|max:100000','parameters.event_min'=>'nullable|integer|min:0|max:100000','parameters.event_max'=>'nullable|integer|min:0|max:100000',
         'parameters.event_lifetime'=>'nullable|integer|min:0|max:3888000','parameters.event_restock'=>'nullable|integer|min:0|max:3888000','parameters.event_saferadius'=>'nullable|integer|min:0|max:20000','parameters.event_distanceradius'=>'nullable|integer|min:0|max:20000','parameters.event_cleanupradius'=>'nullable|integer|min:0|max:20000','parameters.event_active'=>'nullable|boolean','parameters.event_deletable'=>'nullable|boolean','parameters.event_init_random'=>'nullable|boolean','parameters.event_remove_damaged'=>'nullable|boolean','parameters.event_position'=>'nullable|in:fixed,player','parameters.event_limit'=>'nullable|in:mixed,custom,child,parent',
     ]);
@@ -238,6 +239,12 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
             $eventSettingsWarning = 'Nastavení eventu se neuložilo — nejprve importujte aktuální events.xml.';
         } else {
             $eventValues = collect($data['parameters'])->filter(fn ($value, $key) => str_starts_with((string) $key, 'event_'))->mapWithKeys(fn ($value, $key) => [substr((string) $key, 6) => $value])->all();
+            // 'event_classname' strips down to 'classname', but EventsXmlEditor::update()
+            // expects 'child_classname' for its single-child rename path.
+            if (array_key_exists('classname', $eventValues)) {
+                $eventValues['child_classname'] = $eventValues['classname'];
+                unset($eventValues['classname']);
+            }
             try {
                 $eventsContent = $eventsEditor->update(Storage::disk('dayz')->get($eventsRevisionForSettings->storage_path), $data['label'], $eventValues);
                 $editor->save($project, $eventsRevisionForSettings, $eventsContent, 'Upraveno nastavení eventu '.$data['label'], auth()->user());

@@ -1502,7 +1502,11 @@
                         if (classnames.length) {
                             const withCapacity = classnames.map((name) => {
                                 const entry = window.dzCargo?.lookup(name);
-                                return '„' + name + '“' + (entry?.capacity ? ' (' + window.dzCargo.formatCapacity(entry) + ')' : '');
+                                // Explicitly say "kapacita [k naplnění]" — a bare "(400 míst)" reads as
+                                // "this object is 400 slots big", when it actually means "holds 400
+                                // slots of other things" (a tent/pot's own size is unrelated to this
+                                // number and isn't tracked here).
+                                return '„' + name + '“' + (entry?.capacity ? ' — kapacita k naplnění: ' + window.dzCargo.formatCapacity(entry) : '');
                             });
                             el.textContent = '🎯 Tento bod spawnuje: ' + withCapacity.join(', ');
                             el.hidden = false;

@@ -107,6 +107,26 @@ XML;
         ]);
     }
 
+    public function test_child_classname_renames_the_spawned_object_and_preserves_its_other_attributes(): void
+    {
+        $updated = (new EventsXmlEditor())->update(self::SAMPLE, 'StaticHeliCrash', [
+            'child_classname' => 'Wreck_Mi8',
+        ]);
+
+        $values = (new EventsXmlEditor())->values($updated, 'StaticHeliCrash');
+        $this->assertSame('Wreck_Mi8', $values['children'][0]['type']);
+        // min/max/lootmin/lootmax on the existing <child> must survive untouched — only its
+        // type attribute changes.
+        $this->assertSame(1, $values['children'][0]['min']);
+        $this->assertSame(1, $values['children'][0]['max']);
+    }
+
+    public function test_child_classname_rejects_invalid_names(): void
+    {
+        $this->expectException(RuntimeException::class);
+        (new EventsXmlEditor())->update(self::SAMPLE, 'StaticHeliCrash', ['child_classname' => 'bad name!']);
+    }
+
     public function test_supports_requires_events_root_and_matching_filename(): void
     {
         $editor = new EventsXmlEditor();

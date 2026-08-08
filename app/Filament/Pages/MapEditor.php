@@ -1184,6 +1184,7 @@ class MapEditor extends Page
             // Only shown when editing an existing point — these settings belong to the whole
             // event (shared by every position it has), not to this one point, so exposing them
             // while placing a brand-new position would misleadingly suggest per-position scope.
+            ['name' => 'event_classname', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Classname objektu (co bod spawnuje)', 'type' => 'text', 'list' => 'dz-classname-catalog', 'default' => '', 'help' => 'Změna platí pro tento event a tedy pro VŠECHNY jeho pozice na mapě, ne jen pro tento bod. Obsah kontejneru (níže) se po uložení automaticky přesměruje na nový classname.'],
             ['name' => 'event_nominal', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Nominal (cílový počet)', 'type' => 'number', 'min' => 0, 'default' => 1, 'help' => 'Kolik instancí eventu má být na mapě celkem udržováno.'],
             ['name' => 'event_min', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Min', 'type' => 'number', 'min' => 0, 'default' => 0, 'help' => 'Pod touto hranicí server dospawnovává další instance.'],
             ['name' => 'event_max', 'edit_only' => true, 'section' => 'Nastavení eventu · events.xml', 'label' => 'Max', 'type' => 'number', 'min' => 0, 'default' => 1, 'help' => 'Nad touto hranicí server přestane spawnovat další instance.'],
@@ -1378,6 +1379,7 @@ class MapEditor extends Page
                     'event_deletable' => $flags ? (bool) (int) ($flags['deletable'] ?? 0) : false,
                     'event_init_random' => $flags ? (bool) (int) ($flags['init_random'] ?? 0) : false,
                     'event_remove_damaged' => $flags ? (bool) (int) ($flags['remove_damaged'] ?? 0) : false,
+                    'event_classname' => $eventChildren[$eventName][0] ?? '',
                 ];
             }
         }
