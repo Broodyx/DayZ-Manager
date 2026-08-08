@@ -82,10 +82,14 @@ class MapEditor extends Page
                 ->sort()
                 ->values()
                 ->all(),
-            // Same reasoning as the two catalogs above (cache-backed, recomputed fresh every
-            // render, never a synced property) — this one is additionally too large (~900KB) to
-            // want duplicated into Livewire's snapshot on every action even if it stayed public.
-            'objectCatalog' => array_values($objectCatalogService->all()),
+            // Unlike the two catalogs above, the full object catalog (~900KB, 2800+ entries) is
+            // NOT embedded here — it's only needed once someone actually opens the Object
+            // Spawner picker, which most map-editor page loads never do. Embedding it
+            // unconditionally added ~2MB to every single page load (measured: 3.5MB -> 5.5MB,
+            // and a ~1.2s hit on a cold cache) for a feature most visits don't touch. The blade
+            // template fetches it lazily from map-editor.object-catalog on first use instead.
+            // Categories alone (a couple dozen short strings) are cheap enough to keep eager, so
+            // the picker's category buttons render immediately without waiting on that fetch.
             'objectCategories' => $objectCatalogService->categories(),
         ];
     }

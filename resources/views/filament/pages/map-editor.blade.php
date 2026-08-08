@@ -37,16 +37,16 @@
                     <label>Možnosti pro vybraný typ</label>
                     <select></select>
                     <div class="dz-point-target-status"></div>
-                    <div class="dz-object-picker" hidden>
+                    <div class="dz-object-picker" hidden style="display:flex;flex-direction:column;gap:.6em;margin:.75em 0;">
                         <label>Nebo nový soubor (pokud výše nevybíráš existující)
                             <input class="dz-object-new-file" placeholder="custom/nazev.json">
                         </label>
                         <label>Search classname...
                             <input type="search" class="dz-object-search" placeholder="Search classname...">
                         </label>
-                        <div class="dz-object-categories"></div>
-                        <p class="dz-object-selected" hidden></p>
-                        <div class="dz-object-results"></div>
+                        <div class="dz-object-categories" style="display:flex;flex-wrap:wrap;gap:.4em;"></div>
+                        <p class="dz-object-selected" hidden style="margin:0;padding:.5em .75em;border:1px solid currentColor;border-radius:.4em;font-weight:600;"></p>
+                        <div class="dz-object-results" style="display:flex;flex-direction:column;gap:2px;max-height:16em;overflow-y:auto;border:1px solid currentColor;border-radius:.4em;padding:.25em;"></div>
                         <input type="hidden" data-parameter="classname">
                     </div>
                     <input class="dz-point-name" placeholder="Vlastní název (volitelné)">
@@ -1039,7 +1039,21 @@
                 return node;
             };
             const pointTypeCatalog = @js($pointTypeCatalog);
-            const objectCatalog = @js($objectCatalog);
+            // The full object catalog (~900KB, 2800+ entries) is fetched lazily on first use
+            // instead of embedded here — most map-editor page loads never open the Object
+            // Spawner picker, so shipping it unconditionally on every load added ~2MB (and up to
+            // ~1.2s server time on a cold cache) for a feature most visits don't touch. See
+            // MapEditor::getViewData() and the map-editor.object-catalog route.
+            let objectCatalog = [];
+            let objectCatalogLoading = null;
+            const ensureObjectCatalogLoaded = () => {
+                if (objectCatalog.length || objectCatalogLoading) return objectCatalogLoading;
+                objectCatalogLoading = fetch('{{ route('map-editor.object-catalog') }}', {headers: {'Accept': 'application/json'}})
+                    .then((r) => r.json())
+                    .then((data) => { objectCatalog = data; renderObjectResults(); })
+                    .catch(() => { objectCatalogLoading = null; });
+                return objectCatalogLoading;
+            };
             const objectCategories = @js($objectCategories);
             // Always present in the DOM (unlike a server-rendered datalist scoped inside the
             // Add-event wizard's conditional block) so the classname suggestion list also works
@@ -1401,7 +1415,25 @@
             const objectSelectedLabel = objectPickerRoot.querySelector('.dz-object-selected');
             const objectClassnameInput = objectPickerRoot.querySelector('[data-parameter="classname"]');
             const objectNewFileInput = objectPickerRoot.querySelector('.dz-object-new-file');
+            // This page has no CSS file at all (confirmed — every other element here relies on
+            // bare browser/Tailwind-preflight defaults for <select>/<input>/<fieldset>, styled
+            // only via occasional inline style="" attributes, e.g. the layer-dot <i> elements
+            // above) — a plain <button> list with no distinguishing markup renders as a single
+            // run-on line of text. These two helpers apply the same look inline instead of
+            // depending on a stylesheet that doesn't exist.
+            const styleObjectCategoryButton = (btn, selected) => {
+                btn.style.cssText = 'padding:.3em .7em;border-radius:999px;cursor:pointer;font-size:.85em;'
+                    + (selected ? 'border:1px solid currentColor;font-weight:700;' : 'border:1px solid color-mix(in srgb, currentColor 35%, transparent);opacity:.75;');
+            };
+            const styleObjectResultRow = (row, selected) => {
+                row.style.cssText = 'display:flex;justify-content:space-between;gap:.75em;align-items:baseline;width:100%;text-align:left;padding:.35em .5em;border-radius:.3em;cursor:pointer;'
+                    + (selected ? 'border:1px solid currentColor;font-weight:700;' : 'border:1px solid transparent;');
+            };
             const renderObjectResults = () => {
+                if (!objectCatalog.length) {
+                    objectResultsRoot.replaceChildren(mkEl('small', {class: 'dz-object-more', text: 'Načítám katalog objektů…'}));
+                    return;
+                }
                 const query = objectSearchInput.value.trim().toLowerCase();
                 const filtered = objectCatalog.filter((entry) => {
                     if (selectedObjectCategory && entry.category !== selectedObjectCategory) return false;
@@ -1410,10 +1442,14 @@
                     return haystack.includes(query);
                 });
                 const shown = filtered.slice(0, OBJECT_RESULTS_LIMIT);
-                objectResultsRoot.replaceChildren(...shown.map((entry) => mkEl('button', {type: 'button', class: 'dz-object-result', 'data-classname': entry.classname}, [
-                    mkEl('strong', {text: entry.classname}),
-                    mkEl('small', {text: (entry.display_name ? entry.display_name + ' · ' : '') + entry.category}),
-                ])));
+                objectResultsRoot.replaceChildren(...shown.map((entry) => {
+                    const row = mkEl('button', {type: 'button', class: 'dz-object-result', 'data-classname': entry.classname}, [
+                        mkEl('strong', {text: entry.classname}),
+                        mkEl('small', {text: (entry.display_name ? entry.display_name + ' · ' : '') + entry.category}),
+                    ]);
+                    styleObjectResultRow(row, entry.classname === objectClassnameInput.value);
+                    return row;
+                }));
                 objectResultsRoot.querySelectorAll('.dz-object-result').forEach((row) => row.addEventListener('click', () => {
                     const entry = objectCatalog.find((item) => item.classname === row.dataset.classname);
                     if (entry) selectObject(entry);
@@ -1428,18 +1464,24 @@
                 objectClassnameInput.value = entry.classname;
                 objectSelectedLabel.textContent = 'Vybráno: ' + entry.classname + (entry.display_name ? ' — ' + entry.display_name : '') + ' (' + entry.category + ')';
                 objectSelectedLabel.hidden = false;
-                objectResultsRoot.querySelectorAll('.dz-object-result').forEach((row) => row.classList.toggle('selected', row.dataset.classname === entry.classname));
+                objectResultsRoot.querySelectorAll('.dz-object-result').forEach((row) => styleObjectResultRow(row, row.dataset.classname === entry.classname));
                 const select = document.getElementById('dz-event-catalog').querySelector('select');
                 if (!objectNewFileInput.value && !select.value) {
                     objectNewFileInput.value = 'custom/' + entry.category.toLowerCase() + '.json';
                 }
                 syncPointTarget();
             };
-            objectCategoriesRoot.appendChild(mkEl('button', {type: 'button', class: 'dz-object-category selected', 'data-category': ''}, ['Vše']));
-            objectCategories.forEach((category) => objectCategoriesRoot.appendChild(mkEl('button', {type: 'button', class: 'dz-object-category', 'data-category': category}, [category])));
+            const allCategoryButton = mkEl('button', {type: 'button', class: 'dz-object-category', 'data-category': ''}, ['Vše']);
+            styleObjectCategoryButton(allCategoryButton, true);
+            objectCategoriesRoot.appendChild(allCategoryButton);
+            objectCategories.forEach((category) => {
+                const btn = mkEl('button', {type: 'button', class: 'dz-object-category', 'data-category': category}, [category]);
+                styleObjectCategoryButton(btn, false);
+                objectCategoriesRoot.appendChild(btn);
+            });
             objectCategoriesRoot.querySelectorAll('.dz-object-category').forEach((btn) => btn.addEventListener('click', () => {
                 selectedObjectCategory = btn.dataset.category;
-                objectCategoriesRoot.querySelectorAll('.dz-object-category').forEach((b) => b.classList.toggle('selected', b === btn));
+                objectCategoriesRoot.querySelectorAll('.dz-object-category').forEach((b) => styleObjectCategoryButton(b, b === btn));
                 renderObjectResults();
             }));
             objectSearchInput.addEventListener('input', renderObjectResults);
@@ -1453,8 +1495,9 @@
                 objectClassnameInput.value = '';
                 objectNewFileInput.value = '';
                 objectSelectedLabel.hidden = true;
-                objectCategoriesRoot.querySelectorAll('.dz-object-category').forEach((b) => b.classList.toggle('selected', b.dataset.category === ''));
+                objectCategoriesRoot.querySelectorAll('.dz-object-category').forEach((b) => styleObjectCategoryButton(b, b.dataset.category === ''));
                 renderObjectResults();
+                ensureObjectCatalogLoaded();
             };
             renderObjectResults();
             const placePoint = (button) => {

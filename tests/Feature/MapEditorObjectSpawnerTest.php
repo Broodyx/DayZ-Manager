@@ -278,4 +278,19 @@ JSON;
         $content = json_decode(Storage::disk('dayz')->get($latest->storage_path), true);
         $this->assertSame(['B'], array_column($content['Objects'], 'name'));
     }
+
+    public function test_the_object_catalog_endpoint_returns_the_full_catalog_for_lazy_loading(): void
+    {
+        [$user] = $this->seedProject();
+
+        $response = $this->actingAs($user)->getJson(route('map-editor.object-catalog'));
+
+        $response->assertOk();
+        $this->assertTrue(collect($response->json())->contains(fn (array $e) => $e['classname'] === 'Land_Castle_Bastion'));
+    }
+
+    public function test_the_object_catalog_endpoint_requires_authentication(): void
+    {
+        $this->getJson(route('map-editor.object-catalog'))->assertUnauthorized();
+    }
 }

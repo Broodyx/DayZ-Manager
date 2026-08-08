@@ -495,6 +495,14 @@ Route::post('/admin/map-editor/points/duplicate', function (Request $request, \A
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id]);
 })->middleware('auth')->name('map-editor.points.duplicate');
 
+// The full object catalog (~900KB, 2800+ entries) is project-independent and only needed once
+// the Object Spawner picker is actually opened — fetched lazily by the blade template instead of
+// embedded in every map-editor page load (see MapEditor::getViewData()). Cache::remember() inside
+// ObjectCatalogService already makes this cheap after the first request of the day.
+Route::get('/admin/map-editor/object-catalog', function (\App\Services\Dayz\ObjectCatalogService $catalog) {
+    return response()->json(array_values($catalog->all()));
+})->middleware('auth')->name('map-editor.object-catalog');
+
 Route::post('/admin/map-editor/points/bulk-delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor, \App\Services\Revision\ObjectSpawnerJsonEditor $objectSpawnerEditor) {
     $data = $request->validate([
         'project_id' => ['required', 'integer'],
