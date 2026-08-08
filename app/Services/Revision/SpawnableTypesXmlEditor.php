@@ -21,7 +21,7 @@ final readonly class SpawnableTypesXmlEditor
             if (! $node instanceof DOMElement) continue;
             $items = [];
             foreach ($node->getElementsByTagName('item') as $item) {
-                if ($item instanceof DOMElement) $items[] = ['name' => $item->getAttribute('name'), 'chance' => (float) ($item->getAttribute('chance') ?: 1)];
+                if ($item instanceof DOMElement) $items[] = ['name' => $item->getAttribute('name'), 'chance' => (float) ($item->getAttribute('chance') ?: 1), 'quantmin' => $item->hasAttribute('quantmin') ? (int) $item->getAttribute('quantmin') : null, 'quantmax' => $item->hasAttribute('quantmax') ? (int) $item->getAttribute('quantmax') : null];
             }
             $cargo[] = ['chance' => (float) ($node->getAttribute('chance') ?: 1), 'preset' => $node->getAttribute('preset'), 'items' => $items];
         }
@@ -89,6 +89,12 @@ final readonly class SpawnableTypesXmlEditor
                     $child = $document->createElement('item');
                     $child->setAttribute('name', $name);
                     $child->setAttribute('chance', (string) max(0, min(1, (float) ($item['chance'] ?? 1))));
+                    if (isset($item['quantmin']) && $item['quantmin'] !== '' && $item['quantmin'] !== null) {
+                        $child->setAttribute('quantmin', (string) max(0, (int) $item['quantmin']));
+                    }
+                    if (isset($item['quantmax']) && $item['quantmax'] !== '' && $item['quantmax'] !== null) {
+                        $child->setAttribute('quantmax', (string) max(0, (int) $item['quantmax']));
+                    }
                     $node->appendChild($child);
                 }
             }

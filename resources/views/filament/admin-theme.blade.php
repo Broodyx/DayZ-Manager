@@ -401,6 +401,17 @@
     .dz-edit-point-fields input, .dz-edit-point-fields select { width:100%; min-height:2.8rem; border:1px solid #496b31; border-radius:.45rem; background:#0b120d; color:#e7f7d2; padding:.65rem .75rem; color-scheme:dark; }
     .dz-edit-point-fields select { appearance:none; -webkit-appearance:none; padding-right:2.2rem; cursor:pointer; background-image:linear-gradient(45deg,transparent 50%,#b8ed55 50%),linear-gradient(135deg,#b8ed55 50%,transparent 50%); background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%; background-size:5px 5px,5px 5px; background-repeat:no-repeat; }
     .dz-edit-point-fields :disabled { opacity:.7; cursor:not-allowed; }
+    .dz-checkbox-field { display:flex !important; flex-direction:row-reverse !important; align-items:center !important; justify-content:flex-end; gap:.55rem !important; }
+    .dz-checkbox-field input[type="checkbox"] { width:auto !important; min-height:auto !important; padding:0 !important; accent-color:#b8ed55; }
+    .dz-edit-point-contents-badge { grid-column:1/-1; margin:0 0 .75rem; padding:.55rem .7rem; border:1px solid #6b8f2b; border-radius:.5rem; background:#182a10; color:#d8f57b; font-size:.75rem; font-weight:700; }
+    .dz-item-list-field { grid-column:1/-1; display:grid; gap:.5rem; }
+    .dz-item-list-rows { display:grid; gap:.4rem; }
+    .dz-item-list-row { display:grid; grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr)) auto; gap:.4rem; align-items:center; }
+    .dz-item-list-row input { min-height:2.3rem !important; }
+    .dz-item-list-remove { flex:0 0 auto; width:2.3rem; height:2.3rem; border:1px solid #6b332f; border-radius:.4rem; background:#241412; color:#ffb3ac; font-weight:900; cursor:pointer; }
+    .dz-item-list-remove:hover { border-color:#c9564a; background:#3a1a17; }
+    .dz-item-list-add { justify-self:start; padding:.45rem .7rem; border:1px dashed #496b31; border-radius:.4rem; background:transparent; color:#c5d2bf; font-size:.72rem; font-weight:750; cursor:pointer; }
+    .dz-item-list-add:hover { border-color:#b8ed55; color:#b8ed55; }
     .dz-event-settings, .dz-related-files { border:1px solid #385326; border-radius:.55rem; background:#111a13; padding:.9rem; }
     .dz-event-settings > p, .dz-related-files > small { display:block; margin:.35rem 0 .75rem; color:#aab6a4; }
     .dz-event-setting-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.45rem; }

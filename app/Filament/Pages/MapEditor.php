@@ -1101,10 +1101,12 @@ class MapEditor extends Page
         }
         $eventFields = [
             ['name' => 'orientation', 'label' => 'Natočení objektu (°)', 'type' => 'number', 'min' => 0, 'max' => 359.999, 'step' => 0.001, 'default' => 0, 'required' => true, 'help' => 'Povinné. 0° míří na sever; hodnota určuje natočení kandidátní pozice.'],
-            ['name' => 'damage_min', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Minimální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => '0 = 100% funkční, 1 = zničené. Rozsah určuje náhodné poškození.'],
-            ['name' => 'damage_max', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Maximální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => 'Nastav 0–0 pro vždy plně funkční auto; například 0.4–0.8 znamená náhodné poškození 40–80 %.'],
-            ['name' => 'cargo_preset', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Cargo preset', 'type' => 'text', 'list' => 'dz-cargo-preset-catalog', 'default' => '', 'help' => 'Začněte psát a vyberte preset z aktuálního cfgspawnabletypes.xml. Ruční hodnota je stále možná.'],
-            ['name' => 'attachments', 'section' => 'Vozidlo · cfgspawnabletypes.xml', 'label' => 'Attachmenty', 'type' => 'text', 'list' => 'dz-attachment-catalog', 'default' => '', 'help' => 'Nabízí použité attachmenty z aktuálního souboru; zadejte více tříd oddělených čárkou.'],
+            ['name' => 'damage_min', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Minimální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => '0 = 100% funkční, 1 = zničené. Rozsah určuje náhodné poškození (u vozidel i statických kontejnerů).'],
+            ['name' => 'damage_max', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Maximální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => 'Nastav 0–0 pro vždy plně funkční; například 0.4–0.8 znamená náhodné poškození 40–80 %.'],
+            ['name' => 'hoarder', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Hoarder (nikdy se nedespawnuje jako prázdný)', 'type' => 'checkbox', 'default' => false, 'help' => 'Typicky pro barely a bedny, které mají vždy vypadat plné.'],
+            ['name' => 'cargo_items', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Konkrétní itemy uvnitř (classname, šance, počet ks)', 'type' => 'item-list', 'item_fields' => ['name', 'chance', 'quantmin', 'quantmax'], 'list' => 'dz-attachment-catalog', 'default' => [], 'help' => 'Změna platí pro VŠECHNY spawny tohoto classname na celé mapě, ne jen pro tenhle bod — cfgspawnabletypes.xml je klíčované podle classname. Necháš-li prázdné, použije se níže zadaný cargo preset.'],
+            ['name' => 'cargo_preset', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Cargo preset (alternativa ke konkrétním itemům výše)', 'type' => 'text', 'list' => 'dz-cargo-preset-catalog', 'default' => '', 'help' => 'Začněte psát a vyberte preset z aktuálního cfgspawnabletypes.xml. Použije se jen pokud výše není zadaný žádný konkrétní item.'],
+            ['name' => 'attachments', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Attachmenty', 'type' => 'text', 'list' => 'dz-attachment-catalog', 'default' => '', 'help' => 'Nabízí použité attachmenty z aktuálního souboru; zadejte více tříd oddělených čárkou.'],
         ];
         $playerFields = [
             ['name' => 'spawn_mode', 'section' => 'Bod a skupina', 'label' => 'Režim spawnu', 'type' => 'select', 'default' => 'fresh', 'options' => [
@@ -1303,11 +1305,26 @@ class MapEditor extends Page
                     $vehicleValues = collect($children)->map(fn ($classname) => $spawnableValues[$classname] ?? null)->filter()->first();
                     if (is_array($vehicleValues)) {
                         $attachments = collect($vehicleValues['attachments'] ?? [])->flatMap(fn ($group) => $group['items'] ?? [])->pluck('name')->filter()->unique()->implode(',');
-                        $cargo = collect($vehicleValues['cargo'] ?? [])->pluck('preset')->filter()->first() ?? '';
+                        $cargoGroups = collect($vehicleValues['cargo'] ?? []);
+                        $cargo = $cargoGroups->pluck('preset')->filter()->first() ?? '';
+                        // Non-preset cargo groups are the "specific items with quantities" case — each
+                        // group normally wraps exactly one <item>, so flattening into one editable list
+                        // is a lossless, simpler representation for the point-edit UI.
+                        $cargoItems = $cargoGroups
+                            ->filter(fn ($group) => trim((string) ($group['preset'] ?? '')) === '')
+                            ->flatMap(fn ($group) => collect($group['items'] ?? [])->map(fn ($item) => [
+                                'name' => $item['name'] ?? '',
+                                'chance' => $item['chance'] ?? 1,
+                                'quantmin' => $item['quantmin'] ?? '',
+                                'quantmax' => $item['quantmax'] ?? '',
+                            ]))
+                            ->values()->all();
                         $marker['parameters'] = array_merge($marker['parameters'] ?? [], [
                             'damage_min' => $vehicleValues['damage_min'] ?? 0,
                             'damage_max' => $vehicleValues['damage_max'] ?? 0,
+                            'hoarder' => $vehicleValues['hoarder'] ?? false,
                             'cargo_preset' => $cargo,
+                            'cargo_items' => $cargoItems,
                             'attachments' => $attachments,
                         ]);
                     }

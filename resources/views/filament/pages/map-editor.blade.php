@@ -48,6 +48,7 @@
                 <p class="dz-eyebrow">ÚPRAVA MAPOVÉ KONFIGURACE</p>
                 <h3>Upravit bod</h3>
                 <p class="dz-edit-point-context dz-muted"></p>
+                <p class="dz-edit-point-contents-badge" hidden></p>
                 <div class="dz-edit-coordinate-grid">
                     <label>Souřadnice X<input class="dz-edit-x" type="number" min="0" max="15360" step="0.001"></label>
                     <label>Souřadnice Z<input class="dz-edit-z" type="number" min="0" max="15360" step="0.001"></label>
@@ -714,6 +715,10 @@
                         }
                         section = sections.get(sectionName);
                     }
+                    if (field.type === 'item-list') {
+                        section.appendChild(buildItemListField(field, values[field.name] || field.default || []));
+                        return;
+                    }
                     const label = document.createElement('label');
                     label.textContent = field.label + (field.required ? ' *' : '');
                     if (field.required) label.classList.add('dz-required-field');
@@ -731,7 +736,12 @@
                     }
                     input.dataset.parameter = field.name;
                     if (field.required) input.required = true;
-                    input.value = values[field.name] ?? field.default ?? '';
+                    if (field.type === 'checkbox') {
+                        input.checked = !!(values[field.name] ?? field.default ?? false);
+                        label.classList.add('dz-checkbox-field');
+                    } else {
+                        input.value = values[field.name] ?? field.default ?? '';
+                    }
                     if (editMode && field.name === 'spawn_mode') {
                         input.disabled = true;
                         input.title = 'Existující bod nelze přesunout mezi režimy; lze jej smazat a vytvořit v jiném režimu.';
@@ -748,6 +758,77 @@
                     }
                     section.appendChild(label);
                 });
+            };
+            const buildItemListField = (field, initialItems) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'dz-item-list-field';
+                const legend = document.createElement('label');
+                legend.textContent = field.label;
+                wrap.appendChild(legend);
+                const rows = document.createElement('div');
+                rows.className = 'dz-item-list-rows';
+                wrap.appendChild(rows);
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.dataset.parameter = field.name;
+                wrap.appendChild(hidden);
+                const itemFields = field.item_fields || ['name', 'chance', 'quantmin', 'quantmax'];
+                const fieldMeta = {
+                    name: { placeholder: 'classname', type: 'text' },
+                    chance: { placeholder: 'šance 0–1', type: 'number', min: 0, max: 1, step: 0.01 },
+                    quantmin: { placeholder: 'min ks', type: 'number', min: 0, step: 1 },
+                    quantmax: { placeholder: 'max ks', type: 'number', min: 0, step: 1 },
+                };
+                const sync = () => {
+                    const items = Array.from(rows.children).map((row) => {
+                        const item = {};
+                        itemFields.forEach((key) => {
+                            const cell = row.querySelector('[data-item-field="' + key + '"]');
+                            item[key] = cell ? cell.value : '';
+                        });
+                        return item;
+                    }).filter((item) => String(item.name || '').trim() !== '');
+                    hidden.value = JSON.stringify(items);
+                };
+                const addRow = (item = {}) => {
+                    const row = document.createElement('div');
+                    row.className = 'dz-item-list-row';
+                    itemFields.forEach((key) => {
+                        const meta = fieldMeta[key] || { type: 'text' };
+                        const cell = document.createElement('input');
+                        cell.type = meta.type;
+                        cell.dataset.itemField = key;
+                        cell.placeholder = meta.placeholder || key;
+                        if (meta.min !== undefined) cell.min = meta.min;
+                        if (meta.max !== undefined) cell.max = meta.max;
+                        if (meta.step !== undefined) cell.step = meta.step;
+                        if (key === 'name' && field.list) cell.setAttribute('list', field.list);
+                        cell.value = item[key] ?? '';
+                        cell.addEventListener('input', sync);
+                        row.appendChild(cell);
+                    });
+                    const remove = document.createElement('button');
+                    remove.type = 'button';
+                    remove.className = 'dz-item-list-remove';
+                    remove.textContent = '×';
+                    remove.addEventListener('click', () => { row.remove(); sync(); });
+                    row.appendChild(remove);
+                    rows.appendChild(row);
+                };
+                (initialItems || []).forEach((item) => addRow(item));
+                const addButton = document.createElement('button');
+                addButton.type = 'button';
+                addButton.className = 'dz-item-list-add';
+                addButton.textContent = '+ přidat item';
+                addButton.addEventListener('click', () => { addRow(); sync(); });
+                wrap.appendChild(addButton);
+                if (field.help) {
+                    const help = document.createElement('small');
+                    help.textContent = field.help;
+                    wrap.appendChild(help);
+                }
+                sync();
+                return wrap;
             };
             const renderPointFields = () => {
                 const catalogRoot = document.getElementById('dz-event-catalog');
@@ -1029,6 +1110,20 @@
                         editModal.querySelector('.dz-edit-z').value = marker.worldZ;
                         const editDefinition = editDefinitionForMarker(marker);
                         buildPointFields(editModal.querySelector('.dz-edit-point-fields'), editDefinition?.fields || [], marker.parameters || {}, true);
+                        const badge = editModal.querySelector('.dz-edit-point-contents-badge');
+                        const cargoItemCount = (marker.parameters?.cargo_items || []).length;
+                        const hasHoarder = !!marker.parameters?.hoarder;
+                        const hasPreset = !!(marker.parameters?.cargo_preset || '').trim();
+                        if (cargoItemCount || hasHoarder || hasPreset) {
+                            const parts = [];
+                            if (cargoItemCount) parts.push(cargoItemCount + ' konkrétních itemů uvnitř');
+                            if (hasPreset) parts.push('cargo preset „' + marker.parameters.cargo_preset + '“');
+                            if (hasHoarder) parts.push('hoarder');
+                            badge.textContent = '📦 Tento bod má definovaný obsah (' + parts.join(', ') + ') — viz „Obsah kontejneru“ níže.';
+                            badge.hidden = false;
+                        } else {
+                            badge.hidden = true;
+                        }
                         editModal.hidden = false;
                     });
                     root.querySelector('.dz-map-delete')?.addEventListener('click', () => {
@@ -1081,7 +1176,7 @@
                     return;
                 }
                 const parameters = {};
-                editModal.querySelectorAll('[data-parameter]').forEach((input) => parameters[input.dataset.parameter] = input.value);
+                editModal.querySelectorAll('[data-parameter]').forEach((input) => parameters[input.dataset.parameter] = input.type === 'checkbox' ? input.checked : input.value);
                 if (activeMarker.filename === 'mapgrouppos.xml' && parameters.name && parameters.name !== activeMarker.label) {
                     const known = (pointTypeCatalog.loot?.options || []).some((option) => option.value === parameters.name);
                     if (!known) {

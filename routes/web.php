@@ -50,6 +50,7 @@ Route::post('/admin/map-editor/points', function (
         'parameters.ppe_type'=>'nullable|string|max:160',
         'parameters.auto_add_types'=>'nullable|boolean',
         'parameters.damage_min'=>'nullable|numeric|min:0|max:1','parameters.damage_max'=>'nullable|numeric|min:0|max:1','parameters.cargo_preset'=>'nullable|string|max:80','parameters.attachments'=>'nullable|string|max:2000',
+        'parameters.cargo_items'=>'nullable|string|max:20000','parameters.hoarder'=>'nullable|boolean',
         'parameters.event_nominal'=>'nullable|integer|min:0|max:100000','parameters.event_min'=>'nullable|integer|min:0|max:100000','parameters.event_max'=>'nullable|integer|min:0|max:100000',
         'parameters.event_lifetime'=>'nullable|integer|min:0|max:3888000','parameters.event_restock'=>'nullable|integer|min:0|max:3888000','parameters.event_saferadius'=>'nullable|integer|min:0|max:20000','parameters.event_distanceradius'=>'nullable|integer|min:0|max:20000','parameters.event_cleanupradius'=>'nullable|integer|min:0|max:20000','parameters.event_active'=>'nullable|boolean','parameters.event_position'=>'nullable|in:fixed,player','parameters.event_limit'=>'nullable|in:mixed,unlimited,nearest,farthest',
     ]);
@@ -120,22 +121,47 @@ Route::post('/admin/map-editor/points', function (
             $editor->save($project, $eventsRevision, $eventContent, 'Upraven event '.$eventName.' při přidání mapového bodu', auth()->user());
         }
     }
-    if ($data['type'] !== 'animal' && in_array($data['type'], $eventTypes, true) && (array_key_exists('damage_min', $parameters) || array_key_exists('cargo_preset', $parameters) || array_key_exists('attachments', $parameters))) {
+    if ($data['type'] !== 'animal' && in_array($data['type'], $eventTypes, true) && (array_key_exists('damage_min', $parameters) || array_key_exists('cargo_preset', $parameters) || array_key_exists('cargo_items', $parameters) || array_key_exists('hoarder', $parameters) || array_key_exists('attachments', $parameters))) {
         $spawnableRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'cfgspawnabletypes.xml');
         if ($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path)) {
             $eventNode = collect($eventsXml?->event ?? [])->first(fn ($event) => (string) ($event['name'] ?? '') === $data['label']);
             $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
+            // A cargo_items row is a single guaranteed item; each becomes its own <cargo> group,
+            // matching the one-item-per-group convention vanilla weapon-crate/heli-crash events use.
+            // A "preset" reference is only used as a fallback when no specific items are listed.
+            $cargoItems = [];
+            if (trim((string) ($parameters['cargo_items'] ?? '')) !== '') {
+                $decodedCargo = json_decode((string) $parameters['cargo_items'], true);
+                foreach (is_array($decodedCargo) ? $decodedCargo : [] as $cargoItem) {
+                    $itemName = trim((string) ($cargoItem['name'] ?? ''));
+                    if ($itemName === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $itemName)) {
+                        continue;
+                    }
+                    $quantmin = $cargoItem['quantmin'] ?? '';
+                    $quantmax = $cargoItem['quantmax'] ?? '';
+                    $cargoItems[] = [
+                        'name' => $itemName,
+                        'chance' => max(0, min(1, (float) ($cargoItem['chance'] ?? 1))),
+                        'quantmin' => $quantmin !== '' && $quantmin !== null ? max(0, (int) $quantmin) : null,
+                        'quantmax' => $quantmax !== '' && $quantmax !== null ? max(0, (int) $quantmax) : null,
+                    ];
+                }
+            }
+            $cargoGroups = $cargoItems !== []
+                ? collect($cargoItems)->map(fn ($item) => ['chance' => 1, 'items' => [$item]])->all()
+                : (trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : []);
             $spawnableContent = Storage::disk('dayz')->get($spawnableRevision->storage_path);
             $spawnClassnames = collect($eventNode?->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values();
             foreach ($spawnClassnames as $classname) {
                 $spawnableContent = $spawnableEditor->update($spawnableContent, $classname, [
                     'damage_min' => $parameters['damage_min'] ?? 0,
                     'damage_max' => $parameters['damage_max'] ?? 0,
+                    'hoarder' => (bool) ($parameters['hoarder'] ?? false),
                     'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
-                    'cargo' => trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : [],
+                    'cargo' => $cargoGroups,
                 ]);
             }
-            $editor->save($project, $spawnableRevision, $spawnableContent, 'Nastavení vozidla '.$data['label'].' při přidání mapového bodu', auth()->user());
+            $editor->save($project, $spawnableRevision, $spawnableContent, 'Nastavení kontejneru '.$data['label'].' při přidání mapového bodu', auth()->user());
         }
     }
     $typesAdded = [];
@@ -176,6 +202,7 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         'parameters.lifetime'=>'nullable|integer|min:-1','parameters.counter'=>'nullable|integer|min:-1',
         'parameters.orientation'=>'nullable|numeric|min:0|max:359.999',
         'parameters.damage_min'=>'nullable|numeric|min:0|max:1','parameters.damage_max'=>'nullable|numeric|min:0|max:1','parameters.cargo_preset'=>'nullable|string|max:80','parameters.attachments'=>'nullable|string|max:2000',
+        'parameters.cargo_items'=>'nullable|string|max:20000','parameters.hoarder'=>'nullable|boolean',
         'parameters.pos_y'=>'nullable|numeric|min:-1000|max:5000',
         'parameters.pitch'=>'nullable|numeric|min:-360|max:360','parameters.yaw'=>'nullable|numeric|min:-360|max:360','parameters.roll'=>'nullable|numeric|min:-360|max:360',
         'parameters.zone_type'=>'nullable|string|max:60|regex:/^[A-Za-z0-9_.-]+$/','parameters.radius'=>'nullable|numeric|min:1|max:5000',
@@ -195,7 +222,7 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         abort(422, $exception->getMessage());
     }
     $saved = $editor->save($project, $source, $content, 'Upraven mapový bod X/Z', auth()->user());
-    if ($filename === 'cfgeventspawns.xml' && (array_key_exists('damage_min', $data['parameters'] ?? []) || array_key_exists('damage_max', $data['parameters'] ?? []) || array_key_exists('cargo_preset', $data['parameters'] ?? []) || array_key_exists('attachments', $data['parameters'] ?? []))) {
+    if ($filename === 'cfgeventspawns.xml' && (array_key_exists('damage_min', $data['parameters'] ?? []) || array_key_exists('damage_max', $data['parameters'] ?? []) || array_key_exists('cargo_preset', $data['parameters'] ?? []) || array_key_exists('cargo_items', $data['parameters'] ?? []) || array_key_exists('hoarder', $data['parameters'] ?? []) || array_key_exists('attachments', $data['parameters'] ?? []))) {
         $eventsRevision = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'events.xml');
         abort_unless($eventsRevision && Storage::disk('dayz')->exists($eventsRevision->storage_path), 422, 'Nejprve importujte aktuální events.xml.');
         $eventXml = @simplexml_load_string(Storage::disk('dayz')->get($eventsRevision->storage_path));
@@ -206,16 +233,41 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         abort_unless($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path), 422, 'Nejprve importujte aktuální cfgspawnabletypes.xml.');
         $parameters = $data['parameters'] ?? [];
         $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
+        // A cargo_items row is a single guaranteed item; each becomes its own <cargo> group,
+        // matching the one-item-per-group convention vanilla weapon-crate/heli-crash events use.
+        // A "preset" reference is only used as a fallback when no specific items are listed.
+        $cargoItems = [];
+        if (trim((string) ($parameters['cargo_items'] ?? '')) !== '') {
+            $decodedCargo = json_decode((string) $parameters['cargo_items'], true);
+            foreach (is_array($decodedCargo) ? $decodedCargo : [] as $cargoItem) {
+                $itemName = trim((string) ($cargoItem['name'] ?? ''));
+                if ($itemName === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $itemName)) {
+                    continue;
+                }
+                $quantmin = $cargoItem['quantmin'] ?? '';
+                $quantmax = $cargoItem['quantmax'] ?? '';
+                $cargoItems[] = [
+                    'name' => $itemName,
+                    'chance' => max(0, min(1, (float) ($cargoItem['chance'] ?? 1))),
+                    'quantmin' => $quantmin !== '' && $quantmin !== null ? max(0, (int) $quantmin) : null,
+                    'quantmax' => $quantmax !== '' && $quantmax !== null ? max(0, (int) $quantmax) : null,
+                ];
+            }
+        }
+        $cargoGroups = $cargoItems !== []
+            ? collect($cargoItems)->map(fn ($item) => ['chance' => 1, 'items' => [$item]])->all()
+            : (trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : []);
         $spawnableContent = Storage::disk('dayz')->get($spawnableRevision->storage_path);
         foreach ($spawnClassnames as $classname) {
             $spawnableContent = $spawnableEditor->update($spawnableContent, $classname, [
                 'damage_min' => $parameters['damage_min'] ?? 0,
                 'damage_max' => $parameters['damage_max'] ?? 0,
+                'hoarder' => (bool) ($parameters['hoarder'] ?? false),
                 'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
-                'cargo' => trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : [],
+                'cargo' => $cargoGroups,
             ]);
         }
-        $editor->save($project, $spawnableRevision, $spawnableContent, 'Upraveno nastavení vozidla '.$data['label'], auth()->user());
+        $editor->save($project, $spawnableRevision, $spawnableContent, 'Upraven obsah kontejneru '.$data['label'], auth()->user());
     }
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id]);
 })->middleware('auth')->name('map-editor.points.update');
