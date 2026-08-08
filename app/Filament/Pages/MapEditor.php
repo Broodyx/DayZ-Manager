@@ -42,6 +42,35 @@ class MapEditor extends Page
         return \Filament\Support\Enums\MaxWidth::Full;
     }
 
+    /**
+     * Computes the two global, project-independent classname catalogs fresh on every render
+     * instead of once in mount(): mount() only ever runs on a page's very first request, and
+     * Livewire's snapshot only round-trips PUBLIC properties, so a version that stored these in
+     * a property (public OR not) and relied on mount() to populate it went silently empty after
+     * the first subsequent Livewire action (confirmed via a real, separate /livewire/update
+     * round trip in a test — not just Livewire's testing shortcut, which reuses one PHP object
+     * across calls and would have hidden this). Both underlying services are
+     * Cache::remember()-backed, so recomputing here is a cache hit (a few ms), not a re-parse —
+     * this keeps the ~450KB combined payload entirely out of Livewire's synced request/response
+     * state (they're not class properties at all) while staying correct on every render, not
+     * just the first.
+     */
+    protected function getViewData(): array
+    {
+        $cargoSizeCatalog = app(CargoSizeCatalog::class)->all();
+        $classnameCatalog = app(ClassnameCatalog::class);
+
+        return [
+            'cargoSizeCatalog' => $cargoSizeCatalog,
+            'classnameOptions' => collect($classnameCatalog->names())
+                ->merge(collect($cargoSizeCatalog)->pluck('classname'))
+                ->unique()
+                ->sort()
+                ->values()
+                ->all(),
+        ];
+    }
+
     public string $map = 'Chernarus';
 
     public ?int $projectId = null;
@@ -65,8 +94,6 @@ class MapEditor extends Page
     public array $animalPopulationWarnings = [];
     public array $animalTypeWarnings = [];
     public array $spawnValidationWarnings = [];
-    public array $classnameOptions = [];
-    public array $cargoSizeCatalog = [];
     public bool $showAddEventModal = false;
     public string $addEventName = '';
     public array $addEventForm = [];
@@ -101,7 +128,7 @@ class MapEditor extends Page
      */
     private const ANIMAL_TYPE_DEFAULTS = ['nominal' => 0, 'lifetime' => 1800, 'restock' => 0, 'min' => 0, 'quantmin' => -1, 'quantmax' => -1, 'cost' => 100];
 
-    public function mount(ClassnameCatalog $classnameCatalog, CargoSizeCatalog $cargoSizeCatalog): void
+    public function mount(): void
     {
         $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
         $this->projectId = ActiveProject::resolve(request()->integer('project') ?: null, array_keys($this->projects));
@@ -119,19 +146,6 @@ class MapEditor extends Page
         }
 
         $this->showDenseLayers = request()->boolean('dense');
-        $this->cargoSizeCatalog = $cargoSizeCatalog->all();
-        // $classnameCatalog alone only covers vanilla types.xml-style loot economy items — real
-        // deployables (tents, vehicles, containers) are never in types.xml (they're placed via
-        // events.xml/cfgspawnabletypes.xml instead, same as everything this page edits), so on
-        // its own it left the classname suggestion list unable to offer e.g. "CarTent" at all.
-        // $cargoSizeCatalog was extracted directly from the game's own PBO configs this session
-        // and covers those too, so merging it in gives one comprehensive, still-honest list.
-        $this->classnameOptions = collect($classnameCatalog->names())
-            ->merge(collect($this->cargoSizeCatalog)->pluck('classname'))
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
         $this->loadMarkers();
         $this->loadMapSources();
         $this->loadEventCatalog();
