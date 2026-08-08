@@ -54,6 +54,15 @@ class MapEditor extends Page
      * this keeps the ~450KB combined payload entirely out of Livewire's synced request/response
      * state (they're not class properties at all) while staying correct on every render, not
      * just the first.
+     *
+     * $markers (the single largest payload on this page, ~660KB at a realistic project's scale)
+     * deliberately stays a public, Livewire-synced property rather than following the same
+     * pattern: unlike these two catalogs, many existing tests read it via Livewire's
+     * `Testable::get('markers')`, which only sees synced (public) state, and several action
+     * methods (loadSpawnValidationWarnings() among them) read $this->markers directly rather
+     * than through a fresh getViewData()-style recompute — converting it safely would mean
+     * auditing/fixing every one of those call sites and rewriting that test surface, not just
+     * this method.
      */
     protected function getViewData(): array
     {
