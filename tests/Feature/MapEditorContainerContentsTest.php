@@ -72,7 +72,7 @@ XML);
         <cleanupradius>100</cleanupradius>
         <flags deletable="0" init_random="0" remove_damaged="0"/>
         <position>fixed</position>
-        <limit>unlimited</limit>
+        <limit>child</limit>
         <active>1</active>
         <children>
             <child lootmax="0" lootmin="0" max="1" min="1" type="Barrel_Green"/>
@@ -155,6 +155,41 @@ XML);
         $this->assertStringContainsString('<hoarder', $content);
     }
 
+    public function test_a_cargo_item_with_no_chance_filled_in_defaults_to_always_guaranteed_not_never(): void
+    {
+        [$user, $project] = $this->seedProject();
+
+        $eventSpawnsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'cfgeventspawns.xml');
+
+        // Mirrors what the browser actually sends when the "šance" field is left empty:
+        // the key is present with an empty string, not missing/null.
+        $response = $this->actingAs($user)->postJson(route('map-editor.points.update'), [
+            'project_id' => $project->id,
+            'revision_id' => $eventSpawnsRevision->id,
+            'filename' => 'cfgeventspawns.xml',
+            'label' => 'StaticTestWeaponsChest_DEV2',
+            'path' => '/eventposdef/event[1]/pos[1]',
+            'x' => 100,
+            'z' => 200,
+            'new_x' => 100,
+            'new_z' => 200,
+            'parameters' => [
+                'orientation' => 0,
+                'cargo_items' => json_encode([
+                    ['name' => 'Rope', 'chance' => '', 'quantmin' => '', 'quantmax' => ''],
+                ]),
+            ],
+        ]);
+
+        $response->assertOk();
+
+        $latestSpawnable = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport?->original_filename ?? $revision->storage_path)) === 'cfgspawnabletypes.xml');
+        $content = Storage::disk('dayz')->get($latestSpawnable->storage_path);
+        $this->assertStringContainsString('name="Rope" chance="1"', $content);
+    }
+
     public function test_saving_a_point_without_touching_cargo_leaves_cfgspawnabletypes_unrelated_types_untouched(): void
     {
         [$user, $project] = $this->seedProject();
@@ -221,7 +256,7 @@ XML);
         <cleanupradius>100</cleanupradius>
         <flags deletable="0" init_random="0" remove_damaged="0"/>
         <position>fixed</position>
-        <limit>unlimited</limit>
+        <limit>child</limit>
         <active>1</active>
         <children/>
     </event>

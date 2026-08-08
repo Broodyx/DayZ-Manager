@@ -14,6 +14,7 @@ use App\Services\Ftp\FtpBrowser;
 use App\Services\Import\ConfigurationImporter;
 use App\Services\Revision\ConfigurationRevisionEditor;
 use App\Services\Revision\EnvironmentXmlEditor;
+use App\Services\Revision\SpawnableTypesXmlEditor;
 use App\Services\Revision\TypesXmlEditor;
 use App\Support\ActiveProject;
 use Filament\Notifications\Notification;
@@ -738,6 +739,8 @@ class MapEditor extends Page
             'lifetime' => 3600, 'restock' => 0,
             'saferadius' => 100, 'distanceradius' => 100, 'cleanupradius' => 100,
             'position' => 'fixed', 'limit' => 'mixed', 'child_type' => '',
+            'damage_min' => 0, 'damage_max' => 0, 'hoarder' => false,
+            'cargo_items' => '', 'cargo_preset' => '', 'attachments' => '',
         ];
         $this->showAddEventModal = true;
     }
@@ -778,7 +781,7 @@ class MapEditor extends Page
         $this->showAddEventModal = false;
     }
 
-    public function submitAddEvent(EventsXmlEditor $editor, ConfigurationRevisionEditor $revisionEditor): void
+    public function submitAddEvent(EventsXmlEditor $editor, ConfigurationRevisionEditor $revisionEditor, SpawnableTypesXmlEditor $spawnableEditor): void
     {
         $project = $this->project();
         if (! $project) {
@@ -798,13 +801,81 @@ class MapEditor extends Page
             return;
         }
         $saved = $revisionEditor->save($project, $revision, $updated, "Přidán event {$this->addEventName}", auth()->user());
+
+        $spawnableWarning = null;
+        $childType = trim((string) ($this->addEventForm['child_type'] ?? ''));
+        if ($childType !== '' && $this->addEventFormHasSpawnableSettings()) {
+            $spawnableWarning = $this->syncSpawnableTypeFromAddEventForm($project, $childType, $revisionEditor, $spawnableEditor);
+        }
+
         $this->forgetLatestRevisions();
         $this->showAddEventModal = false;
         $this->loadEventCatalog();
         $this->loadEventSpawnWarnings();
         $this->loadAnimalPopulationWarnings();
         $this->loadPointTypeCatalog();
-        Notification::make()->success()->title("Event {$this->addEventName} byl přidán do events.xml")->body("Vznikla revize #{$saved->revision_number}.")->send();
+        Notification::make()->success()->title("Event {$this->addEventName} byl přidán do events.xml")->body("Vznikla revize #{$saved->revision_number}.".($spawnableWarning ? ' '.$spawnableWarning : ''))->send();
+    }
+
+    /** Whether the wizard's optional "condition"/"contents" steps actually have anything to write — avoids touching cfgspawnabletypes.xml (and wiping an existing entry for a reused classname) when the user skipped them. */
+    private function addEventFormHasSpawnableSettings(): bool
+    {
+        $form = $this->addEventForm;
+
+        return (float) ($form['damage_min'] ?? 0) > 0
+            || (float) ($form['damage_max'] ?? 0) > 0
+            || (bool) ($form['hoarder'] ?? false)
+            || trim((string) ($form['cargo_items'] ?? '')) !== ''
+            || trim((string) ($form['cargo_preset'] ?? '')) !== ''
+            || trim((string) ($form['attachments'] ?? '')) !== '';
+    }
+
+    /** Mirrors the cargo/attachments/damage/hoarder sync the map points routes do for cfgspawnabletypes.xml, so the wizard can set a freshly-created container's contents in one flow instead of requiring a separate point edit afterwards. Returns a user-facing warning string if it couldn't run, or null on success/no-op. */
+    private function syncSpawnableTypeFromAddEventForm(Project $project, string $classname, ConfigurationRevisionEditor $revisionEditor, SpawnableTypesXmlEditor $spawnableEditor): ?string
+    {
+        $spawnableRevision = $this->latestRevisions($project)->first(fn ($item) => $this->revisionFilename($item) === 'cfgspawnabletypes.xml');
+        if (! $spawnableRevision || ! Storage::disk('dayz')->exists($spawnableRevision->storage_path)) {
+            return 'Obsah kontejneru se nesynchronizoval — nejprve importujte aktuální cfgspawnabletypes.xml.';
+        }
+
+        $parameters = $this->addEventForm;
+        $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
+        $cargoItems = [];
+        if (trim((string) ($parameters['cargo_items'] ?? '')) !== '') {
+            $decodedCargo = json_decode((string) $parameters['cargo_items'], true);
+            foreach (is_array($decodedCargo) ? $decodedCargo : [] as $cargoItem) {
+                $itemName = trim((string) ($cargoItem['name'] ?? ''));
+                if ($itemName === '' || ! preg_match('/^[A-Za-z0-9_.-]+$/', $itemName)) {
+                    continue;
+                }
+                $quantmin = $cargoItem['quantmin'] ?? '';
+                $quantmax = $cargoItem['quantmax'] ?? '';
+                $chanceRaw = $cargoItem['chance'] ?? '';
+                $cargoItems[] = [
+                    'name' => $itemName,
+                    // Empty means "not filled in" (default 100%), NOT 0% — an empty string
+                    // survives `?? 1` unharmed since the key is present, so it must be checked
+                    // explicitly or every item silently gets chance=0 and never actually spawns.
+                    'chance' => max(0, min(1, $chanceRaw === '' || $chanceRaw === null ? 1.0 : (float) $chanceRaw)),
+                    'quantmin' => $quantmin !== '' && $quantmin !== null ? max(0, (int) $quantmin) : null,
+                    'quantmax' => $quantmax !== '' && $quantmax !== null ? max(0, (int) $quantmax) : null,
+                ];
+            }
+        }
+        $cargoGroups = $cargoItems !== []
+            ? collect($cargoItems)->map(fn ($item) => ['chance' => 1, 'items' => [$item]])->all()
+            : (trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : []);
+
+        $spawnableContent = $spawnableEditor->update(Storage::disk('dayz')->get($spawnableRevision->storage_path), $classname, [
+            'damage_min' => $parameters['damage_min'] ?? 0,
+            'damage_max' => $parameters['damage_max'] ?? 0,
+            'hoarder' => (bool) ($parameters['hoarder'] ?? false),
+            'attachments' => $attachmentItems ? [['chance' => 1, 'items' => $attachmentItems]] : [],
+            'cargo' => $cargoGroups,
+        ]);
+        $revisionEditor->save($project, $spawnableRevision, $spawnableContent, "Nastaven obsah kontejneru {$classname}", auth()->user());
+
+        return null;
     }
 
     /** Flags fresh/hop/travel modes that have zero player spawn positions. */

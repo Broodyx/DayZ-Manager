@@ -857,7 +857,7 @@ class EditConfiguration extends Page
             'eventForm.init_random' => ['boolean'],
             'eventForm.remove_damaged' => ['boolean'],
             'eventForm.position' => ['required', 'in:fixed,player'],
-            'eventForm.limit' => ['required', 'in:mixed,unlimited,nearest,farthest,custom,child'],
+            'eventForm.limit' => ['required', 'in:mixed,custom,child,parent'],
             'eventForm.active' => ['boolean'],
             'eventForm.children' => ['array'],
             'eventForm.children.*.type' => ['required', 'string', 'regex:/^[A-Za-z0-9_.-]+$/'],

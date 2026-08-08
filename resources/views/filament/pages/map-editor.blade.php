@@ -333,18 +333,63 @@
                                     <option value="player">player</option>
                                 </select>
                             </label>
-                            <label>Limit
+                            <label class="dz-add-event-span2">Limit
                                 <select wire:model="addEventForm.limit">
-                                    <option value="mixed">mixed</option>
-                                    <option value="unlimited">unlimited</option>
-                                    <option value="nearest">nearest</option>
-                                    <option value="farthest">farthest</option>
-                                    <option value="child">child · pevný jednorázový objekt (např. statický kontejner)</option>
+                                    <option value="mixed">mixed · nejběžnější, kombinuje parent i child limity (většina eventů, zvířecí stáda)</option>
+                                    <option value="custom">custom · vlastní/vzácnější logika (samotářská zvířata jako medvěd)</option>
+                                    <option value="child">child · počet řídí atributy child prvku — statické kontejnery, vozidla, domestikovaná zvířata</option>
+                                    <option value="parent">parent · řídí to rodičovský event (vzácné)</option>
                                 </select>
+                                <small>Ověřeno proti oficiálnímu vanilla events.xml (Bohemia Interactive) — jiné hodnoty se ve hře reálně nepoužívají. Pro statický kontejner/vozidlo z tohoto průvodce je vybraný „child“ správně.</small>
                             </label>
                             <label class="dz-add-event-span2">Classname objektu ke spawnutí
                                 <input type="text" list="dz-classname-catalog" placeholder="Např. VehicleTransitBus" wire:model="addEventForm.child_type" autocomplete="off">
                                 <small>Předvyplněno z předchozího kroku; klidně uprav ručně. Nechte prázdné, pokud event žádný konkrétní objekt nespawnuje.</small>
+                            </label>
+                        </div>
+                        <div class="dz-edit-actions">
+                            <button type="button" wire:click="closeAddEventModal" class="dz-secondary">Zrušit</button>
+                            <button type="button" class="dz-action" data-wizard-next="condition" hidden>Pokračovat na stav objektu →</button>
+                            <x-dz-confirm-button call="submitAddEvent()" label="Přidat event a vytvořit revizi" saved-label="Přidáno" class="dz-action" data-wizard-settings-submit />
+                        </div>
+                    </div>
+
+                    <div class="dz-wizard-step" data-wizard-step="condition" hidden>
+                        <button type="button" class="dz-wizard-back" data-wizard-back="settings">← Zpět</button>
+                        <h3>V jakém stavu se má objekt spawnout?</h3>
+                        <p class="dz-muted">Platí pro <code data-wizard-condition-classname></code> a stejný classname všude jinde na mapě — cfgspawnabletypes.xml je klíčované podle classname, ne podle bodu.</p>
+                        <div class="dz-add-event-grid">
+                            <label>Minimální poškození při spawnu<input type="number" min="0" max="1" step="0.01" wire:model="addEventForm.damage_min"><small>0 = 100 % funkční, 1 = zničené.</small></label>
+                            <label>Maximální poškození při spawnu<input type="number" min="0" max="1" step="0.01" wire:model="addEventForm.damage_max"><small>Rozsah určuje náhodné poškození při spawnu; 0–0 = vždy nové.</small></label>
+                            <label class="dz-checkbox-field">Hoarder (nikdy se nedespawnuje jako prázdný)<input type="checkbox" wire:model="addEventForm.hoarder"></label>
+                        </div>
+                        <p class="dz-muted" data-wizard-vehicle-parts-note hidden>Pozor: jednotlivé díly vozidla (kola, dveře, kapota…) mají v cfgspawnabletypes.xml vlastní samostatné classnames, a tedy i vlastní stav — tenhle krok nastavuje jen hlavní karoserii. Díly uprav zvlášť v Souborech a editory.</p>
+                        <div class="dz-edit-actions">
+                            <x-dz-confirm-button call="submitAddEvent()" label="Přidat event bez obsahu" saved-label="Přidáno" class="dz-secondary" />
+                            <button type="button" class="dz-action" data-wizard-next="contents">Pokračovat na obsah →</button>
+                        </div>
+                    </div>
+
+                    <div class="dz-wizard-step" data-wizard-step="contents" hidden>
+                        <button type="button" class="dz-wizard-back" data-wizard-back="condition">← Zpět</button>
+                        <h3>Obsah (volitelné)</h3>
+                        <p class="dz-muted">Platí pro <code data-wizard-contents-classname></code> a stejný classname všude jinde na mapě.</p>
+                        <div class="dz-item-list-field">
+                            <label>Konkrétní itemy uvnitř</label>
+                            <span class="dz-item-list-count" data-wizard-cargo-count>zatím žádné položky</span>
+                            <div class="dz-item-list-rows" data-wizard-cargo-rows></div>
+                            <input type="hidden" wire:model="addEventForm.cargo_items" data-wizard-cargo-hidden>
+                            <button type="button" class="dz-item-list-add" data-wizard-cargo-add>+ přidat item</button>
+                            <small>Pozor: Manager nezná fyzickou kapacitu kontejneru ani rozměr jednotlivých itemů (DayZ cargo je mřížka šířka×výška, ne prostý počet) — počet přidaných položek raději ověř přímo ve hře.</small>
+                        </div>
+                        <div class="dz-add-event-grid">
+                            <label class="dz-add-event-span2">Cargo preset (alternativa ke konkrétním itemům výše)
+                                <input type="text" list="dz-cargo-preset-catalog" wire:model="addEventForm.cargo_preset" autocomplete="off">
+                                <small>Použije se jen pokud výše není zadaný žádný konkrétní item.</small>
+                            </label>
+                            <label class="dz-add-event-span2">Attachmenty
+                                <input type="text" list="dz-attachment-catalog" wire:model="addEventForm.attachments" placeholder="Např. classname1,classname2" autocomplete="off">
+                                <small>Více tříd odděl čárkou.</small>
                             </label>
                         </div>
                         <div class="dz-edit-actions">
@@ -393,6 +438,8 @@
             const goToStep = (modal, step) => {
                 modal.dataset.wizardActiveStep = step;
                 modal.querySelectorAll('.dz-wizard-step').forEach((el) => { el.hidden = el.dataset.wizardStep !== step; });
+                if (step === 'settings') refreshSettingsButtons(modal);
+                if (step === 'condition' || step === 'contents') refreshClassnameDisplays(modal);
             };
             const applyChildType = (modal, value) => {
                 const target = modal.querySelector('input[wire\\:model="addEventForm.child_type"]');
@@ -415,6 +462,65 @@
                     nameInput.dispatchEvent(new Event('input'));
                 }
             };
+            const currentChildType = (modal) => modal.querySelector('input[wire\\:model="addEventForm.child_type"]')?.value.trim() || '';
+            // The settings step is only truly "last" when there's no object — otherwise the
+            // primary action becomes "continue to condition/contents" instead of submitting here.
+            const refreshSettingsButtons = (modal) => {
+                const hasObject = currentChildType(modal) !== '';
+                const nextBtn = modal.querySelector('[data-wizard-next="condition"]');
+                const submitBtn = modal.querySelector('[data-wizard-settings-submit]');
+                if (nextBtn) nextBtn.hidden = !hasObject;
+                if (submitBtn) submitBtn.hidden = hasObject;
+            };
+            const refreshClassnameDisplays = (modal) => {
+                const classname = currentChildType(modal) || '(žádný)';
+                modal.querySelectorAll('[data-wizard-condition-classname], [data-wizard-contents-classname]').forEach((el) => { el.textContent = classname; });
+                const note = modal.querySelector('[data-wizard-vehicle-parts-note]');
+                if (note) note.hidden = modal.dataset.wizardCategory !== 'vehicle';
+            };
+            const cargoRowFieldMeta = {
+                name: { placeholder: 'classname', type: 'text', list: 'dz-classname-catalog' },
+                chance: { placeholder: 'šance 0–1', type: 'number', min: 0, max: 1, step: 0.01 },
+                quantmin: { placeholder: 'min ks', type: 'number', min: 0, step: 1 },
+                quantmax: { placeholder: 'max ks', type: 'number', min: 0, step: 1 },
+            };
+            const syncCargoRows = (modal) => {
+                const rows = modal.querySelector('[data-wizard-cargo-rows]');
+                const hidden = modal.querySelector('[data-wizard-cargo-hidden]');
+                const count = modal.querySelector('[data-wizard-cargo-count]');
+                const items = Array.from(rows.children).map((row) => {
+                    const item = {};
+                    Object.keys(cargoRowFieldMeta).forEach((key) => { item[key] = row.querySelector('[data-item-field="' + key + '"]')?.value || ''; });
+                    return item;
+                }).filter((item) => String(item.name || '').trim() !== '');
+                hidden.value = JSON.stringify(items);
+                hidden.dispatchEvent(new Event('input'));
+                count.textContent = items.length === 0 ? 'zatím žádné položky' : items.length + (items.length === 1 ? ' položka přidána' : items.length < 5 ? ' položky přidány' : ' položek přidáno');
+            };
+            const addCargoRow = (modal) => {
+                const rows = modal.querySelector('[data-wizard-cargo-rows]');
+                const row = document.createElement('div');
+                row.className = 'dz-item-list-row';
+                Object.entries(cargoRowFieldMeta).forEach(([key, meta]) => {
+                    const cell = document.createElement('input');
+                    cell.type = meta.type;
+                    cell.dataset.itemField = key;
+                    cell.placeholder = meta.placeholder;
+                    if (meta.min !== undefined) cell.min = meta.min;
+                    if (meta.max !== undefined) cell.max = meta.max;
+                    if (meta.step !== undefined) cell.step = meta.step;
+                    if (meta.list) cell.setAttribute('list', meta.list);
+                    cell.addEventListener('input', () => syncCargoRows(modal));
+                    row.appendChild(cell);
+                });
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'dz-item-list-remove';
+                remove.textContent = '×';
+                remove.addEventListener('click', () => { row.remove(); syncCargoRows(modal); });
+                row.appendChild(remove);
+                rows.appendChild(row);
+            };
             document.addEventListener('click', (event) => {
                 const categoryBtn = event.target.closest('.dz-wizard-category');
                 if (categoryBtn) {
@@ -425,6 +531,7 @@
                         goToStep(modal, 'settings');
                         return;
                     }
+                    modal.dataset.wizardCategory = category;
                     const options = modal.querySelector('[data-wizard-type-options]');
                     const customField = modal.querySelector('.dz-wizard-custom-classname');
                     const intro = modal.querySelector('[data-wizard-type-intro]');
@@ -467,11 +574,29 @@
                     applyChildType(modal, customInput?.value || '');
                     if (customInput?.value.trim()) suggestName(modal, customInput.value.trim());
                     goToStep(modal, 'settings');
+                    return;
+                }
+                const nextBtn = event.target.closest('[data-wizard-next]');
+                if (nextBtn) {
+                    goToStep(nextBtn.closest('.dz-add-event-wizard'), nextBtn.dataset.wizardNext);
+                    return;
+                }
+                const cargoAddBtn = event.target.closest('[data-wizard-cargo-add]');
+                if (cargoAddBtn) {
+                    const modal = cargoAddBtn.closest('.dz-add-event-wizard');
+                    addCargoRow(modal);
+                    syncCargoRows(modal);
                 }
             });
             document.addEventListener('input', (event) => {
                 if (event.target.matches('[data-wizard-custom-input]')) {
                     applyChildType(event.target.closest('.dz-add-event-wizard'), event.target.value);
+                    return;
+                }
+                // Manually editing "Classname objektu ke spawnutí" directly on the settings
+                // step (not just via the step-2 picker) should also toggle which button shows.
+                if (event.target.matches('input[wire\\:model="addEventForm.child_type"]')) {
+                    refreshSettingsButtons(event.target.closest('.dz-add-event-wizard'));
                 }
             });
         })();

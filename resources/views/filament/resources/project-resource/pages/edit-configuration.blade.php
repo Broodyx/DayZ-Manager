@@ -497,14 +497,12 @@
                                     <label><span><strong>Position</strong><small>fixed = pevné pozice z cfgeventspawns.xml; player = kolem hráčů.</small></span>
                                         <select wire:model="eventForm.position"><option value="fixed">fixed</option><option value="player">player</option></select>
                                     </label>
-                                    <label><span><strong>Limit</strong><small>Jak CE rozhoduje mezi kandidátními pozicemi.</small></span>
+                                    <label><span><strong>Limit</strong><small>Jak CE rozhoduje mezi kandidátními pozicemi. Ověřeno proti oficiálnímu vanilla events.xml (Bohemia Interactive) — jiné hodnoty se ve hře reálně nepoužívají.</small></span>
                                         <select wire:model="eventForm.limit">
-                                            <option value="mixed">mixed</option>
-                                            <option value="unlimited">unlimited</option>
-                                            <option value="nearest">nearest</option>
-                                            <option value="farthest">farthest</option>
-                                            <option value="custom">custom</option>
-                                            <option value="child">child</option>
+                                            <option value="mixed">mixed · nejběžnější, kombinuje parent i child limity (většina eventů, zvířecí stáda)</option>
+                                            <option value="custom">custom · vlastní/vzácnější logika (samotářská zvířata jako medvěd)</option>
+                                            <option value="child">child · počet řídí atributy child prvku — typicky domestikovaná zvířata a jednotlivé statické objekty (kontejnery, vozidla)</option>
+                                            <option value="parent">parent · řídí to rodičovský event (vzácné, např. kontaminované oblasti s dynamickými podzónami)</option>
                                         </select>
                                     </label>
                                     <label><span><strong>Active</strong><small>0 = event je v souboru, ale server ho nepoužívá.</small></span><select wire:model="eventForm.active"><option value="1">1 · aktivní</option><option value="0">0 · vypnuto</option></select></label>

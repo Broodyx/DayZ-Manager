@@ -52,7 +52,7 @@ Route::post('/admin/map-editor/points', function (
         'parameters.damage_min'=>'nullable|numeric|min:0|max:1','parameters.damage_max'=>'nullable|numeric|min:0|max:1','parameters.cargo_preset'=>'nullable|string|max:80','parameters.attachments'=>'nullable|string|max:2000',
         'parameters.cargo_items'=>'nullable|string|max:20000','parameters.hoarder'=>'nullable|boolean',
         'parameters.event_nominal'=>'nullable|integer|min:0|max:100000','parameters.event_min'=>'nullable|integer|min:0|max:100000','parameters.event_max'=>'nullable|integer|min:0|max:100000',
-        'parameters.event_lifetime'=>'nullable|integer|min:0|max:3888000','parameters.event_restock'=>'nullable|integer|min:0|max:3888000','parameters.event_saferadius'=>'nullable|integer|min:0|max:20000','parameters.event_distanceradius'=>'nullable|integer|min:0|max:20000','parameters.event_cleanupradius'=>'nullable|integer|min:0|max:20000','parameters.event_active'=>'nullable|boolean','parameters.event_position'=>'nullable|in:fixed,player','parameters.event_limit'=>'nullable|in:mixed,unlimited,nearest,farthest,child',
+        'parameters.event_lifetime'=>'nullable|integer|min:0|max:3888000','parameters.event_restock'=>'nullable|integer|min:0|max:3888000','parameters.event_saferadius'=>'nullable|integer|min:0|max:20000','parameters.event_distanceradius'=>'nullable|integer|min:0|max:20000','parameters.event_cleanupradius'=>'nullable|integer|min:0|max:20000','parameters.event_active'=>'nullable|boolean','parameters.event_position'=>'nullable|in:fixed,player','parameters.event_limit'=>'nullable|in:mixed,custom,child,parent',
     ]);
     $parameters = $data['parameters'] ?? [];
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
@@ -139,9 +139,13 @@ Route::post('/admin/map-editor/points', function (
                     }
                     $quantmin = $cargoItem['quantmin'] ?? '';
                     $quantmax = $cargoItem['quantmax'] ?? '';
+                    $chanceRaw = $cargoItem['chance'] ?? '';
                     $cargoItems[] = [
                         'name' => $itemName,
-                        'chance' => max(0, min(1, (float) ($cargoItem['chance'] ?? 1))),
+                        // Empty means "not filled in" (default 100%), NOT 0% — an empty string
+                        // survives `?? 1` unharmed since the key is present, so it must be
+                        // checked explicitly or every item silently gets chance=0.
+                        'chance' => max(0, min(1, $chanceRaw === '' || $chanceRaw === null ? 1.0 : (float) $chanceRaw)),
                         'quantmin' => $quantmin !== '' && $quantmin !== null ? max(0, (int) $quantmin) : null,
                         'quantmax' => $quantmax !== '' && $quantmax !== null ? max(0, (int) $quantmax) : null,
                     ];
@@ -267,9 +271,13 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
                             }
                             $quantmin = $cargoItem['quantmin'] ?? '';
                             $quantmax = $cargoItem['quantmax'] ?? '';
+                            $chanceRaw = $cargoItem['chance'] ?? '';
                             $cargoItems[] = [
                                 'name' => $itemName,
-                                'chance' => max(0, min(1, (float) ($cargoItem['chance'] ?? 1))),
+                                // Empty means "not filled in" (default 100%), NOT 0% — an empty
+                                // string survives `?? 1` unharmed since the key is present, so
+                                // it must be checked explicitly or items get chance=0.
+                                'chance' => max(0, min(1, $chanceRaw === '' || $chanceRaw === null ? 1.0 : (float) $chanceRaw)),
                                 'quantmin' => $quantmin !== '' && $quantmin !== null ? max(0, (int) $quantmin) : null,
                                 'quantmax' => $quantmax !== '' && $quantmax !== null ? max(0, (int) $quantmax) : null,
                             ];
