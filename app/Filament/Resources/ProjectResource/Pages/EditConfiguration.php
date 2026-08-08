@@ -2014,7 +2014,10 @@ class EditConfiguration extends Page
         if ($lower === 'cfggameplay.json') {
             $decoded = json_decode($this->rawContent, true);
             foreach (['objectSpawnersArr', 'spawnGearPresetFiles'] as $key) {
-                $files = data_get($decoded, 'PlayerData.'.$key, data_get($decoded, 'WorldData.'.$key, data_get($decoded, $key, [])));
+                // Real cfggameplay.json exports nest this under "WorldsData" (plural) — not the
+                // "WorldData" this fallback chain checked before, which meant this warning could
+                // never actually find objectSpawnersArr/spawnGearPresetFiles in a real file.
+                $files = data_get($decoded, 'PlayerData.'.$key, data_get($decoded, 'WorldsData.'.$key, data_get($decoded, $key, [])));
                 foreach (is_array($files) ? $files : [] as $required) {
                     if (is_string($required) && ! $byName(basename($required))) {
                         $warnings[] = "{$key} odkazuje na chybějící soubor {$required}.";

@@ -10,16 +10,19 @@ use App\Services\Dayz\EnvironmentTargetCatalog;
 use App\Services\Dayz\EventsXmlEditor;
 use App\Services\Dayz\MapConfigurationEditor;
 use App\Services\Dayz\MapConfigurationReader;
+use App\Services\Dayz\ObjectCatalogService;
 use App\Services\Dayz\ServerFileLayout;
 use App\Services\Ftp\FtpBrowser;
 use App\Services\Import\ConfigurationImporter;
 use App\Services\Revision\ConfigurationRevisionEditor;
 use App\Services\Revision\EnvironmentXmlEditor;
+use App\Services\Revision\ObjectSpawnerJsonEditor;
 use App\Services\Revision\SpawnableTypesXmlEditor;
 use App\Services\Revision\TypesXmlEditor;
 use App\Support\ActiveProject;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -68,15 +71,22 @@ class MapEditor extends Page
     {
         $cargoSizeCatalog = app(CargoSizeCatalog::class)->all();
         $classnameCatalog = app(ClassnameCatalog::class);
+        $objectCatalogService = app(ObjectCatalogService::class);
 
         return [
             'cargoSizeCatalog' => $cargoSizeCatalog,
             'classnameOptions' => collect($classnameCatalog->names())
                 ->merge(collect($cargoSizeCatalog)->pluck('classname'))
+                ->merge(collect($objectCatalogService->all())->pluck('classname'))
                 ->unique()
                 ->sort()
                 ->values()
                 ->all(),
+            // Same reasoning as the two catalogs above (cache-backed, recomputed fresh every
+            // render, never a synced property) — this one is additionally too large (~900KB) to
+            // want duplicated into Livewire's snapshot on every action even if it stayed public.
+            'objectCatalog' => array_values($objectCatalogService->all()),
+            'objectCategories' => $objectCatalogService->categories(),
         ];
     }
 
@@ -1025,6 +1035,30 @@ class MapEditor extends Page
                 $this->mapSources[] = $source;
             }
         }
+
+        // Object Spawner files have no fixed name — the user picks it (custom/base.json,
+        // custom/castle.json, custom/military.json, ...) — so unlike every pattern above,
+        // "is this an Object Spawner file" can only be answered by content (does it decode to
+        // an "Objects" array?), not a filename glob. Catch any *.json revision the loop above
+        // didn't already classify and check its content the same way MapConfigurationReader
+        // does when actually reading markers — otherwise a correctly-read, fully-editable file
+        // would still show as "not uploaded" here with no layer checkbox to see it at all.
+        $alreadyMatched = collect($this->mapSources)->pluck('filename')->map(fn ($name) => strtolower($name))->all();
+        $objectSpawnerEditor = new ObjectSpawnerJsonEditor();
+        foreach ($revisions as $revision) {
+            $actualName = $this->revisionFilename($revision);
+            if (! str_ends_with($actualName, '.json') || in_array($actualName, $alreadyMatched, true)) {
+                continue;
+            }
+            if (! Storage::disk('dayz')->exists($revision->storage_path)) {
+                continue;
+            }
+            $content = Storage::disk('dayz')->get($revision->storage_path);
+            if (! $objectSpawnerEditor->supports($actualName, $content)) {
+                continue;
+            }
+            $this->mapSources[] = $this->source($actualName, 'Object Spawner: vlastní objekty, pozice a orientace.', true, $revision);
+        }
     }
 
     public function loadEventCatalog(): void
@@ -1311,6 +1345,39 @@ class MapEditor extends Page
             ['name' => 'dmin', 'label' => 'Dynamický spawn minimum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut dmin. Minimální počet dynamických výskytů.'],
             ['name' => 'dmax', 'label' => 'Dynamický spawn maximum', 'type' => 'number', 'min' => 0, 'max' => 1000, 'default' => 0, 'help' => 'Atribut dmax. Maximální počet dynamických výskytů.'],
         ];
+        $objectSpawnerFields = [
+            // Only shown once a point already exists (edit_only): at creation time the classname
+            // comes from the dedicated search/category picker in the blade template instead —
+            // this plain text field (with the same classname datalist as everywhere else) is
+            // just for changing which class an already-placed object represents.
+            ['name' => 'classname', 'edit_only' => true, 'label' => 'Classname objektu', 'type' => 'text', 'list' => 'dz-classname-catalog', 'default' => '', 'required' => true, 'help' => 'Přesná DayZ třída objektu (např. Land_Castle_Bastion, Barrel_Green).'],
+            ['name' => 'height', 'label' => 'Výška Y (m)', 'type' => 'number', 'min' => -1000, 'max' => 5000, 'step' => 0.001, 'default' => 0, 'help' => 'Nadmořská výška objektu v daném bodě (osa Y).'],
+            ['name' => 'yaw', 'label' => 'Natočení yaw (°)', 'type' => 'number', 'min' => -360, 'max' => 360, 'step' => 0.001, 'default' => 0, 'help' => 'Otočení objektu kolem svislé osy.'],
+            ['name' => 'pitch', 'label' => 'Náklon pitch (°)', 'type' => 'number', 'min' => -360, 'max' => 360, 'step' => 0.001, 'default' => 0, 'help' => 'Náklon dopředu/dozadu. Výchozí 0.'],
+            ['name' => 'roll', 'label' => 'Náklon roll (°)', 'type' => 'number', 'min' => -360, 'max' => 360, 'step' => 0.001, 'default' => 0, 'help' => 'Náklon do stran. Výchozí 0.'],
+            ['name' => 'scale', 'label' => 'Měřítko', 'type' => 'number', 'min' => 0.01, 'max' => 100, 'step' => 0.01, 'default' => 1, 'help' => '1 = původní velikost objektu.'],
+            ['name' => 'enable_ce_persistency', 'label' => 'Central Economy persistence', 'type' => 'checkbox', 'default' => false, 'help' => 'Zaškrtnuto = objekt se ukládá/persistuje přes Central Economy stejně jako jiné perzistentní entity.'],
+        ];
+        // Every *spawner*.json already registered in this project's cfggameplay.json →
+        // objectSpawnersArr, so the "which file" picker can offer them directly instead of
+        // forcing every save to guess/retype an exact path — same $uploaded map every other
+        // point type here already reads from.
+        $registeredSpawnerFiles = [];
+        $gameplayRevision = $revisions->first(fn ($item) => $this->revisionFilename($item) === 'cfggameplay.json');
+        if ($gameplayRevision && Storage::disk('dayz')->exists($gameplayRevision->storage_path)) {
+            $gameplayDecoded = json_decode(Storage::disk('dayz')->get($gameplayRevision->storage_path), true);
+            if (is_array($gameplayDecoded)) {
+                $registeredSpawnerFiles = collect(
+                    Arr::get($gameplayDecoded, 'WorldsData.objectSpawnersArr')
+                    ?? Arr::get($gameplayDecoded, 'PlayerData.objectSpawnersArr')
+                    ?? Arr::get($gameplayDecoded, 'objectSpawnersArr')
+                    ?? []
+                )->filter(fn ($file) => is_string($file) && trim($file) !== '')->map(fn (string $file) => str_replace('\\', '/', $file))->unique()->values()->all();
+            }
+        }
+        $objectSpawnerFileOptions = collect($registeredSpawnerFiles)
+            ->map(fn (string $file) => ['value' => $file, 'label' => $file, 'target' => $file, 'available' => isset($uploaded[strtolower(basename($file))])])
+            ->values()->all();
 
         $this->pointTypeCatalog = [
             'vehicle' => array_merge($exact('cfgeventspawns.xml', $eventOptions($eventsBy(fn ($event) => Str::startsWith($event['name'], 'Vehicle')), 'cfgeventspawns.xml'), 'Tento formulář ukládá kandidátní pozici a natočení. Počet vozidel a jejich životnost řídí events.xml; attachmenty a náklad cfgspawnabletypes.xml.', ['events.xml']), ['fields' => $eventFields, 'related' => ['events.xml' => 'počet, limity, životnost a aktivace', 'cfgspawnabletypes.xml' => 'attachmenty, cargo a poškození']]),
@@ -1362,9 +1429,16 @@ class MapEditor extends Page
                 'related' => ['events.xml' => 'počet skupin, lifetime a restock nakažených'],
             ],
             'custom' => [
-                'target' => null, 'target_label' => 'Object Spawner JSON', 'available' => false,
-                'missing' => ['Object Spawner JSON'], 'upload_url' => $uploadUrl('*spawner*.json'),
-                'options' => [], 'help' => 'Vlastní objekt nelze bezpečně zapsat bez třídy objektu, orientace a aktuálního Object Spawner JSON.',
+                // Unlike every other point type here, availability never depends on an already-
+                // uploaded file: the very first object placed in a project creates its own
+                // custom/*.json (via ConfigurationImporter::importGeneratedFile()) and registers
+                // it in cfggameplay.json's objectSpawnersArr automatically — see the store route.
+                'target' => null, 'target_label' => 'Object Spawner JSON (custom/*.json)', 'available' => true,
+                'missing' => [], 'upload_url' => $uploadUrl('*spawner*.json'),
+                'options' => $objectSpawnerFileOptions,
+                'help' => 'Vyber objekt z katalogu a soubor, do kterého se má uložit. Pokud soubor ještě neexistuje, založí se při prvním uložení a zaregistruje do cfggameplay.json (objectSpawnersArr).',
+                'fields' => $objectSpawnerFields,
+                'related' => ['cfggameplay.json' => 'registrace souboru do objectSpawnersArr'],
             ],
             '_spawnable_suggestions' => $spawnableSuggestions,
         ];

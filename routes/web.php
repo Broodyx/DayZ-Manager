@@ -20,6 +20,8 @@ Route::post('/admin/map-editor/points', function (
     \App\Services\Revision\TypesXmlEditor $typesEditor,
     \App\Services\Dayz\EventsXmlEditor $eventsEditor,
     \App\Services\Revision\SpawnableTypesXmlEditor $spawnableEditor,
+    \App\Services\Revision\ObjectSpawnerJsonEditor $objectSpawnerEditor,
+    ConfigurationImporter $configurationImporter,
 ) {
     $data = $request->validate([
         'project_id'=>'required|integer','type'=>'required|string|max:40','label'=>'required|string|max:120',
@@ -53,9 +55,65 @@ Route::post('/admin/map-editor/points', function (
         'parameters.cargo_items'=>'nullable|string|max:20000','parameters.hoarder'=>'nullable|boolean',
         'parameters.event_nominal'=>'nullable|integer|min:0|max:100000','parameters.event_min'=>'nullable|integer|min:0|max:100000','parameters.event_max'=>'nullable|integer|min:0|max:100000',
         'parameters.event_lifetime'=>'nullable|integer|min:0|max:3888000','parameters.event_restock'=>'nullable|integer|min:0|max:3888000','parameters.event_saferadius'=>'nullable|integer|min:0|max:20000','parameters.event_distanceradius'=>'nullable|integer|min:0|max:20000','parameters.event_cleanupradius'=>'nullable|integer|min:0|max:20000','parameters.event_active'=>'nullable|boolean','parameters.event_position'=>'nullable|in:fixed,player','parameters.event_limit'=>'nullable|in:mixed,custom,child,parent',
+        'parameters.classname'=>'nullable|string|max:120','parameters.height'=>'nullable|numeric|min:-1000|max:5000',
+        'parameters.yaw'=>'nullable|numeric|min:-360|max:360','parameters.pitch'=>'nullable|numeric|min:-360|max:360','parameters.roll'=>'nullable|numeric|min:-360|max:360',
+        'parameters.scale'=>'nullable|numeric|min:0.01|max:100','parameters.enable_ce_persistency'=>'nullable|boolean',
     ]);
     $parameters = $data['parameters'] ?? [];
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
+
+    if ($data['type'] === 'custom') {
+        // Object Spawner is JSON-shaped, project-chosen-filename ("custom/military.json"), and
+        // can create both its target file AND its cfggameplay.json registration on first save —
+        // none of which fits the shared XML-editor match(true) flow below (which has no default
+        // arm and would UnhandledMatchError on 'custom' if this didn't return early).
+        $targetFile = str_replace('\\', '/', trim($data['target_filename']));
+        abort_unless((bool) preg_match('#^custom/[A-Za-z0-9_-]+\.json$#', $targetFile), 422, 'Cílový soubor musí být ve tvaru custom/nazev.json.');
+        $objectData = [
+            'name' => trim((string) ($parameters['classname'] ?? '')),
+            'pos' => [(float) $data['x'], (float) ($parameters['height'] ?? 0), (float) $data['z']],
+            'ypr' => [(float) ($parameters['yaw'] ?? 0), (float) ($parameters['pitch'] ?? 0), (float) ($parameters['roll'] ?? 0)],
+            'scale' => (float) ($parameters['scale'] ?? 1),
+            'enableCEPersistency' => (bool) ($parameters['enable_ce_persistency'] ?? false),
+        ];
+        $errors = $objectSpawnerEditor->validate($objectData);
+        abort_if($errors !== [], 422, $errors[0] ?? '');
+
+        $source = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? '')) === strtolower($targetFile));
+        if (! $source || ! Storage::disk('dayz')->exists($source->storage_path)) {
+            try {
+                $import = $configurationImporter->importGeneratedFile($project, $targetFile, '{"Objects": []}', auth()->user());
+            } catch (\RuntimeException $exception) {
+                abort(422, $exception->getMessage());
+            }
+            $source = $import->revisions()->latest('revision_number')->first();
+        }
+
+        try {
+            $content = $objectSpawnerEditor->append(Storage::disk('dayz')->get($source->storage_path), $objectData);
+        } catch (\RuntimeException $exception) {
+            abort(422, $exception->getMessage());
+        }
+        $saved = $editor->save($project, $source, $content, 'Přidán objekt '.$objectData['name'].' ('.round($data['x'], 1).', '.round((float) ($parameters['height'] ?? 0), 1).', '.round($data['z'], 1).')', auth()->user());
+
+        $gameplayWarning = null;
+        $gameplaySource = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename(str_replace('\\', '/', $revision->configurationImport?->original_filename ?? $revision->storage_path))) === 'cfggameplay.json');
+        if (! $gameplaySource || ! Storage::disk('dayz')->exists($gameplaySource->storage_path)) {
+            $gameplayWarning = 'Objekt uložen. Registrace v cfggameplay.json se nesynchronizovala — nejprve importujte aktuální cfggameplay.json.';
+        } else {
+            try {
+                $gameplayContent = $objectSpawnerEditor->registerSpawnerFile(Storage::disk('dayz')->get($gameplaySource->storage_path), $targetFile);
+                $editor->save($project, $gameplaySource, $gameplayContent, 'Zaregistrován '.$targetFile.' v objectSpawnersArr', auth()->user());
+            } catch (\RuntimeException $exception) {
+                $gameplayWarning = 'Objekt uložen. Registrace v cfggameplay.json se nesynchronizovala — '.$exception->getMessage();
+            }
+        }
+
+        return response()->json(['ok' => true, 'revision' => $saved->revision_number, 'warning' => $gameplayWarning]);
+    }
+
     $eventTypes = ['vehicle','dynamic','heli','convoy','aerial'];
     $eventBacked = [...$eventTypes, 'animal'];
     $eventName = $data['type'] === 'animal' ? 'Animal'.$data['label'] : $data['label'];
@@ -197,7 +255,7 @@ Route::post('/admin/map-editor/points', function (
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'types_added'=>$typesAdded]);
 })->middleware('auth')->name('map-editor.points.store');
 
-Route::post('/admin/map-editor/points/update', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor, \App\Services\Revision\SpawnableTypesXmlEditor $spawnableEditor, \App\Services\Dayz\EventsXmlEditor $eventsEditor) {
+Route::post('/admin/map-editor/points/update', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor, \App\Services\Revision\SpawnableTypesXmlEditor $spawnableEditor, \App\Services\Dayz\EventsXmlEditor $eventsEditor, \App\Services\Revision\ObjectSpawnerJsonEditor $objectSpawnerEditor) {
     $data = $request->validate([
         'project_id'=>'required|integer','revision_id'=>'required|integer','filename'=>'required|string','label'=>'required|string|max:120','path'=>'required|string|max:1000',
         'x'=>'required|numeric','z'=>'required|numeric','new_x'=>'required|numeric|min:0|max:15360','new_z'=>'required|numeric|min:0|max:15360',
@@ -224,15 +282,29 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
         'parameters.event_classname'=>['nullable', 'string', 'max:120', 'regex:/^[A-Za-z0-9_.-]*$/'],
         'parameters.event_nominal'=>'nullable|integer|min:0|max:100000','parameters.event_min'=>'nullable|integer|min:0|max:100000','parameters.event_max'=>'nullable|integer|min:0|max:100000',
         'parameters.event_lifetime'=>'nullable|integer|min:0|max:3888000','parameters.event_restock'=>'nullable|integer|min:0|max:3888000','parameters.event_saferadius'=>'nullable|integer|min:0|max:20000','parameters.event_distanceradius'=>'nullable|integer|min:0|max:20000','parameters.event_cleanupradius'=>'nullable|integer|min:0|max:20000','parameters.event_active'=>'nullable|boolean','parameters.event_deletable'=>'nullable|boolean','parameters.event_init_random'=>'nullable|boolean','parameters.event_remove_damaged'=>'nullable|boolean','parameters.event_position'=>'nullable|in:fixed,player','parameters.event_limit'=>'nullable|in:mixed,custom,child,parent',
+        'parameters.classname'=>'nullable|string|max:120','parameters.height'=>'nullable|numeric|min:-1000|max:5000','parameters.scale'=>'nullable|numeric|min:0.01|max:100','parameters.enable_ce_persistency'=>'nullable|boolean',
     ]);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
     $filename = strtolower(basename(str_replace('\\', '/', $data['filename'])));
     abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422);
     abort_unless(strtolower(basename($source->configurationImport?->original_filename ?? '')) === $filename, 422, 'Vybraná revize nepatří k tomuto mapovému souboru. Obnovte Mapu a zkuste to znovu.');
-    abort_if(str_ends_with(strtolower($data['filename']), '.json'), 422, 'JSON mapové body upravte ve vizuálním JSON editoru.');
+    $sourceContent = Storage::disk('dayz')->get($source->storage_path);
+    $isObjectSpawner = str_ends_with(strtolower($data['filename']), '.json') && $objectSpawnerEditor->supports($data['filename'], $sourceContent);
+    abort_if(str_ends_with(strtolower($data['filename']), '.json') && ! $isObjectSpawner, 422, 'JSON mapové body upravte ve vizuálním JSON editoru.');
     try {
-        $content = $mapEditor->updateCoordinates($data['filename'], Storage::disk('dayz')->get($source->storage_path), $data['path'], (float) $data['new_x'], (float) $data['new_z'], $data['parameters'] ?? []);
+        if ($isObjectSpawner) {
+            $objectParameters = $data['parameters'] ?? [];
+            $content = $objectSpawnerEditor->updateAt($sourceContent, $objectSpawnerEditor->indexFromPath($data['path']), [
+                'name' => trim((string) ($objectParameters['classname'] ?? $data['label'])),
+                'pos' => [(float) $data['new_x'], (float) ($objectParameters['height'] ?? 0), (float) $data['new_z']],
+                'ypr' => [(float) ($objectParameters['yaw'] ?? 0), (float) ($objectParameters['pitch'] ?? 0), (float) ($objectParameters['roll'] ?? 0)],
+                'scale' => (float) ($objectParameters['scale'] ?? 1),
+                'enableCEPersistency' => (bool) ($objectParameters['enable_ce_persistency'] ?? false),
+            ]);
+        } else {
+            $content = $mapEditor->updateCoordinates($data['filename'], $sourceContent, $data['path'], (float) $data['new_x'], (float) $data['new_z'], $data['parameters'] ?? []);
+        }
     } catch (\RuntimeException $exception) {
         abort(422, $exception->getMessage());
     }
@@ -386,15 +458,19 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id,'warning'=>$combinedWarning]);
 })->middleware('auth')->name('map-editor.points.update');
 
-Route::post('/admin/map-editor/points/delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor) {
+Route::post('/admin/map-editor/points/delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor, \App\Services\Revision\ObjectSpawnerJsonEditor $objectSpawnerEditor) {
     $data = $request->validate(['project_id'=>'required|integer','revision_id'=>'required|integer','filename'=>'required|string','path'=>'required|string|max:1000','x'=>'required|numeric','z'=>'required|numeric']);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
     abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422);
     abort_unless(strtolower(basename($source->configurationImport?->original_filename ?? '')) === strtolower(basename($data['filename'])), 422, 'Vybraná revize nepatří k tomuto mapovému souboru. Obnovte Mapu a zkuste to znovu.');
-    abort_if(str_ends_with(strtolower($data['filename']), '.json'), 422, 'JSON mapové body odstraňte ve vizuálním JSON editoru.');
+    $sourceContent = Storage::disk('dayz')->get($source->storage_path);
+    $isObjectSpawner = str_ends_with(strtolower($data['filename']), '.json') && $objectSpawnerEditor->supports($data['filename'], $sourceContent);
+    abort_if(str_ends_with(strtolower($data['filename']), '.json') && ! $isObjectSpawner, 422, 'JSON mapové body odstraňte ve vizuálním JSON editoru.');
     try {
-        $content = $mapEditor->delete(Storage::disk('dayz')->get($source->storage_path), $data['path']);
+        $content = $isObjectSpawner
+            ? $objectSpawnerEditor->removeAt($sourceContent, $objectSpawnerEditor->indexFromPath($data['path']))
+            : $mapEditor->delete($sourceContent, $data['path']);
     } catch (\RuntimeException $exception) {
         abort(422, $exception->getMessage());
     }
@@ -402,20 +478,53 @@ Route::post('/admin/map-editor/points/delete', function (Request $request, \App\
     return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id]);
 })->middleware('auth')->name('map-editor.points.delete');
 
-Route::post('/admin/map-editor/points/bulk-delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor) {
+Route::post('/admin/map-editor/points/duplicate', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Revision\ObjectSpawnerJsonEditor $objectSpawnerEditor) {
+    $data = $request->validate(['project_id'=>'required|integer','revision_id'=>'required|integer','filename'=>'required|string','path'=>'required|string|max:1000']);
+    $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
+    $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
+    abort_unless($source && Storage::disk('dayz')->exists($source->storage_path), 422);
+    abort_unless(strtolower(basename($source->configurationImport?->original_filename ?? '')) === strtolower(basename($data['filename'])), 422, 'Vybraná revize nepatří k tomuto mapovému souboru. Obnovte Mapu a zkuste to znovu.');
+    $sourceContent = Storage::disk('dayz')->get($source->storage_path);
+    abort_unless($objectSpawnerEditor->supports($data['filename'], $sourceContent), 422, 'Duplikace je zatím podporována jen pro Object Spawner objekty.');
+    try {
+        $content = $objectSpawnerEditor->duplicateAt($sourceContent, $objectSpawnerEditor->indexFromPath($data['path']));
+    } catch (\RuntimeException $exception) {
+        abort(422, $exception->getMessage());
+    }
+    $saved = $editor->save($project, $source, $content, 'Zdvojen objekt', auth()->user());
+    return response()->json(['ok'=>true,'revision'=>$saved->revision_number,'revision_id'=>$saved->id]);
+})->middleware('auth')->name('map-editor.points.duplicate');
+
+Route::post('/admin/map-editor/points/bulk-delete', function (Request $request, \App\Services\Revision\ConfigurationRevisionEditor $editor, \App\Services\Dayz\MapConfigurationEditor $mapEditor, \App\Services\Revision\ObjectSpawnerJsonEditor $objectSpawnerEditor) {
     $data = $request->validate([
         'project_id' => ['required', 'integer'],
         'revision_id' => ['required', 'integer'],
-        'filename' => ['required', 'in:cfgeventspawns.xml,cfgplayerspawnpoints.xml'],
+        'filename' => ['required', 'string', 'max:160'],
         'scopes' => ['required', 'array', 'min:1'],
         'scopes.*' => ['string', 'max:220'],
     ]);
     $project = Project::query()->when(! auth()->user()?->is_admin, fn ($query) => $query->where('user_id', auth()->id()))->findOrFail($data['project_id']);
     $source = $project->revisions()->with('configurationImport')->findOrFail($data['revision_id']);
-    abort_unless(strtolower(basename($source->configurationImport?->original_filename ?? '')) === $data['filename'], 422, 'Revize nepatří vybranému souboru.');
+    $resolvedFilename = strtolower(basename(str_replace('\\', '/', $source->configurationImport?->original_filename ?? '')));
+    abort_unless($resolvedFilename === strtolower(basename($data['filename'])), 422, 'Revize nepatří vybranému souboru.');
     abort_unless(Storage::disk('dayz')->exists($source->storage_path), 422, 'Zdrojová revize už není dostupná.');
+    $sourceContent = Storage::disk('dayz')->get($source->storage_path);
+
+    if ($objectSpawnerEditor->supports($data['filename'], $sourceContent)) {
+        try {
+            $indexes = array_map(fn (string $path) => $objectSpawnerEditor->indexFromPath($path), $data['scopes']);
+            $content = $objectSpawnerEditor->removeMany($sourceContent, $indexes);
+        } catch (\RuntimeException $exception) {
+            abort(422, $exception->getMessage());
+        }
+        $saved = $editor->save($project, $source, $content, 'Hromadně odstraněno '.count($indexes).' objektů', auth()->user());
+
+        return response()->json(['ok' => true, 'deleted' => count($indexes), 'revision' => $saved->revision_number]);
+    }
+
+    abort_unless(in_array($resolvedFilename, ['cfgeventspawns.xml', 'cfgplayerspawnpoints.xml'], true), 422, 'Hromadné mazání je podporováno jen pro cfgeventspawns.xml, cfgplayerspawnpoints.xml a Object Spawner soubory.');
     try {
-        $result = $mapEditor->deleteScopes($data['filename'], Storage::disk('dayz')->get($source->storage_path), $data['scopes']);
+        $result = $mapEditor->deleteScopes($data['filename'], $sourceContent, $data['scopes']);
     } catch (\RuntimeException $exception) {
         abort(422, $exception->getMessage());
     }

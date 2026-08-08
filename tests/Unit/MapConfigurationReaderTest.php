@@ -344,4 +344,52 @@ class MapConfigurationReaderTest extends TestCase
 
         $this->assertArrayNotHasKey('Empty_Shed', $categories);
     }
+
+    public function test_object_spawner_json_produces_editable_markers_with_rotation_and_persistency(): void
+    {
+        $json = '{"Objects": [{"name": "Land_Castle_Bastion", "pos": [7500, 12, 8200], "ypr": [90, 0, 0], "scale": 1, "enableCEPersistency": true}]}';
+
+        $markers = (new MapConfigurationReader())->markers('custom/military.json', $json);
+
+        $this->assertCount(1, $markers);
+        $marker = $markers[0];
+        $this->assertSame('object-spawner', $marker['type']);
+        $this->assertTrue($marker['editable']);
+        $this->assertSame(7500.0, $marker['worldX']);
+        $this->assertSame(8200.0, $marker['worldZ']);
+        $this->assertSame('Land_Castle_Bastion', $marker['label']);
+        $this->assertSame('Land_Castle_Bastion', $marker['parameters']['classname']);
+        $this->assertSame(12.0, $marker['parameters']['height']);
+        $this->assertSame(90.0, $marker['parameters']['yaw']);
+        $this->assertSame(0.0, $marker['parameters']['pitch']);
+        $this->assertSame(0.0, $marker['parameters']['roll']);
+        $this->assertTrue($marker['parameters']['enable_ce_persistency']);
+        $this->assertSame('Objects[0]', $marker['path']);
+    }
+
+    // Object-catalog enrichment (catalog_known/catalog_category, requires the Cache facade) is
+    // covered in tests/Feature/MapEditorObjectSpawnerTest.php instead — this file is a plain
+    // PHPUnit\Framework\TestCase with no Laravel container bootstrapped, so ObjectCatalogService
+    // (which caches via the Cache facade) can't be exercised here.
+    public function test_object_spawner_marker_is_editable_and_unenriched_when_no_catalog_is_supplied(): void
+    {
+        $json = '{"Objects": [{"name": "Barrel_Green", "pos": [1, 0, 2], "ypr": [0, 0, 0]}]}';
+
+        $markers = (new MapConfigurationReader())->markers('custom/base.json', $json);
+
+        $this->assertTrue($markers[0]['editable']);
+        $this->assertNull($markers[0]['parameters']['catalog_category']);
+        $this->assertFalse($markers[0]['parameters']['catalog_known']);
+    }
+
+    public function test_arbitrary_json_positions_still_fall_back_to_the_generic_read_only_reader(): void
+    {
+        $json = '{"AreaName": "Custom Zone", "Pos": [100, 0, 200]}';
+
+        $markers = (new MapConfigurationReader())->markers('cfgeffectarea.json', $json);
+
+        $this->assertCount(1, $markers);
+        $this->assertSame('json-position', $markers[0]['type']);
+        $this->assertFalse($markers[0]['editable']);
+    }
 }

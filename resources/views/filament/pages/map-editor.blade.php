@@ -26,7 +26,7 @@
                     <button data-point="player">Spawn hráče</button>
                     <button data-point="territory">Území / základna</button>
                     <button data-point="aerial">Letecký event</button>
-                    <button data-point="custom">Vlastní bod</button>
+                    <button data-point="custom">Object Spawner</button>
                 </div>
                 <p class="dz-muted dz-point-new-event-hint">
                     Event, vozidlo, heli crash ani konvoj (ani statický kontejner typu barel/bedna) ještě neexistují v <code>events.xml</code>?
@@ -37,6 +37,18 @@
                     <label>Možnosti pro vybraný typ</label>
                     <select></select>
                     <div class="dz-point-target-status"></div>
+                    <div class="dz-object-picker" hidden>
+                        <label>Nebo nový soubor (pokud výše nevybíráš existující)
+                            <input class="dz-object-new-file" placeholder="custom/nazev.json">
+                        </label>
+                        <label>Search classname...
+                            <input type="search" class="dz-object-search" placeholder="Search classname...">
+                        </label>
+                        <div class="dz-object-categories"></div>
+                        <p class="dz-object-selected" hidden></p>
+                        <div class="dz-object-results"></div>
+                        <input type="hidden" data-parameter="classname">
+                    </div>
                     <input class="dz-point-name" placeholder="Vlastní název (volitelné)">
                     <div class="dz-point-fields"></div>
                     <small class="dz-point-help"></small>
@@ -1027,6 +1039,8 @@
                 return node;
             };
             const pointTypeCatalog = @js($pointTypeCatalog);
+            const objectCatalog = @js($objectCatalog);
+            const objectCategories = @js($objectCategories);
             // Always present in the DOM (unlike a server-rendered datalist scoped inside the
             // Add-event wizard's conditional block) so the classname suggestion list also works
             // for the separate point-edit modal — e.g. its "Classname objektu" field — without
@@ -1061,6 +1075,7 @@
                 if (marker.type === 'event-spawn') return pointTypeCatalog.dynamic;
                 if (marker.type === 'map-group') return pointTypeCatalog.loot;
                 if (marker.type === 'territory') return pointTypeCatalog.territory;
+                if (marker.type === 'object-spawner') return pointTypeCatalog.custom;
                 return null;
             };
             const buildPointFields = (root, fields, values = {}, editMode = false, containerClassname = '') => {
@@ -1308,10 +1323,17 @@
             const syncPointTarget = () => {
                 const catalogRoot = document.getElementById('dz-event-catalog');
                 const definition = pointTypeCatalog[pendingButton?.dataset.point] || {};
+                const isObjectSpawner = pendingButton?.dataset.point === 'custom';
                 const selectedIndex = catalogRoot.querySelector('select').selectedIndex - 1;
                 selectedCatalogOption = selectedIndex >= 0 ? (definition.options || [])[selectedIndex] : null;
-                const target = selectedCatalogOption?.target || definition.target;
-                const available = Boolean(target && definition.available !== false && selectedCatalogOption?.available !== false);
+                // Object Spawner picks its target FILE from the same dropdown every other point
+                // type uses to pick an existing NAMED thing (options[].target) — but unlike
+                // those, it also allows typing a brand-new filename, since the very first object
+                // in a project has no existing file to select yet.
+                const newFileValue = isObjectSpawner ? (catalogRoot.querySelector('.dz-object-new-file')?.value || '').trim() : '';
+                const target = selectedCatalogOption?.target || newFileValue || definition.target;
+                const classnameChosen = isObjectSpawner ? Boolean((catalogRoot.querySelector('[data-parameter="classname"]')?.value || '').trim()) : true;
+                const available = Boolean(target && classnameChosen && definition.available !== false && selectedCatalogOption?.available !== false);
                 const missing = selectedCatalogOption?.available === false
                     ? [selectedCatalogOption.target]
                     : (definition.missing || []);
@@ -1324,21 +1346,25 @@
                         mkEl('span', {text:'Uložení vytvoří novou revizi tohoto souboru; původní revize zůstane zachována.'}),
                     );
                     catalogRoot.querySelector('.dz-map-feedback').hidden = true;
+                } else if (isObjectSpawner && !classnameChosen) {
+                    status.className = 'dz-point-target-status missing';
+                    status.replaceChildren(mkEl('strong', {text: 'Nejprve vyber objekt z katalogu níže.'}));
                 } else {
                     const names = missing.length ? missing.join(', ') : (definition.target_label || 'požadovaná konfigurace');
                     status.className = 'dz-point-target-status missing';
                     const nodes = [
                         mkEl('strong', {text:'Chybí aktuální soubor: ' + names}),
-                        mkEl('span', {text:'Bez něj bod nelze bezpečně uložit do DayZ konfigurace.'}),
+                        mkEl('span', {text: isObjectSpawner ? 'Vyber existující soubor výše nebo napiš nový (custom/nazev.json).' : 'Bez něj bod nelze bezpečně uložit do DayZ konfigurace.'}),
                     ];
                     if (uploadUrl) nodes.push(mkEl('a', {href:uploadUrl, text:'Nahrát aktuální konfiguraci →'}));
                     status.replaceChildren(...nodes);
-                    if (selectedCatalogOption || (definition.options || []).length === 0) {
+                    if (!isObjectSpawner && (selectedCatalogOption || (definition.options || []).length === 0)) {
                         showFeedback(catalogRoot, 'Chybí ' + names + ' — nejdřív ho nahraj, jinak se bod neuloží.');
                     }
                 }
                 const confirm = catalogRoot.querySelector('.dz-point-confirm');
-                confirm.disabled = !available || (!selectedCatalogOption && (definition.options || []).length > 0);
+                const optionRequiredButUnmet = !isObjectSpawner && !selectedCatalogOption && (definition.options || []).length > 0;
+                confirm.disabled = !available || optionRequiredButUnmet;
                 confirm.textContent = available ? 'Umístit bod a vytvořit revizi' : 'Nejprve nahrajte požadovaný soubor';
                 renderRelatedSettings();
                 syncTerritoryZoneField();
@@ -1359,6 +1385,78 @@
                 const help = input.closest('label')?.querySelector('small');
                 if (help) help.textContent = 'Povinné pro zvířata. Povolené hodnoty: Graze, Water, Rest. HuntingGround hra pro stáda nepoužije.';
             };
+            // Object Spawner's classname picker: search + category filter + a bounded results
+            // list (not true virtual scrolling — just capped at OBJECT_RESULTS_LIMIT rendered
+            // rows — but cheap enough for a few thousand catalog entries that real windowing
+            // would be over-engineering here). Kept as its own block since none of the generic
+            // "options[] dropdown" machinery above fits picking a classname from thousands of
+            // entries; the target FILE (which .dz-event-catalog's own <select> still handles)
+            // and the classname are two independent choices for this point type.
+            const OBJECT_RESULTS_LIMIT = 60;
+            let selectedObjectCategory = '';
+            const objectPickerRoot = document.querySelector('.dz-object-picker');
+            const objectSearchInput = objectPickerRoot.querySelector('.dz-object-search');
+            const objectCategoriesRoot = objectPickerRoot.querySelector('.dz-object-categories');
+            const objectResultsRoot = objectPickerRoot.querySelector('.dz-object-results');
+            const objectSelectedLabel = objectPickerRoot.querySelector('.dz-object-selected');
+            const objectClassnameInput = objectPickerRoot.querySelector('[data-parameter="classname"]');
+            const objectNewFileInput = objectPickerRoot.querySelector('.dz-object-new-file');
+            const renderObjectResults = () => {
+                const query = objectSearchInput.value.trim().toLowerCase();
+                const filtered = objectCatalog.filter((entry) => {
+                    if (selectedObjectCategory && entry.category !== selectedObjectCategory) return false;
+                    if (!query) return true;
+                    const haystack = [entry.classname, entry.display_name || '', entry.category, ...(entry.tags || [])].join(' ').toLowerCase();
+                    return haystack.includes(query);
+                });
+                const shown = filtered.slice(0, OBJECT_RESULTS_LIMIT);
+                objectResultsRoot.replaceChildren(...shown.map((entry) => mkEl('button', {type: 'button', class: 'dz-object-result', 'data-classname': entry.classname}, [
+                    mkEl('strong', {text: entry.classname}),
+                    mkEl('small', {text: (entry.display_name ? entry.display_name + ' · ' : '') + entry.category}),
+                ])));
+                objectResultsRoot.querySelectorAll('.dz-object-result').forEach((row) => row.addEventListener('click', () => {
+                    const entry = objectCatalog.find((item) => item.classname === row.dataset.classname);
+                    if (entry) selectObject(entry);
+                }));
+                if (filtered.length > OBJECT_RESULTS_LIMIT) {
+                    objectResultsRoot.appendChild(mkEl('small', {class: 'dz-object-more', text: 'a dalších ' + (filtered.length - OBJECT_RESULTS_LIMIT) + ' — zpřesni hledání'}));
+                } else if (filtered.length === 0) {
+                    objectResultsRoot.appendChild(mkEl('small', {class: 'dz-object-more', text: 'Žádný objekt neodpovídá hledání.'}));
+                }
+            };
+            const selectObject = (entry) => {
+                objectClassnameInput.value = entry.classname;
+                objectSelectedLabel.textContent = 'Vybráno: ' + entry.classname + (entry.display_name ? ' — ' + entry.display_name : '') + ' (' + entry.category + ')';
+                objectSelectedLabel.hidden = false;
+                objectResultsRoot.querySelectorAll('.dz-object-result').forEach((row) => row.classList.toggle('selected', row.dataset.classname === entry.classname));
+                const select = document.getElementById('dz-event-catalog').querySelector('select');
+                if (!objectNewFileInput.value && !select.value) {
+                    objectNewFileInput.value = 'custom/' + entry.category.toLowerCase() + '.json';
+                }
+                syncPointTarget();
+            };
+            objectCategoriesRoot.appendChild(mkEl('button', {type: 'button', class: 'dz-object-category selected', 'data-category': ''}, ['Vše']));
+            objectCategories.forEach((category) => objectCategoriesRoot.appendChild(mkEl('button', {type: 'button', class: 'dz-object-category', 'data-category': category}, [category])));
+            objectCategoriesRoot.querySelectorAll('.dz-object-category').forEach((btn) => btn.addEventListener('click', () => {
+                selectedObjectCategory = btn.dataset.category;
+                objectCategoriesRoot.querySelectorAll('.dz-object-category').forEach((b) => b.classList.toggle('selected', b === btn));
+                renderObjectResults();
+            }));
+            objectSearchInput.addEventListener('input', renderObjectResults);
+            // syncPointTarget is declared later in this same script block (temporal dead zone
+            // for `const`) — wrapped so the reference is only resolved when the event actually
+            // fires, not when this listener is registered.
+            objectNewFileInput.addEventListener('input', () => syncPointTarget());
+            const resetObjectPicker = () => {
+                selectedObjectCategory = '';
+                objectSearchInput.value = '';
+                objectClassnameInput.value = '';
+                objectNewFileInput.value = '';
+                objectSelectedLabel.hidden = true;
+                objectCategoriesRoot.querySelectorAll('.dz-object-category').forEach((b) => b.classList.toggle('selected', b.dataset.category === ''));
+                renderObjectResults();
+            };
+            renderObjectResults();
             const placePoint = (button) => {
                 const label = button.dataset.label || button.textContent.trim();
                 const definition = pointTypeCatalog[button.dataset.point] || { options: [], missing: ['podporovaný konfigurační soubor'], available: false };
@@ -1371,6 +1469,9 @@
                     entries.forEach((item) => select.add(new Option(item.label, item.value)));
                     catalog.hidden = false;
                     nameInput.value = '';
+                    nameInput.hidden = button.dataset.point === 'custom';
+                    objectPickerRoot.hidden = button.dataset.point !== 'custom';
+                    if (button.dataset.point === 'custom') resetObjectPicker();
                     select.selectedIndex = entries.length === 1 ? 1 : 0;
                     selectedCatalogOption = entries.length === 1 ? entries[0] : null;
                     select.onchange = syncPointTarget;
@@ -1384,9 +1485,15 @@
                 if (!targetState.available) return;
                 const customName = document.querySelector('.dz-point-name')?.value?.trim();
                 const selectedName = document.querySelector('#dz-event-catalog select')?.value;
-                const chosen = ['contaminated', 'player'].includes(button.dataset.point)
-                    ? (customName || selectedName || label)
-                    : (selectedName || customName || label);
+                const chosen = button.dataset.point === 'custom'
+                    ? objectClassnameInput.value.trim()
+                    : ['contaminated', 'player'].includes(button.dataset.point)
+                        ? (customName || selectedName || label)
+                        : (selectedName || customName || label);
+                if (button.dataset.point === 'custom' && !chosen) {
+                    showFeedback(document.getElementById('dz-event-catalog'), 'Nejprve vyber objekt z katalogu.');
+                    return;
+                }
                 const parameters = {};
                 document.querySelectorAll('#dz-event-catalog [data-parameter]').forEach((input) => parameters[input.dataset.parameter] = input.type === 'checkbox' ? input.checked : input.value);
                 const requiredMissing = (definition.fields || []).filter((field) => field.required && !String(parameters[field.name] ?? '').trim());
@@ -1489,7 +1596,8 @@
                 visualLayers.push({ layer:imported, kind:'point' });
                 markerRecords.push({ marker, color, visualLayers });
                 const markerActions = marker.editable
-                    ? [mkEl('br'), mkEl('button', {class:'dz-map-edit', type:'button', text:'Upravit souřadnice'}), ' ', mkEl('button', {class:'dz-map-delete', type:'button', text:'Smazat bod a vytvořit revizi'})]
+                    ? [mkEl('br'), mkEl('button', {class:'dz-map-edit', type:'button', text:'Upravit'}), ' ', mkEl('button', {class:'dz-map-delete', type:'button', text:'Smazat bod a vytvořit revizi'}),
+                       ...(marker.type === 'object-spawner' ? [' ', mkEl('button', {class:'dz-map-duplicate', type:'button', text:'Duplikovat'})] : [])]
                     : [mkEl('br'), mkEl('a', {href:'{{ url('/admin/projects/'.$projectId.'/configuration') }}?revision=' + marker.revision_id, text:'Otevřít příslušný editor'})];
                 imported.bindPopup(mkEl('span', {}, [
                     mkEl('strong', {text:marker.label}),
@@ -1550,6 +1658,21 @@
                         const editDefinition = editDefinitionForMarker(marker);
                         buildPointFields(editModal.querySelector('.dz-edit-point-fields'), editDefinition?.fields || [], marker.parameters || {}, true, (marker.spawn_classnames || [])[0] || '');
                         editModal.hidden = false;
+                    });
+                    root.querySelector('.dz-map-duplicate')?.addEventListener('click', async () => {
+                        const confirmed = await showSystemDialog({
+                            title: 'Duplikovat objekt',
+                            message: 'Vytvoří kopii „' + marker.label + '“ na stejné pozici — poté ji přesuň úpravou souřadnic.',
+                            confirmLabel: 'Duplikovat',
+                        });
+                        if (!confirmed) return;
+                        fetch('{{ route('map-editor.points.duplicate') }}', {method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}','Accept':'application/json'},body:JSON.stringify({project_id:@js($projectId),revision_id:marker.revision_id,filename:marker.filename,path:marker.path})}).then(async (r) => {
+                            if (!r.ok) throw new Error(await describeFetchError(r, 'Objekt se nepodařilo duplikovat.'));
+                            const result = await r.json();
+                            const reloadUrl = new URL(window.location.href);
+                            reloadUrl.searchParams.set('_map_revision', String(result.revision_id || Date.now()));
+                            window.location.href = reloadUrl.toString();
+                        }).catch((error) => showFeedback(editModal, error.message));
                     });
                 });
             });

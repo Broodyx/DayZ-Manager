@@ -2,6 +2,7 @@
 
 namespace App\Services\Dayz;
 
+use App\Services\Revision\ObjectSpawnerJsonEditor;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -10,13 +11,26 @@ final class MapConfigurationReader
 {
     public const WORLD_SIZE = 15360;
 
+    // Optional rather than a required constructor dependency: this class is instantiated with a
+    // bare `new MapConfigurationReader()` throughout its existing unit tests (no Laravel
+    // container available there), and making the catalog mandatory would break every one of
+    // them for a feature (Object Spawner marker enrichment) most of those tests don't exercise.
+    // Production code resolves it via `app()` (see MapEditor.php), so it's always present there.
+    public function __construct(private ?ObjectCatalogService $objectCatalog = null) {}
+
     /** @return list<array<string, bool|int|float|string|null>> */
     public function markers(string $filename, string $content): array
     {
         $filename = strtolower(basename(str_replace('\\', '/', $filename)));
 
         if (str_ends_with($filename, '.json')) {
-            return $this->jsonMarkers($filename, $content);
+            // Object Spawner is a specific, known JSON shape (an "Objects" array of placed
+            // classnames) — recognized ones get full read/write support (editable markers with
+            // classname/rotation/scale/persistency); any other JSON position data falls back to
+            // the generic, read-only jsonMarkers() below, exactly as before.
+            return (new ObjectSpawnerJsonEditor())->supports($filename, $content)
+                ? $this->objectSpawnerMarkers($filename, $content)
+                : $this->jsonMarkers($filename, $content);
         }
 
         return match (true) {
@@ -219,6 +233,51 @@ final class MapConfigurationReader
                     'smax' => $node->getAttribute('smax') ?: '0',
                     'dmin' => $node->getAttribute('dmin') ?: '0',
                     'dmax' => $node->getAttribute('dmax') ?: '0',
+                ]
+            );
+        }
+
+        return $markers;
+    }
+
+    /** Object Spawner objects, with full write support (unlike jsonMarkers() below) — see ObjectSpawnerJsonEditor for the JSON shape this reads. */
+    private function objectSpawnerMarkers(string $filename, string $content): array
+    {
+        $editor = new ObjectSpawnerJsonEditor();
+
+        $markers = [];
+        foreach ($editor->entries($content) as $object) {
+            [$x, $y, $z] = $object['pos'];
+            if (! $this->valid($x, $z)) {
+                continue;
+            }
+            [$yaw, $pitch, $roll] = $object['ypr'];
+            $classname = $object['name'];
+            $known = $this->objectCatalog?->find($classname);
+
+            $markers[] = $this->marker(
+                $filename,
+                $x,
+                $z,
+                $classname !== '' ? $classname : 'Object Spawner',
+                'object-spawner',
+                $object['path'],
+                null,
+                $known !== null
+                    ? 'Object Spawner: '.($known['display_name'] ?? $classname).' ('.$known['category'].').'
+                    : "Object Spawner: '{$classname}' není v katalogu známých tříd (Unknown Object) — souřadnice a rotaci lze přesto upravit.",
+                true,
+                [
+                    'classname' => $classname,
+                    'height' => $y,
+                    'yaw' => $yaw,
+                    'pitch' => $pitch,
+                    'roll' => $roll,
+                    'scale' => $object['scale'],
+                    'enable_ce_persistency' => $object['enableCEPersistency'],
+                    'catalog_display_name' => $known['display_name'] ?? null,
+                    'catalog_category' => $known['category'] ?? null,
+                    'catalog_known' => $known !== null,
                 ]
             );
         }

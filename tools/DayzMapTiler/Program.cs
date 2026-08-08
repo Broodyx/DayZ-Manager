@@ -15,6 +15,11 @@ if (args.Length > 0 && args[0] == "cargo-catalog")
     return DayzMapTiler.Source.CargoCatalogBuilder.Run(args[1..]);
 }
 
+if (args.Length > 0 && args[0] == "object-catalog")
+{
+    return DayzMapTiler.Source.ObjectCatalogBuilder.Run(args[1..]);
+}
+
 if (args.Length > 0 && args[0] == "debug-class")
 {
     return DayzMapTiler.Source.DebugClassInspect.Run(args[1..]);
