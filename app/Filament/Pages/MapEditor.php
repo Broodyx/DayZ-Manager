@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\ConfigurationRevision;
 use App\Models\Project;
+use App\Services\Dayz\CargoSizeCatalog;
 use App\Services\Dayz\ClassnameCatalog;
 use App\Services\Dayz\EnvironmentTargetCatalog;
 use App\Services\Dayz\EventsXmlEditor;
@@ -65,6 +66,7 @@ class MapEditor extends Page
     public array $animalTypeWarnings = [];
     public array $spawnValidationWarnings = [];
     public array $classnameOptions = [];
+    public array $cargoSizeCatalog = [];
     public bool $showAddEventModal = false;
     public string $addEventName = '';
     public array $addEventForm = [];
@@ -99,7 +101,7 @@ class MapEditor extends Page
      */
     private const ANIMAL_TYPE_DEFAULTS = ['nominal' => 0, 'lifetime' => 1800, 'restock' => 0, 'min' => 0, 'quantmin' => -1, 'quantmax' => -1, 'cost' => 100];
 
-    public function mount(ClassnameCatalog $classnameCatalog): void
+    public function mount(ClassnameCatalog $classnameCatalog, CargoSizeCatalog $cargoSizeCatalog): void
     {
         $this->projects = $this->projectQuery()->orderBy('name')->pluck('name', 'id')->all();
         $this->projectId = ActiveProject::resolve(request()->integer('project') ?: null, array_keys($this->projects));
@@ -118,6 +120,7 @@ class MapEditor extends Page
 
         $this->showDenseLayers = request()->boolean('dense');
         $this->classnameOptions = $classnameCatalog->names();
+        $this->cargoSizeCatalog = $cargoSizeCatalog->all();
         $this->loadMarkers();
         $this->loadMapSources();
         $this->loadEventCatalog();
@@ -1198,7 +1201,7 @@ class MapEditor extends Page
             ['name' => 'damage_min', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Minimální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => '0 = 100% funkční, 1 = zničené. Rozsah určuje náhodné poškození (u vozidel i statických kontejnerů).'],
             ['name' => 'damage_max', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Maximální poškození při spawnu', 'type' => 'number', 'min' => 0, 'max' => 1, 'step' => 0.01, 'default' => 0, 'help' => 'Nastav 0–0 pro vždy plně funkční; například 0.4–0.8 znamená náhodné poškození 40–80 %.'],
             ['name' => 'hoarder', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Hoarder (nikdy se nedespawnuje jako prázdný)', 'type' => 'checkbox', 'default' => false, 'help' => 'Typicky pro barely a bedny, které mají vždy vypadat plné.'],
-            ['name' => 'cargo_items', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Konkrétní itemy uvnitř (classname, šance, počet ks)', 'type' => 'item-list', 'item_fields' => ['name', 'chance', 'quantmin', 'quantmax'], 'list' => 'dz-attachment-catalog', 'default' => [], 'help' => 'Změna platí pro VŠECHNY spawny tohoto classname na celé mapě, ne jen pro tenhle bod — cfgspawnabletypes.xml je klíčované podle classname. Necháš-li prázdné, použije se níže zadaný cargo preset. Pozor: Manager nezná fyzickou velikost kontejneru ani jednotlivých itemů (DayZ cargo je mřížka šířka×výška, ne prostý počet), takže nekontroluje, jestli se vše fyzicky vejde — počet přidaných položek raději ověř přímo ve hře.'],
+            ['name' => 'cargo_items', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Konkrétní itemy uvnitř (classname, šance, počet ks)', 'type' => 'item-list', 'item_fields' => ['name', 'chance', 'quantmin', 'quantmax'], 'list' => 'dz-attachment-catalog', 'default' => [], 'help' => 'Změna platí pro VŠECHNY spawny tohoto classname na celé mapě, ne jen pro tenhle bod — cfgspawnabletypes.xml je klíčované podle classname. Necháš-li prázdné, použije se níže zadaný cargo preset. U každé položky se zobrazí, kolik místa v mřížce zabírá (reálná data z game configů), a celkový součet proti kapacitě kontejneru — databáze ale nemusí znát úplně vše (moddované/DLC itemy), u neznámých položek si to raději ověř přímo ve hře.'],
             ['name' => 'cargo_preset', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Cargo preset (alternativa ke konkrétním itemům výše)', 'type' => 'text', 'list' => 'dz-cargo-preset-catalog', 'default' => '', 'help' => 'Začněte psát a vyberte preset z aktuálního cfgspawnabletypes.xml. Použije se jen pokud výše není zadaný žádný konkrétní item.'],
             ['name' => 'attachments', 'section' => 'Obsah kontejneru · cfgspawnabletypes.xml', 'label' => 'Attachmenty', 'type' => 'text', 'list' => 'dz-attachment-catalog', 'default' => '', 'help' => 'Nabízí použité attachmenty z aktuálního souboru; zadejte více tříd oddělených čárkou.'],
         ];

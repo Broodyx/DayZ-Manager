@@ -378,10 +378,11 @@
                         <div class="dz-item-list-field">
                             <label>Konkrétní itemy uvnitř</label>
                             <span class="dz-item-list-count" data-wizard-cargo-count>zatím žádné položky</span>
+                            <div class="dz-cargo-capacity-summary" data-wizard-cargo-capacity></div>
                             <div class="dz-item-list-rows" data-wizard-cargo-rows></div>
                             <input type="hidden" wire:model="addEventForm.cargo_items" data-wizard-cargo-hidden>
                             <button type="button" class="dz-item-list-add" data-wizard-cargo-add>+ přidat item</button>
-                            <small>Pozor: Manager nezná fyzickou kapacitu kontejneru ani rozměr jednotlivých itemů (DayZ cargo je mřížka šířka×výška, ne prostý počet) — počet přidaných položek raději ověř přímo ve hře.</small>
+                            <small>Rozměry a kapacita jsou reálná data z game configů (config.bin), ale databáze nemusí znát úplně vše (moddované/DLC itemy) — u neznámých položek si počet raději ověř přímo ve hře.</small>
                         </div>
                         <div class="dz-add-event-grid">
                             <label class="dz-add-event-span2">Cargo preset (alternativa ke konkrétním itemům výše)
@@ -441,6 +442,7 @@
                 modal.querySelectorAll('.dz-wizard-step').forEach((el) => { el.hidden = el.dataset.wizardStep !== step; });
                 if (step === 'settings') refreshSettingsButtons(modal);
                 if (step === 'condition' || step === 'contents') refreshClassnameDisplays(modal);
+                if (step === 'contents') syncCargoRows(modal);
             };
             const applyChildType = (modal, value) => {
                 const target = modal.querySelector('input[wire\\:model="addEventForm.child_type"]');
@@ -497,6 +499,19 @@
                 hidden.value = JSON.stringify(items);
                 hidden.dispatchEvent(new Event('input'));
                 count.textContent = items.length === 0 ? 'zatím žádné položky' : items.length + (items.length === 1 ? ' položka přidána' : items.length < 5 ? ' položky přidány' : ' položek přidáno');
+                rows.querySelectorAll('.dz-item-list-row').forEach((row) => {
+                    const nameCell = row.querySelector('[data-item-field="name"]');
+                    const spaceEl = row.querySelector('.dz-item-list-space');
+                    if (spaceEl && window.dzCargo) {
+                        const entry = window.dzCargo.lookup(nameCell?.value);
+                        spaceEl.textContent = entry ? window.dzCargo.slots(entry) + ' míst' : (nameCell?.value.trim() ? '?' : '');
+                        spaceEl.title = entry ? window.dzCargo.format(entry) : 'Rozměr této položky neznáme (není v extrahované databázi).';
+                    }
+                });
+                const capacityEl = modal.querySelector('[data-wizard-cargo-capacity]');
+                if (capacityEl && window.dzCargo) {
+                    window.dzCargo.renderSummary(capacityEl, currentChildType(modal), items);
+                }
             };
             const addCargoRow = (modal) => {
                 const rows = modal.querySelector('[data-wizard-cargo-rows]');
@@ -514,6 +529,9 @@
                     cell.addEventListener('input', () => syncCargoRows(modal));
                     row.appendChild(cell);
                 });
+                const space = document.createElement('span');
+                space.className = 'dz-item-list-space';
+                row.appendChild(space);
                 const remove = document.createElement('button');
                 remove.type = 'button';
                 remove.className = 'dz-item-list-remove';
@@ -696,6 +714,62 @@
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
         <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Real inventory-grid footprints extracted from the game's own config.bin files
+            // (see App\Services\Dayz\CargoSizeCatalog) — classname (lowercase) -> {width,
+            // height, kind, source_pbo}. "kind" is "container" (has its own Cargo grid) or
+            // "item" (only its own footprint when placed inside something else). Exposed on
+            // window so the Add-event wizard's separately-rendered script block (only present
+            // in the DOM once the modal opens, well after this DOMContentLoaded handler runs)
+            // can reuse the same lookup instead of duplicating it.
+            const CARGO_CATALOG = @json($cargoSizeCatalog);
+            const cargoLookup = (name) => CARGO_CATALOG[String(name || '').trim().toLowerCase()] || null;
+            const cargoSlots = (entry) => entry ? entry.width * entry.height : null;
+            const formatCargoEntry = (entry) => entry ? (entry.width + '×' + entry.height + ' (' + (entry.width * entry.height) + ' míst)') : 'neznámé rozměry';
+            const biggerContainers = (minSlots, limit = 3) => {
+                const seenSlots = new Set();
+                return Object.values(CARGO_CATALOG)
+                    .filter((e) => e.kind === 'container' && e.width * e.height > minSlots)
+                    .sort((a, b) => (a.width * a.height) - (b.width * b.height))
+                    .filter((e) => { const s = e.width * e.height; if (seenSlots.has(s)) return false; seenSlots.add(s); return true; })
+                    .slice(0, limit);
+            };
+            const renderCargoCapacitySummary = (el, containerClassname, items) => {
+                el.innerHTML = '';
+                el.classList.remove('dz-cargo-capacity-over');
+                const capacityEntry = cargoLookup(containerClassname);
+                if (capacityEntry) {
+                    el.appendChild(document.createTextNode('Kapacita ' + containerClassname + ': ' + formatCargoEntry(capacityEntry)));
+                } else if (containerClassname) {
+                    el.appendChild(document.createTextNode('Kapacitu „' + containerClassname + '“ neznáme (není v extrahované databázi z game configů) — součet níže je jen orientační.'));
+                }
+                if (!items || !items.length) return;
+                let usedSlots = 0;
+                let unknownCount = 0;
+                items.forEach((item) => {
+                    const entry = cargoLookup(item.name);
+                    if (entry) usedSlots += cargoSlots(entry); else unknownCount++;
+                });
+                if (usedSlots === 0 && unknownCount === 0) return;
+                const usageLine = document.createElement('div');
+                usageLine.textContent = 'Využito: ' + usedSlots + ' míst' + (unknownCount ? ' (+ ' + unknownCount + ' položek s neznámým rozměrem, nezapočítáno)' : '');
+                el.appendChild(usageLine);
+                if (capacityEntry && usedSlots > cargoSlots(capacityEntry)) {
+                    el.classList.add('dz-cargo-capacity-over');
+                    const overLine = document.createElement('div');
+                    overLine.className = 'dz-cargo-capacity-alert';
+                    overLine.textContent = '⚠ Překročena kapacita o ' + (usedSlots - cargoSlots(capacityEntry)) + ' míst — do hry se všechny položky nevejdou.';
+                    el.appendChild(overLine);
+                    const suggestions = biggerContainers(usedSlots, 3);
+                    if (suggestions.length) {
+                        const suggestLine = document.createElement('div');
+                        suggestLine.className = 'dz-cargo-capacity-suggest';
+                        suggestLine.textContent = 'Zkus větší kontejner: ' + suggestions.map((s) => s.classname + ' (' + (s.width * s.height) + ' míst)').join(', ');
+                        el.appendChild(suggestLine);
+                    }
+                }
+            };
+            window.dzCargo = { lookup: cargoLookup, slots: cargoSlots, format: formatCargoEntry, bigger: biggerContainers, renderSummary: renderCargoCapacitySummary };
+
             const el = document.getElementById('dayz-leaflet-map');
             if (!el || el.dataset.ready) return;
             el.dataset.ready = '1';
@@ -974,7 +1048,7 @@
                 if (marker.type === 'territory') return pointTypeCatalog.territory;
                 return null;
             };
-            const buildPointFields = (root, fields, values = {}, editMode = false) => {
+            const buildPointFields = (root, fields, values = {}, editMode = false, containerClassname = '') => {
                 root.replaceChildren();
                 const sections = new Map();
                 (fields || []).forEach((field) => {
@@ -1000,7 +1074,7 @@
                         section = sections.get(sectionName);
                     }
                     if (field.type === 'item-list') {
-                        section.appendChild(buildItemListField(field, values[field.name] || field.default || []));
+                        section.appendChild(buildItemListField(field, values[field.name] || field.default || [], containerClassname));
                         return;
                     }
                     const label = document.createElement('label');
@@ -1043,7 +1117,7 @@
                     section.appendChild(label);
                 });
             };
-            const buildItemListField = (field, initialItems) => {
+            const buildItemListField = (field, initialItems, containerClassname = '') => {
                 const wrap = document.createElement('div');
                 wrap.className = 'dz-item-list-field';
                 const legend = document.createElement('label');
@@ -1052,6 +1126,9 @@
                 const countBadge = document.createElement('span');
                 countBadge.className = 'dz-item-list-count';
                 wrap.appendChild(countBadge);
+                const capacitySummary = document.createElement('div');
+                capacitySummary.className = 'dz-cargo-capacity-summary';
+                wrap.appendChild(capacitySummary);
                 const rows = document.createElement('div');
                 rows.className = 'dz-item-list-rows';
                 wrap.appendChild(rows);
@@ -1066,6 +1143,9 @@
                     quantmin: { placeholder: 'min ks', type: 'number', min: 0, step: 1 },
                     quantmax: { placeholder: 'max ks', type: 'number', min: 0, step: 1 },
                 };
+                const updateCapacitySummary = (items) => {
+                    window.dzCargo.renderSummary(capacitySummary, containerClassname, items);
+                };
                 const sync = () => {
                     const items = Array.from(rows.children).map((row) => {
                         const item = {};
@@ -1077,6 +1157,16 @@
                     }).filter((item) => String(item.name || '').trim() !== '');
                     hidden.value = JSON.stringify(items);
                     countBadge.textContent = items.length === 0 ? 'zatím žádné položky' : items.length + (items.length === 1 ? ' položka přidána' : items.length < 5 ? ' položky přidány' : ' položek přidáno');
+                    rows.querySelectorAll('.dz-item-list-row').forEach((row) => {
+                        const nameCell = row.querySelector('[data-item-field="name"]');
+                        const spaceEl = row.querySelector('.dz-item-list-space');
+                        if (spaceEl) {
+                            const entry = window.dzCargo.lookup(nameCell?.value);
+                            spaceEl.textContent = entry ? window.dzCargo.slots(entry) + ' míst' : (nameCell?.value.trim() ? '?' : '');
+                            spaceEl.title = entry ? window.dzCargo.format(entry) : 'Rozměr této položky neznáme (není v extrahované databázi).';
+                        }
+                    });
+                    updateCapacitySummary(items);
                 };
                 const addRow = (item = {}) => {
                     const row = document.createElement('div');
@@ -1095,6 +1185,9 @@
                         cell.addEventListener('input', sync);
                         row.appendChild(cell);
                     });
+                    const space = document.createElement('span');
+                    space.className = 'dz-item-list-space';
+                    row.appendChild(space);
                     const remove = document.createElement('button');
                     remove.type = 'button';
                     remove.className = 'dz-item-list-remove';
@@ -1395,7 +1488,11 @@
                         const el = editModal.querySelector('.dz-edit-point-spawn-classname');
                         const classnames = marker.spawn_classnames || [];
                         if (classnames.length) {
-                            el.textContent = '🎯 Tento bod spawnuje: ' + classnames.map((name) => '„' + name + '“').join(', ');
+                            const withCapacity = classnames.map((name) => {
+                                const entry = window.dzCargo?.lookup(name);
+                                return '„' + name + '“' + (entry ? ' (' + window.dzCargo.format(entry) + ')' : '');
+                            });
+                            el.textContent = '🎯 Tento bod spawnuje: ' + withCapacity.join(', ');
                             el.hidden = false;
                         } else {
                             el.hidden = true;
@@ -1408,7 +1505,7 @@
                         editModal.querySelector('.dz-edit-x').value = marker.worldX;
                         editModal.querySelector('.dz-edit-z').value = marker.worldZ;
                         const editDefinition = editDefinitionForMarker(marker);
-                        buildPointFields(editModal.querySelector('.dz-edit-point-fields'), editDefinition?.fields || [], marker.parameters || {}, true);
+                        buildPointFields(editModal.querySelector('.dz-edit-point-fields'), editDefinition?.fields || [], marker.parameters || {}, true, (marker.spawn_classnames || [])[0] || '');
                         const badge = editModal.querySelector('.dz-edit-point-contents-badge');
                         const cargoItemCount = (marker.parameters?.cargo_items || []).length;
                         const hasHoarder = !!marker.parameters?.hoarder;
@@ -1432,7 +1529,7 @@
                         editModal.querySelector('.dz-edit-x').value = marker.worldX;
                         editModal.querySelector('.dz-edit-z').value = marker.worldZ;
                         const editDefinition = editDefinitionForMarker(marker);
-                        buildPointFields(editModal.querySelector('.dz-edit-point-fields'), editDefinition?.fields || [], marker.parameters || {}, true);
+                        buildPointFields(editModal.querySelector('.dz-edit-point-fields'), editDefinition?.fields || [], marker.parameters || {}, true, (marker.spawn_classnames || [])[0] || '');
                         editModal.hidden = false;
                     });
                 });

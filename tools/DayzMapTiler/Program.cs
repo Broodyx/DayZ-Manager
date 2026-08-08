@@ -5,6 +5,16 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
+if (args.Length > 0 && args[0] == "inspect-pbo")
+{
+    return DayzMapTiler.Source.CargoSizeInspect.Run(args[1..]);
+}
+
+if (args.Length > 0 && args[0] == "cargo-catalog")
+{
+    return DayzMapTiler.Source.CargoCatalogBuilder.Run(args[1..]);
+}
+
 if (args.Length > 0 && args[0] == "fetch")
 {
     return await RunFetchAsync(args[1..]);

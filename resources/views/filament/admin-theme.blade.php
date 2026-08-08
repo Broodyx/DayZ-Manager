@@ -440,12 +440,18 @@
     .dz-item-list-field { grid-column:1/-1; display:grid; gap:.5rem; }
     .dz-item-list-count { justify-self:start; margin-top:-.3rem; padding:.15rem .55rem; border-radius:999px; background:#1c2b1a; color:#9db78a; font-size:.62rem; font-weight:750; }
     .dz-item-list-rows { display:grid; gap:.4rem; }
-    .dz-item-list-row { display:grid; grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr)) auto; gap:.4rem; align-items:center; }
+    .dz-item-list-row { display:grid; grid-template-columns:minmax(0,2fr) repeat(3,minmax(0,1fr)) minmax(3.6rem,auto) auto; gap:.4rem; align-items:center; }
     .dz-item-list-row input { min-height:2.3rem !important; }
+    .dz-item-list-space { justify-self:end; padding:.15rem .5rem; border-radius:.4rem; background:#1c2410; color:#c9d79a; font-size:.68rem; font-weight:750; text-align:center; white-space:nowrap; }
     .dz-item-list-remove { flex:0 0 auto; width:2.3rem; height:2.3rem; border:1px solid #6b332f; border-radius:.4rem; background:#241412; color:#ffb3ac; font-weight:900; cursor:pointer; }
     .dz-item-list-remove:hover { border-color:#c9564a; background:#3a1a17; }
     .dz-item-list-add { justify-self:start; padding:.45rem .7rem; border:1px dashed #496b31; border-radius:.4rem; background:transparent; color:#c5d2bf; font-size:.72rem; font-weight:750; cursor:pointer; }
     .dz-item-list-add:hover { border-color:#b8ed55; color:#b8ed55; }
+    .dz-cargo-capacity-summary { display:grid; gap:.2rem; margin-top:-.2rem; padding:.5rem .7rem; border:1px solid #3a4a2e; border-radius:.5rem; background:#131c10; color:#a9bb98; font-size:.72rem; }
+    .dz-cargo-capacity-summary:empty { display:none; }
+    .dz-cargo-capacity-summary.dz-cargo-capacity-over { border-color:#8a3a30; background:#241412; color:#e3b6ac; }
+    .dz-cargo-capacity-alert { color:#ffb3ac; font-weight:800; }
+    .dz-cargo-capacity-suggest { color:#f0d488; }
     .dz-event-settings, .dz-related-files { border:1px solid #385326; border-radius:.55rem; background:#111a13; padding:.9rem; }
     .dz-event-settings > p, .dz-related-files > small { display:block; margin:.35rem 0 .75rem; color:#aab6a4; }
     .dz-event-setting-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.45rem; }
