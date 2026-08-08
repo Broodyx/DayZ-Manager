@@ -1362,7 +1362,12 @@ class MapEditor extends Page
             $eventsXml = @simplexml_load_string(Storage::disk('dayz')->get($eventsRevision->storage_path));
             foreach ($eventsXml?->event ?? [] as $event) {
                 $eventName = (string) ($event['name'] ?? '');
-                $eventChildren[$eventName] = collect($event->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
+                // iterator_to_array(..., false) is required — collect() on a raw SimpleXMLElement
+                // collapses every <child> sibling down to just the LAST one (SimpleXML's iterator
+                // yields the same string key — the tag name — for each match instead of a unique
+                // index), silently hiding all but one spawnable classname for any event with more
+                // than one <child> (e.g. multi-part heli crashes).
+                $eventChildren[$eventName] = collect(iterator_to_array($event->children->child ?? [], false))->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
                 $flags = $event->flags ?? null;
                 $eventSettings[$eventName] = [
                     'event_nominal' => (int) ($event->nominal ?? 0),

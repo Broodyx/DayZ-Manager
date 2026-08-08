@@ -354,7 +354,12 @@ class EditConfiguration extends Page
         if ($revision) {
             $xml = @simplexml_load_string(app(ConfigurationRevisionEditor::class)->content($revision));
             if ($xml) {
-                $options = collect($xml->type)
+                // iterator_to_array(..., false) is required — collect() on a raw SimpleXMLElement
+                // collapses every <type> sibling down to just the LAST one (SimpleXML's iterator
+                // yields the same string key — the tag name — for each match instead of a unique
+                // index), so this previously only ever offered a single gear class instead of the
+                // whole types.xml catalog.
+                $options = collect(iterator_to_array($xml->type ?? [], false))
                     ->map(fn ($type): string => trim((string) ($type['name'] ?? '')))
                     ->filter();
             }

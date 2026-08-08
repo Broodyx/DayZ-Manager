@@ -557,4 +557,102 @@ XML);
         $response->assertOk();
         $this->assertNull($response->json('warning'));
     }
+
+    public function test_cargo_syncs_when_events_xml_has_many_events_not_just_the_targeted_one(): void
+    {
+        // Root cause finally isolated via a live repro with the reporter: collect($xml->event)
+        // on a raw SimpleXMLElement silently collapses every <event> sibling down to just the
+        // LAST one — Laravel's Arr::from() runs a Traversable through iterator_to_array() with
+        // preserve_keys defaulting to true, and SimpleXML's own iterator yields the same string
+        // key (the tag name) for every match, so each subsequent item overwrites the last. Every
+        // seedProject() fixture in this file has exactly one <event>, which never exercised this
+        // — a real events.xml with dozens of events reliably did, making the FIRST (or any
+        // non-last) event "not found" even though it's clearly present.
+        [$user, $project] = $this->seedProject();
+        $eventsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'events.xml');
+        Storage::disk('dayz')->put($eventsRevision->storage_path, <<<'XML'
+<events>
+    <event name="StaticTestWeaponsChest_DEV2">
+        <nominal>1</nominal><min>1</min><max>1</max><lifetime>3600</lifetime><restock>0</restock>
+        <saferadius>100</saferadius><distanceradius>100</distanceradius><cleanupradius>100</cleanupradius>
+        <flags deletable="0" init_random="0" remove_damaged="0"/>
+        <position>fixed</position><limit>child</limit><active>1</active>
+        <children><child lootmax="0" lootmin="0" max="1" min="1" type="Barrel_Green"/></children>
+    </event>
+    <event name="InfectedArmy">
+        <nominal>30</nominal><min>15</min><max>45</max><lifetime>900</lifetime><restock>0</restock>
+        <saferadius>0</saferadius><distanceradius>0</distanceradius><cleanupradius>0</cleanupradius>
+        <flags deletable="0" init_random="0" remove_damaged="0"/>
+        <position>fixed</position><limit>child</limit><active>1</active>
+        <children><child lootmax="0" lootmin="0" max="1" min="1" type="InfectedArmy_01"/></children>
+    </event>
+    <event name="VehicleOffroadHatchback_DEV">
+        <nominal>1</nominal><min>0</min><max>1</max><lifetime>3600</lifetime><restock>0</restock>
+        <saferadius>0</saferadius><distanceradius>0</distanceradius><cleanupradius>0</cleanupradius>
+        <flags deletable="0" init_random="0" remove_damaged="0"/>
+        <position>fixed</position><limit>child</limit><active>1</active>
+        <children><child lootmax="0" lootmin="0" max="1" min="1" type="OffroadHatchback"/></children>
+    </event>
+</events>
+XML);
+
+        $eventSpawnsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'cfgeventspawns.xml');
+
+        $response = $this->actingAs($user)->postJson(route('map-editor.points.update'), [
+            'project_id' => $project->id,
+            'revision_id' => $eventSpawnsRevision->id,
+            'filename' => 'cfgeventspawns.xml',
+            'label' => 'StaticTestWeaponsChest_DEV2',
+            'path' => '/eventposdef/event[1]/pos[1]',
+            'x' => 100,
+            'z' => 200,
+            'new_x' => 100,
+            'new_z' => 200,
+            'parameters' => [
+                'orientation' => 0,
+                'hoarder' => true,
+            ],
+        ]);
+
+        $response->assertOk();
+        $this->assertNull($response->json('warning'));
+
+        $latestSpawnable = $project->revisions()->with('configurationImport')->orderByDesc('revision_number')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport?->original_filename ?? $revision->storage_path)) === 'cfgspawnabletypes.xml');
+        $this->assertStringContainsString('<hoarder/>', Storage::disk('dayz')->get($latestSpawnable->storage_path));
+    }
+
+    public function test_spawn_classnames_include_every_child_when_an_event_has_more_than_one(): void
+    {
+        // Same underlying collect()+SimpleXML bug, on the sibling <child> elements this time —
+        // loadMarkers() badge/point-edit-modal data would previously only ever surface the LAST
+        // child of a multi-child event (e.g. a heli crash with several wreck parts).
+        [$user, $project] = $this->seedProject();
+        $eventsRevision = $project->revisions()->with('configurationImport')->get()
+            ->first(fn ($revision) => strtolower(basename($revision->configurationImport->original_filename)) === 'events.xml');
+        Storage::disk('dayz')->put($eventsRevision->storage_path, <<<'XML'
+<events>
+    <event name="StaticTestWeaponsChest_DEV2">
+        <nominal>1</nominal><min>1</min><max>1</max><lifetime>3600</lifetime><restock>0</restock>
+        <saferadius>100</saferadius><distanceradius>100</distanceradius><cleanupradius>100</cleanupradius>
+        <flags deletable="0" init_random="0" remove_damaged="0"/>
+        <position>fixed</position><limit>child</limit><active>1</active>
+        <children>
+            <child lootmax="0" lootmin="0" max="1" min="1" type="Barrel_Green"/>
+            <child lootmax="0" lootmin="0" max="1" min="1" type="Barrel_Red"/>
+            <child lootmax="0" lootmin="0" max="1" min="1" type="Barrel_Blue"/>
+        </children>
+    </event>
+</events>
+XML);
+
+        $component = Livewire::actingAs($user)->test(MapEditor::class, [])
+            ->set('projectId', $project->id)
+            ->call('loadMarkers');
+        $marker = collect($component->get('markers'))->firstWhere('label', 'StaticTestWeaponsChest_DEV2');
+
+        $this->assertSame(['Barrel_Green', 'Barrel_Red', 'Barrel_Blue'], $marker['spawn_classnames']);
+    }
 }

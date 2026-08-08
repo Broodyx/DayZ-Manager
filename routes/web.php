@@ -124,7 +124,11 @@ Route::post('/admin/map-editor/points', function (
     if ($data['type'] !== 'animal' && in_array($data['type'], $eventTypes, true) && (array_key_exists('damage_min', $parameters) || array_key_exists('cargo_preset', $parameters) || array_key_exists('cargo_items', $parameters) || array_key_exists('hoarder', $parameters) || array_key_exists('attachments', $parameters))) {
         $spawnableRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'cfgspawnabletypes.xml');
         if ($spawnableRevision && Storage::disk('dayz')->exists($spawnableRevision->storage_path)) {
-            $eventNode = collect($eventsXml?->event ?? [])->first(fn ($event) => trim((string) ($event['name'] ?? '')) === trim($data['label']));
+            // iterator_to_array(..., false) is required here — collect() on a raw SimpleXMLElement
+            // (which iterator_to_array defaults to preserve_keys=true for) collapses every <event>
+            // sibling down to just the LAST one, because SimpleXML's iterator yields the same
+            // string key (the tag name) for each match instead of a unique index.
+            $eventNode = collect(iterator_to_array($eventsXml?->event ?? [], false))->first(fn ($event) => trim((string) ($event['name'] ?? '')) === trim($data['label']));
             $attachmentItems = array_values(array_filter(array_map(fn ($name) => ['name' => trim($name), 'chance' => 1], explode(',', (string) ($parameters['attachments'] ?? ''))), fn ($item) => $item['name'] !== ''));
             // A cargo_items row is a single guaranteed item; each becomes its own <cargo> group,
             // matching the one-item-per-group convention vanilla weapon-crate/heli-crash events use.
@@ -155,7 +159,7 @@ Route::post('/admin/map-editor/points', function (
                 ? collect($cargoItems)->map(fn ($item) => ['chance' => 1, 'items' => [$item]])->all()
                 : (trim((string) ($parameters['cargo_preset'] ?? '')) !== '' ? [['chance' => 1, 'preset' => trim((string) $parameters['cargo_preset'])]] : []);
             $spawnableContent = Storage::disk('dayz')->get($spawnableRevision->storage_path);
-            $spawnClassnames = collect($eventNode?->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values();
+            $spawnClassnames = collect(iterator_to_array($eventNode?->children->child ?? [], false))->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values();
             foreach ($spawnClassnames as $classname) {
                 $spawnableContent = $spawnableEditor->update($spawnableContent, $classname, [
                     'damage_min' => $parameters['damage_min'] ?? 0,
@@ -172,7 +176,11 @@ Route::post('/admin/map-editor/points', function (
     if (in_array($data['type'], $eventTypes, true) && ($parameters['auto_add_types'] ?? false)) {
         $typesRevision = $revisions->first(fn ($revision) => $filenameOf($revision) === 'types.xml');
         if ($typesRevision && Storage::disk('dayz')->exists($typesRevision->storage_path)) {
-            $eventNode = collect($eventsXml?->event ?? [])->first(fn ($event) => trim((string) ($event['name'] ?? '')) === trim($data['label']));
+            // iterator_to_array(..., false) is required here — collect() on a raw SimpleXMLElement
+            // (which iterator_to_array defaults to preserve_keys=true for) collapses every <event>
+            // sibling down to just the LAST one, because SimpleXML's iterator yields the same
+            // string key (the tag name) for each match instead of a unique index.
+            $eventNode = collect(iterator_to_array($eventsXml?->event ?? [], false))->first(fn ($event) => trim((string) ($event['name'] ?? '')) === trim($data['label']));
             $typesContent = Storage::disk('dayz')->get($typesRevision->storage_path);
             $defined = collect($typesEditor->entries($typesContent))->pluck('name')->map(fn ($name) => strtolower($name))->all();
             foreach ($eventNode?->children->child ?? [] as $child) {
@@ -280,10 +288,17 @@ Route::post('/admin/map-editor/points/update', function (Request $request, \App\
                 // file's name="..." attribute (easy to introduce by hand-editing, and otherwise
                 // invisible) previously made an event that visibly matches fail this strict ===
                 // comparison, producing a false "event not found" warning.
-                $eventNode = collect($eventXml->event ?? [])->first(fn ($event) => trim((string) ($event['name'] ?? '')) === trim($data['label']));
-                $spawnClassnames = collect($eventNode?->children->child ?? [])->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
+                //
+                // iterator_to_array(..., false) is required — collect() on a raw SimpleXMLElement
+                // (which internally uses iterator_to_array with preserve_keys=true) collapses every
+                // <event> sibling down to just the LAST one, because SimpleXML's iterator yields the
+                // same string key (the tag name) for each match instead of a unique index. This was
+                // the actual cause of "event not found despite a visibly-correct events.xml": with
+                // dozens of <event> elements in a real file, only the very last one ever survived.
+                $eventNode = collect(iterator_to_array($eventXml->event ?? [], false))->first(fn ($event) => trim((string) ($event['name'] ?? '')) === trim($data['label']));
+                $spawnClassnames = collect(iterator_to_array($eventNode?->children->child ?? [], false))->map(fn ($child) => trim((string) ($child['type'] ?? '')))->filter()->unique()->values()->all();
                 if (! $eventNode) {
-                    $availableNames = collect($eventXml->event ?? [])->map(fn ($event) => trim((string) ($event['name'] ?? '')))->filter()->unique()->values()->all();
+                    $availableNames = collect(iterator_to_array($eventXml->event ?? [], false))->map(fn ($event) => trim((string) ($event['name'] ?? '')))->filter()->unique()->values()->all();
                     $hint = $availableNames === []
                         ? ' (v events.xml nebyl nalezen žádný event)'
                         : ' (nalezené eventy v events.xml: '.implode(', ', array_slice($availableNames, 0, 10)).(count($availableNames) > 10 ? ', …' : '').')';
