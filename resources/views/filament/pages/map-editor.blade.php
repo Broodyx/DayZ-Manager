@@ -28,6 +28,11 @@
                     <button data-point="aerial">Letecký event</button>
                     <button data-point="custom">Vlastní bod</button>
                 </div>
+                <p class="dz-muted dz-point-new-event-hint">
+                    Event, vozidlo, heli crash ani konvoj (ani statický kontejner typu barel/bedna) ještě neexistují v <code>events.xml</code>?
+                    <button type="button" class="dz-secondary" wire:click="openAddEventModal('')" onclick="document.getElementById('dz-point-modal').hidden = true;">+ Přidat nový event do events.xml</button>
+                    Po vytvoření se objeví v seznamu u „Dynamický event" a dalších typů níže.
+                </p>
                 <div id="dz-event-catalog" class="dz-event-catalog" hidden>
                     <label>Možnosti pro vybraný typ</label>
                     <select></select>
@@ -280,9 +285,12 @@
             <div class="dz-point-modal">
                 <div class="dz-point-modal-card">
                     <button type="button" class="dz-point-close" wire:click="closeAddEventModal" aria-label="Zavřít">×</button>
-                    <h3>Přidat event „{{ $addEventName }}“ do events.xml</h3>
+                    <h3>Přidat event{{ $addEventName !== '' ? ' „'.$addEventName.'“' : '' }} do events.xml</h3>
                     <p class="dz-muted">Vyplňte základní parametry eventu. Vzniklá revize events.xml se dá později doladit v editoru konfigurace.</p>
                     <div class="dz-add-event-grid">
+                        <label class="dz-add-event-span2">Název eventu *
+                            <input type="text" wire:model="addEventName" placeholder="Např. StaticTestWeaponsChest_DEV2" autocomplete="off" required>
+                        </label>
                         <label>Nominal<input type="number" min="0" wire:model="addEventForm.nominal"></label>
                         <label>Min<input type="number" min="0" wire:model="addEventForm.min"></label>
                         <label>Max<input type="number" min="0" wire:model="addEventForm.max"></label>
@@ -303,6 +311,7 @@
                                 <option value="unlimited">unlimited</option>
                                 <option value="nearest">nearest</option>
                                 <option value="farthest">farthest</option>
+                                <option value="child">child · pevný jednorázový objekt (např. statický kontejner)</option>
                             </select>
                         </label>
                         <label class="dz-add-event-span2">Classname objektu ke spawnutí (volitelné)

@@ -110,7 +110,7 @@ final class EventsXmlEditor
             $this->setChildText($document, $event, 'position', in_array($values['position'], ['fixed', 'player'], true) ? $values['position'] : 'fixed');
         }
         if (isset($values['limit'])) {
-            $this->setChildText($document, $event, 'limit', in_array($values['limit'], ['mixed', 'unlimited', 'nearest', 'farthest'], true) ? $values['limit'] : 'mixed');
+            $this->setChildText($document, $event, 'limit', in_array($values['limit'], ['mixed', 'unlimited', 'nearest', 'farthest', 'child'], true) ? $values['limit'] : 'mixed');
         }
         if (array_key_exists('active', $values)) {
             $this->setChildText($document, $event, 'active', $values['active'] ? '1' : '0');
@@ -197,10 +197,12 @@ final class EventsXmlEditor
         $flags->setAttribute('remove_damaged', ($values['remove_damaged'] ?? false) ? '1' : '0');
         $event->appendChild($flags);
 
-        $position = in_array($values['position'] ?? 'fixed', ['fixed', 'player'], true) ? $values['position'] : 'fixed';
+        $requestedPosition = $values['position'] ?? 'fixed';
+        $position = in_array($requestedPosition, ['fixed', 'player'], true) ? $requestedPosition : 'fixed';
         $event->appendChild($document->createElement('position', $position));
 
-        $limit = in_array($values['limit'] ?? 'mixed', ['mixed', 'unlimited', 'nearest', 'farthest'], true) ? $values['limit'] : 'mixed';
+        $requestedLimit = $values['limit'] ?? 'mixed';
+        $limit = in_array($requestedLimit, ['mixed', 'unlimited', 'nearest', 'farthest', 'child'], true) ? $requestedLimit : 'mixed';
         $event->appendChild($document->createElement('limit', $limit));
         $event->appendChild($document->createElement('active', '1'));
 

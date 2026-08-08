@@ -79,6 +79,17 @@ XML;
         $this->assertSame(30, $untouched['nominal']);
     }
 
+    public function test_limit_child_is_accepted_and_not_downgraded_to_mixed(): void
+    {
+        $updated = (new EventsXmlEditor())->update(self::SAMPLE, 'StaticHeliCrash', ['limit' => 'child']);
+        $this->assertSame('child', (new EventsXmlEditor())->values($updated, 'StaticHeliCrash')['limit']);
+
+        $appended = (new EventsXmlEditor())->appendEvent(self::SAMPLE, 'StaticWeaponsChest', ['limit' => 'child', 'child_type' => 'Barrel_Green']);
+        $values = (new EventsXmlEditor())->values($appended, 'StaticWeaponsChest');
+        $this->assertSame('child', $values['limit']);
+        $this->assertSame('Barrel_Green', $values['children'][0]['type']);
+    }
+
     public function test_remove_deletes_the_event(): void
     {
         $updated = (new EventsXmlEditor())->remove(self::SAMPLE, 'InfectedArmy');

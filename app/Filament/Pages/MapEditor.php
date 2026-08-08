@@ -730,7 +730,7 @@ class MapEditor extends Page
         Notification::make()->success()->title("Pozice eventu {$eventName} odstraněny")->body("Vznikla revize #{$saved->revision_number}.")->send();
     }
 
-    public function openAddEventModal(string $eventName): void
+    public function openAddEventModal(string $eventName = ''): void
     {
         $this->addEventName = $eventName;
         $this->addEventForm = [

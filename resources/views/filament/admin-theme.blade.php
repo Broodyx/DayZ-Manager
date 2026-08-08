@@ -371,6 +371,9 @@
     .dz-point-options button { min-height:3rem; text-align:left; border:1px solid #3e5c28; border-radius:.5rem; background:#18251a; color:#e7f7d2; padding:.65rem; cursor:pointer; }
     .dz-point-options button:hover { border-color:#b8ed55; background:#263b20; color:#d8f57b; }
     .dz-point-options button.selected { border-color:#b8ed55; background:#b8ed55; color:#0d160d; box-shadow:0 0 0 2px rgba(184,237,85,.25); }
+    .dz-point-new-event-hint { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin:.85rem 0 0; padding:.7rem .85rem; border:1px dashed #496b31; border-radius:.55rem; }
+    .dz-point-new-event-hint button { flex:0 0 auto; padding:.5rem .75rem; border:1px solid #6b8f2b; border-radius:.4rem; background:#182a10; color:#d8f57b; font-size:.72rem; font-weight:750; cursor:pointer; }
+    .dz-point-new-event-hint button:hover { border-color:#b8ed55; background:#233a17; }
     .dz-event-catalog { margin-top:1rem; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem .8rem; }
     .dz-event-catalog[hidden] { display:none; }
     .dz-event-catalog label { color:#d8f57b; font-weight:700; }
